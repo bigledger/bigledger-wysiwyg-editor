@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "bigldegr-wysiwyg-editor": {
+    "bigldeger-wysiwyg-editor": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
