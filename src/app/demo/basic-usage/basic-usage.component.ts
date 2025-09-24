@@ -10,7 +10,7 @@ import { RouterLink } from '@angular/router';
     <div class="container">
       <div class="demo-header">
         <h1>Basic Usage Examples</h1>
-        <p>Simple implementations of the Angular WYSIWYG Editor with default settings</p>
+        <p>Simple implementations of the BigLedger WYSIWYG Editor with default settings</p>
         <nav class="demo-nav">
           <a routerLink="/" class="nav-link">← Back to Home</a>
         </nav>

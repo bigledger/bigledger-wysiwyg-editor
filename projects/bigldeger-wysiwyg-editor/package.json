@@ -1,5 +1,5 @@
 {
-  "name": "angular-wysiwyg-editor",
+  "name": "bigldeger-wysiwyg-editor",
   "version": "1.0.0",
   "description": "A rich text WYSIWYG editor component for Angular applications with comprehensive formatting tools, image support, and forms integration",
   "keywords": [
@@ -19,11 +19,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bigledger/angular-wysiwyg-editor.git"
+    "url": "https://github.com/bigledger/bigldeger-wysiwyg-editor.git"
   },
-  "homepage": "https://github.com/bigledger/angular-wysiwyg-editor#readme",
+  "homepage": "https://github.com/bigledger/bigldeger-wysiwyg-editor#readme",
   "bugs": {
-    "url": "https://github.com/bigledger/angular-wysiwyg-editor/issues"
+    "url": "https://github.com/bigledger/bigldeger-wysiwyg-editor/issues"
   },
   "main": "bundles/angular-wysiwyg-editor.umd.js",
   "module": "fesm2022/angular-wysiwyg-editor.mjs",

@@ -94,20 +94,20 @@
         }
       }
     },
-    "angular-wysiwyg-editor": {
+    "bigldeger-wysiwyg-editor-lib": {
       "projectType": "library",
-      "root": "projects/angular-wysiwyg-editor",
-      "sourceRoot": "projects/angular-wysiwyg-editor/src",
+      "root": "projects/bigldeger-wysiwyg-editor",
+      "sourceRoot": "projects/bigldeger-wysiwyg-editor/src",
       "prefix": "wysiwyg",
       "architect": {
         "build": {
           "builder": "@angular/build:ng-packagr",
           "configurations": {
             "production": {
-              "tsConfig": "projects/angular-wysiwyg-editor/tsconfig.lib.prod.json"
+              "tsConfig": "projects/bigldeger-wysiwyg-editor/tsconfig.lib.prod.json"
             },
             "development": {
-              "tsConfig": "projects/angular-wysiwyg-editor/tsconfig.lib.json"
+              "tsConfig": "projects/bigldeger-wysiwyg-editor/tsconfig.lib.json"
             }
           },
           "defaultConfiguration": "production"
@@ -115,7 +115,7 @@
         "test": {
           "builder": "@angular/build:karma",
           "options": {
-            "tsConfig": "projects/angular-wysiwyg-editor/tsconfig.spec.json",
+            "tsConfig": "projects/bigldeger-wysiwyg-editor/tsconfig.spec.json",
             "polyfills": [
               "zone.js",
               "zone.js/testing"

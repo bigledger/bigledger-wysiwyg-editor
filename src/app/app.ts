@@ -8,5 +8,5 @@ import { RouterOutlet } from '@angular/router';
   styleUrl: './app.sass'
 })
 export class App {
-  title = 'Angular WYSIWYG Editor Demo';
+  title = 'BigLedger WYSIWYG Editor Demo';
 }

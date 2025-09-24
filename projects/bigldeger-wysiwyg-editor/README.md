@@ -1,4 +1,4 @@
-# Angular WYSIWYG Editor
+# BigLedger WYSIWYG Editor
 
 A comprehensive rich text WYSIWYG editor component for Angular applications. This library provides a feature-rich text editor with customizable toolbar, formatting options, image support, and seamless Angular forms integration.
 
@@ -28,7 +28,7 @@ A comprehensive rich text WYSIWYG editor component for Angular applications. Thi
 ## Installation
 
 ```bash
-npm install angular-wysiwyg-editor
+npm install bigldeger-wysiwyg-editor
 ```
 
 ## Quick Start
@@ -39,7 +39,7 @@ For Angular applications using modules:
 
 ```typescript
 import { NgModule } from '@angular/core';
-import { WysiwygEditorModule } from 'angular-wysiwyg-editor';
+import { WysiwygEditorModule } from 'bigldeger-wysiwyg-editor';
 
 @NgModule({
   imports: [
@@ -54,7 +54,7 @@ For standalone components:
 
 ```typescript
 import { Component } from '@angular/core';
-import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
+import { WysiwygEditorComponent } from 'bigldeger-wysiwyg-editor';
 
 @Component({
   selector: 'app-example',
@@ -84,7 +84,7 @@ export class ExampleComponent {
 ### Custom Toolbar Configuration
 
 ```typescript
-import { ToolbarConfig } from 'angular-wysiwyg-editor';
+import { ToolbarConfig } from 'bigldeger-wysiwyg-editor';
 
 export class MyComponent {
   content = '';
@@ -267,7 +267,7 @@ This library is designed to be a drop-in replacement for Froala Editor. For a co
 ### Quick Migration Steps
 
 1. **Uninstall Froala**: `npm uninstall angular-froala-wysiwyg froala-editor`
-2. **Install Angular WYSIWYG Editor**: `npm install angular-wysiwyg-editor`
+2. **Install BigLedger WYSIWYG Editor**: `npm install bigldeger-wysiwyg-editor`
 3. **Update imports**: Change from `FroalaEditorModule` to `WysiwygEditorModule`
 4. **Update templates**: Use `<wysiwyg-editor>` instead of `<div [froalaEditor]>`
 5. **Update model binding**: Use `[(ngModel)]` instead of `[(froalaModel)]`
@@ -277,7 +277,7 @@ This library is designed to be a drop-in replacement for Froala Editor. For a co
 <div [froalaEditor]="froalaOptions" [(froalaModel)]="content"></div>
 ```
 
-### After (Angular WYSIWYG Editor)
+### After (BigLedger WYSIWYG Editor)
 ```html
 <wysiwyg-editor [toolbarConfig]="toolbarConfig" [(ngModel)]="content"></wysiwyg-editor>
 ```

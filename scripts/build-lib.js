@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🚀 Building Angular WYSIWYG Editor Library...\n');
+console.log('🚀 Building BigLedger WYSIWYG Editor Library...\n');
 
 try {
   // Clean previous build
