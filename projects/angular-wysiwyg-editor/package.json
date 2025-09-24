@@ -1,0 +1,68 @@
+{
+  "name": "angular-wysiwyg-editor",
+  "version": "1.0.0",
+  "description": "A rich text WYSIWYG editor component for Angular applications with comprehensive formatting tools, image support, and forms integration",
+  "keywords": [
+    "angular", 
+    "wysiwyg", 
+    "editor", 
+    "rich-text", 
+    "text-editor", 
+    "contenteditable", 
+    "formatting", 
+    "toolbar", 
+    "html-editor",
+    "angular-component",
+    "typescript"
+  ],
+  "author": "BigLedger",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bigledger/angular-wysiwyg-editor.git"
+  },
+  "homepage": "https://github.com/bigledger/angular-wysiwyg-editor#readme",
+  "bugs": {
+    "url": "https://github.com/bigledger/angular-wysiwyg-editor/issues"
+  },
+  "main": "bundles/angular-wysiwyg-editor.umd.js",
+  "module": "fesm2022/angular-wysiwyg-editor.mjs",
+  "es2020": "fesm2020/angular-wysiwyg-editor.mjs",
+  "esm2020": "esm2020/angular-wysiwyg-editor.mjs",
+  "fesm2020": "fesm2020/angular-wysiwyg-editor.mjs",
+  "fesm2022": "fesm2022/angular-wysiwyg-editor.mjs",
+  "typings": "index.d.ts",
+  "exports": {
+    "./package.json": {
+      "default": "./package.json"
+    },
+    ".": {
+      "types": "./index.d.ts",
+      "esm2022": "./esm2022/angular-wysiwyg-editor.mjs",
+      "esm2020": "./esm2020/angular-wysiwyg-editor.mjs",
+      "es2020": "./fesm2020/angular-wysiwyg-editor.mjs",
+      "es2015": "./fesm2015/angular-wysiwyg-editor.mjs",
+      "node": "./fesm2015/angular-wysiwyg-editor.mjs",
+      "default": "./fesm2022/angular-wysiwyg-editor.mjs"
+    }
+  },
+  "peerDependencies": {
+    "@angular/common": ">=15.0.0",
+    "@angular/core": ">=15.0.0",
+    "@angular/forms": ">=15.0.0",
+    "rxjs": ">=7.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependenciesMeta": {
+    "@angular/forms": {
+      "optional": true
+    }
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

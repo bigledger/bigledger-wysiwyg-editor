@@ -1,12 +1,35 @@
 {
-  "name": "bigldegr-wysiwyg-editor",
+  "name": "bigledger-wysiwyg-editor",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "build:lib": "ng build angular-wysiwyg-editor --configuration production",
+    "build:lib:dev": "ng build angular-wysiwyg-editor --configuration development",
+    "build:lib:watch": "ng build angular-wysiwyg-editor --watch",
+    "test": "ng test",
+    "test:lib": "ng test angular-wysiwyg-editor",
+    "test:lib:ci": "ng test angular-wysiwyg-editor --watch=false --browsers=ChromeHeadless --code-coverage",
+    "test:lib:coverage": "ng test angular-wysiwyg-editor --code-coverage --watch=false",
+    "e2e": "cypress run",
+    "e2e:open": "cypress open",
+    "e2e:ci": "cypress run --browser chrome --headless",
+    "lint": "ng lint",
+    "pack:lib": "cd dist/angular-wysiwyg-editor && npm pack",
+    "build:lib:full": "node scripts/build-lib.js",
+    "publish:lib": "npm run build:lib:full && npm run pack:lib",
+    "release:lib": "npm run test:lib:ci && npm run build:lib && cd dist/angular-wysiwyg-editor && npm publish",
+    "version:patch": "npm version patch && cd projects/angular-wysiwyg-editor && npm version patch",
+    "version:minor": "npm version minor && cd projects/angular-wysiwyg-editor && npm version minor",
+    "version:major": "npm version major && cd projects/angular-wysiwyg-editor && npm version major",
+    "clean": "rimraf dist",
+    "prebuild:lib": "npm run clean",
+    "analyze:bundle": "ANALYZE=true ng build angular-wysiwyg-editor --configuration production --stats-json",
+    "analyze:bundle:open": "npm run analyze:bundle && npx webpack-bundle-analyzer dist/angular-wysiwyg-editor/stats.json",
+    "perf:test": "ng test angular-wysiwyg-editor --include='**/performance/**/*.spec.ts' --watch=false",
+    "perf:benchmark": "node scripts/performance-benchmark.js",
+    "size:check": "npm run build:lib && bundlesize"
   },
   "prettier": {
     "printWidth": 100,
@@ -43,6 +66,14 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.9.2"
+    "ng-packagr": "^20.3.0",
+    "rimraf": "^5.0.0",
+    "typescript": "~5.9.2",
+    "cypress": "^13.6.0",
+    "@cypress/webpack-preprocessor": "^6.0.0",
+    "axe-core": "^4.8.0",
+    "cypress-axe": "^1.5.0",
+    "webpack-bundle-analyzer": "^4.9.0",
+    "bundlesize": "^0.18.1"
   }
 }

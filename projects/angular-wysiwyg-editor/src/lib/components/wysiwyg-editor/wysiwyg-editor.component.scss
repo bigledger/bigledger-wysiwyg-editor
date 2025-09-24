@@ -1,0 +1,103 @@
+@import '../../styles/themes.scss';
+
+.wysiwyg-editor {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--wysiwyg-border-primary);
+  border-radius: var(--wysiwyg-border-radius-lg);
+  background: var(--wysiwyg-bg-primary);
+  font-family: var(--wysiwyg-font-family);
+  font-size: var(--wysiwyg-font-size-md);
+  line-height: var(--wysiwyg-line-height);
+  color: var(--wysiwyg-text-primary);
+  overflow: hidden;
+  position: relative;
+  transition: border-color var(--wysiwyg-transition-normal), box-shadow var(--wysiwyg-transition-normal);
+
+  &--readonly {
+    background-color: var(--wysiwyg-bg-secondary);
+    
+    .wysiwyg-toolbar {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .wysiwyg-content {
+      cursor: default;
+    }
+  }
+
+  &--disabled {
+    opacity: 0.6;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
+  // Focus styles
+  &:focus-within {
+    border-color: var(--wysiwyg-border-focus);
+    box-shadow: 0 0 0 2px var(--wysiwyg-shadow-focus);
+  }
+
+  // Size variants
+  &--small {
+    font-size: var(--wysiwyg-font-size-sm);
+    
+    .wysiwyg-toolbar {
+      padding: var(--wysiwyg-spacing-xs);
+    }
+    
+    .wysiwyg-content {
+      padding: var(--wysiwyg-spacing-sm);
+      min-height: 80px;
+    }
+  }
+  
+  &--large {
+    font-size: var(--wysiwyg-font-size-lg);
+    
+    .wysiwyg-toolbar {
+      padding: var(--wysiwyg-spacing-lg);
+    }
+    
+    .wysiwyg-content {
+      padding: var(--wysiwyg-spacing-lg);
+      min-height: 200px;
+    }
+  }
+
+  // Theme variants
+  &.light-theme {
+    // Light theme is default, no additional styles needed
+  }
+
+  &.dark-theme {
+    // Dark theme styles are handled by CSS custom properties
+  }
+
+  &.auto-theme {
+    // Auto theme adapts to system preference
+    @media (prefers-color-scheme: dark) {
+      // Dark theme styles are handled by CSS custom properties
+    }
+  }
+
+  // Responsive design
+  @include wysiwyg-mobile {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    font-size: var(--wysiwyg-font-size-sm);
+    
+    &:focus-within {
+      box-shadow: none;
+    }
+  }
+  
+  @include wysiwyg-tablet {
+    font-size: var(--wysiwyg-font-size-md);
+  }
+}
+
+// Content styles are now handled by global styles
+// This ensures consistency across all editor instances

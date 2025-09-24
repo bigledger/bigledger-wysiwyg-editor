@@ -7,7 +7,7 @@
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
-          "style": "sass"
+          "style": "css"
         }
       },
       "root": "",
@@ -22,7 +22,7 @@
               "zone.js"
             ],
             "tsConfig": "tsconfig.app.json",
-            "inlineStyleLanguage": "sass",
+            "inlineStyleLanguage": "css",
             "assets": [
               {
                 "glob": "**/*",
@@ -61,10 +61,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "bigldegr-wysiwyg-editor:build:production"
+              "buildTarget": "bigldeger-wysiwyg-editor:build:production"
             },
             "development": {
-              "buildTarget": "bigldegr-wysiwyg-editor:build:development"
+              "buildTarget": "bigldeger-wysiwyg-editor:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -89,6 +89,36 @@
             ],
             "styles": [
               "src/styles.sass"
+            ]
+          }
+        }
+      }
+    },
+    "angular-wysiwyg-editor": {
+      "projectType": "library",
+      "root": "projects/angular-wysiwyg-editor",
+      "sourceRoot": "projects/angular-wysiwyg-editor/src",
+      "prefix": "wysiwyg",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/angular-wysiwyg-editor/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/angular-wysiwyg-editor/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:karma",
+          "options": {
+            "tsConfig": "projects/angular-wysiwyg-editor/tsconfig.spec.json",
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
             ]
           }
         }

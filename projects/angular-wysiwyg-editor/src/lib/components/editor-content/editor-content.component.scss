@@ -1,0 +1,31 @@
+@import '../../styles/themes.scss';
+
+.wysiwyg-content {
+  flex: 1;
+  padding: var(--wysiwyg-spacing-md);
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  overflow-y: auto;
+  min-height: 120px;
+  resize: vertical;
+  
+  @include wysiwyg-scrollbar;
+
+  // Focus is handled by the parent editor container
+  // Focus styles are handled by the parent editor container
+
+  &.readonly {
+    cursor: default;
+    user-select: none;
+  }
+}
+
+// Content styles are now handled by global styles
+// This ensures consistency across all editor instances
+
+// Theme and accessibility styles are now handled by global styles

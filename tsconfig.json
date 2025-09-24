@@ -3,6 +3,11 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "paths": {
+      "angular-wysiwyg-editor": [
+        "./dist/angular-wysiwyg-editor"
+      ]
+    },
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
@@ -29,6 +34,12 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/angular-wysiwyg-editor/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/angular-wysiwyg-editor/tsconfig.spec.json"
     }
   ]
 }

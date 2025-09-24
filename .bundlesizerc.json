@@ -1,0 +1,15 @@
+{
+  "files": [
+    {
+      "path": "dist/angular-wysiwyg-editor/fesm2022/angular-wysiwyg-editor.mjs",
+      "maxSize": "200KB",
+      "compression": "gzip"
+    },
+    {
+      "path": "dist/angular-wysiwyg-editor/bundles/angular-wysiwyg-editor.umd.js",
+      "maxSize": "250KB",
+      "compression": "gzip"
+    }
+  ],
+  "defaultCompression": "gzip"
+}

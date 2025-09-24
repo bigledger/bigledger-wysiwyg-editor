@@ -1,0 +1,192 @@
+// Main styles entry point for the Angular WYSIWYG Editor
+// This file should be imported by applications using the library
+
+// Import theme system
+@import './themes.scss';
+
+// Import global styles
+@import './global.scss';
+
+// Export theme mixins and variables for customization
+// Applications can import this file and use the mixins to create custom themes
+
+// Example usage in an application:
+// @import '~angular-wysiwyg-editor/styles';
+// 
+// .my-custom-editor {
+//   @include wysiwyg-dark-theme {
+//     --wysiwyg-primary-color: #ff6b6b;
+//   }
+// }
+
+// Default theme classes that can be applied to the editor
+.wysiwyg-theme-light {
+  // Light theme is the default
+}
+
+.wysiwyg-theme-dark {
+  @include wysiwyg-dark-theme;
+}
+
+.wysiwyg-theme-auto {
+  // Automatically adapts to system preference
+  @media (prefers-color-scheme: dark) {
+    @include wysiwyg-auto-dark-theme;
+  }
+}
+
+// Size variants
+.wysiwyg-size-small {
+  font-size: var(--wysiwyg-font-size-sm);
+  
+  .wysiwyg-toolbar {
+    padding: var(--wysiwyg-spacing-xs);
+  }
+  
+  .wysiwyg-content {
+    padding: var(--wysiwyg-spacing-sm);
+    min-height: 80px;
+  }
+}
+
+.wysiwyg-size-large {
+  font-size: var(--wysiwyg-font-size-lg);
+  
+  .wysiwyg-toolbar {
+    padding: var(--wysiwyg-spacing-lg);
+  }
+  
+  .wysiwyg-content {
+    padding: var(--wysiwyg-spacing-lg);
+    min-height: 200px;
+  }
+}
+
+// Utility classes for common customizations
+.wysiwyg-rounded {
+  border-radius: var(--wysiwyg-border-radius-xl);
+}
+
+.wysiwyg-no-border {
+  border: none;
+}
+
+.wysiwyg-shadow {
+  box-shadow: 0 4px 12px var(--wysiwyg-shadow-medium);
+}
+
+.wysiwyg-full-width {
+  width: 100%;
+}
+
+.wysiwyg-full-height {
+  height: 100%;
+  
+  .wysiwyg-content {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+// Animation classes
+.wysiwyg-animate {
+  .wysiwyg-dialog-overlay {
+    animation: wysiwyg-fade-in 0.2s ease-out;
+  }
+  
+  .wysiwyg-dialog {
+    animation: wysiwyg-slide-down 0.2s ease-out;
+  }
+  
+  .wysiwyg-toolbar__dropdown-menu {
+    animation: wysiwyg-fade-in 0.15s ease-out;
+  }
+}
+
+// Print-friendly styles
+.wysiwyg-print-friendly {
+  @media print {
+    .wysiwyg-toolbar {
+      display: none !important;
+    }
+    
+    .wysiwyg-content {
+      border: none !important;
+      box-shadow: none !important;
+      background: white !important;
+      color: black !important;
+      padding: 0 !important;
+    }
+  }
+}
+
+// Accessibility enhancements
+.wysiwyg-high-contrast {
+  --wysiwyg-border-primary: #000000;
+  --wysiwyg-border-secondary: #000000;
+  --wysiwyg-text-primary: #000000;
+  --wysiwyg-bg-primary: #ffffff;
+  
+  &.wysiwyg-theme-dark {
+    --wysiwyg-border-primary: #ffffff;
+    --wysiwyg-border-secondary: #ffffff;
+    --wysiwyg-text-primary: #ffffff;
+    --wysiwyg-bg-primary: #000000;
+  }
+}
+
+.wysiwyg-large-text {
+  --wysiwyg-font-size-md: 18px;
+  --wysiwyg-font-size-lg: 20px;
+  --wysiwyg-font-size-xl: 22px;
+}
+
+// Mobile-first responsive classes
+.wysiwyg-mobile-optimized {
+  @include wysiwyg-mobile {
+    .wysiwyg-toolbar {
+      flex-wrap: wrap;
+      padding: var(--wysiwyg-spacing-xs);
+    }
+    
+    .wysiwyg-toolbar__button,
+    .wysiwyg-toolbar__dropdown-trigger {
+      min-width: 40px;
+      height: 40px;
+      touch-action: manipulation;
+    }
+    
+    .wysiwyg-content {
+      padding: var(--wysiwyg-spacing-sm);
+      font-size: 16px; // Prevent zoom on iOS
+    }
+  }
+}
+
+// Custom scrollbar for webkit browsers
+.wysiwyg-custom-scrollbar {
+  .wysiwyg-content,
+  .wysiwyg-toolbar__dropdown-menu {
+    @include wysiwyg-scrollbar;
+  }
+}
+
+// Focus trap for better accessibility
+.wysiwyg-focus-trap {
+  .wysiwyg-dialog {
+    &:focus {
+      outline: none;
+    }
+  }
+}
+
+// Reduced motion support
+.wysiwyg-respect-motion-preferences {
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

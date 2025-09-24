@@ -1,0 +1,111 @@
+@import '../../../styles/themes.scss';
+
+.wysiwyg-link-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--wysiwyg-bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--wysiwyg-z-modal);
+  padding: var(--wysiwyg-spacing-lg);
+  animation: wysiwyg-fade-in 0.2s ease-out;
+  
+  @include wysiwyg-mobile {
+    padding: var(--wysiwyg-spacing-sm);
+    align-items: flex-start;
+    padding-top: 10vh;
+  }
+}
+
+.wysiwyg-link-dialog {
+  @include wysiwyg-card;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: wysiwyg-slide-down 0.2s ease-out;
+  
+  @include wysiwyg-scrollbar;
+  
+  @include wysiwyg-mobile {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: var(--wysiwyg-border-radius-md);
+  }
+}
+
+.wysiwyg-link-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-lg);
+  border-bottom: 1px solid var(--wysiwyg-border-primary);
+
+  h3 {
+    margin: 0;
+    font-size: var(--wysiwyg-font-size-xl);
+    font-weight: var(--wysiwyg-font-weight-semibold);
+    color: var(--wysiwyg-text-primary);
+  }
+}
+
+.wysiwyg-link-dialog-close {
+  @include wysiwyg-button-base;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: var(--wysiwyg-font-size-xl);
+  color: var(--wysiwyg-text-secondary);
+
+  &:hover {
+    background-color: var(--wysiwyg-bg-tertiary);
+    color: var(--wysiwyg-text-primary);
+  }
+
+  &:focus {
+    @include wysiwyg-focus-ring;
+  }
+}
+
+.wysiwyg-link-dialog-form {
+  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-xxl);
+}
+
+.wysiwyg-form-group {
+  @extend .wysiwyg-form-group;
+}
+
+.wysiwyg-error-message {
+  color: var(--wysiwyg-danger-color);
+  font-size: var(--wysiwyg-font-size-sm);
+  margin-top: var(--wysiwyg-spacing-xs);
+  display: block;
+}
+
+.wysiwyg-link-dialog-actions {
+  display: flex;
+  gap: var(--wysiwyg-spacing-md);
+  justify-content: flex-end;
+  padding-top: var(--wysiwyg-spacing-lg);
+  border-top: 1px solid var(--wysiwyg-border-primary);
+}
+
+.wysiwyg-btn {
+  &--primary {
+    @include wysiwyg-button-primary;
+  }
+
+  &--secondary {
+    @include wysiwyg-button-secondary;
+  }
+
+  &--danger {
+    @include wysiwyg-button-danger;
+  }
+}
+
+// Theme styles are now handled by the global theming system

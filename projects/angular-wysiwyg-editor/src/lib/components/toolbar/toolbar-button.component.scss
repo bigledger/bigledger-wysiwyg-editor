@@ -1,0 +1,202 @@
+.wysiwyg-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 32px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background-color: transparent;
+  color: #333333;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+
+  &:hover:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+    background-color: #f5f5f5;
+    border-color: #d0d0d0;
+  }
+
+  &:focus {
+    outline: 2px solid #0066cc;
+    outline-offset: 1px;
+    z-index: 1;
+  }
+
+  &:active:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+    background-color: #e0e0e0;
+    transform: translateY(1px);
+  }
+
+  &--active {
+    background-color: #e6f3ff;
+    border-color: #0066cc;
+    color: #0066cc;
+
+    &:hover:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+      background-color: #cce7ff;
+      border-color: #0052a3;
+    }
+
+    &:active:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+      background-color: #b3d9ff;
+    }
+  }
+
+  &--disabled,
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+.wysiwyg-toolbar-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+
+  // Style for text-based icons
+  strong, em, u, s {
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  // Emoji icons
+  &:has-emoji {
+    font-size: 14px;
+  }
+}
+
+.wysiwyg-toolbar-button__label {
+  margin-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 1;
+
+  .wysiwyg-toolbar-button__icon + & {
+    margin-left: 4px;
+  }
+
+  &:only-child {
+    margin-left: 0;
+  }
+}
+
+.wysiwyg-toolbar-button__dialog-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 8px;
+  line-height: 1;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+// Dark theme support
+.wysiwyg-toolbar--dark .wysiwyg-toolbar-button {
+  color: #ffffff;
+
+  &:hover:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+    background-color: #404040;
+    border-color: #606060;
+  }
+
+  &:active:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+    background-color: #303030;
+  }
+
+  &--active {
+    background-color: #0066cc;
+    border-color: #0066cc;
+    color: #ffffff;
+
+    &:hover:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+      background-color: #0052a3;
+      border-color: #0052a3;
+    }
+
+    &:active:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+      background-color: #003d7a;
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .wysiwyg-toolbar-button {
+    min-width: 28px;
+    height: 28px;
+    padding: 2px 4px;
+    font-size: 12px;
+  }
+
+  .wysiwyg-toolbar-button__icon {
+    width: 14px;
+    height: 14px;
+
+    strong, em, u, s {
+      font-size: 10px;
+    }
+  }
+
+  .wysiwyg-toolbar-button__label {
+    font-size: 10px;
+    margin-left: 2px;
+  }
+
+  .wysiwyg-toolbar-button__dialog-indicator {
+    font-size: 6px;
+    bottom: 1px;
+    right: 1px;
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .wysiwyg-toolbar-button {
+    border-color: #000000;
+
+    &:hover:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+      background-color: #000000;
+      color: #ffffff;
+    }
+
+    &--active {
+      background-color: #000000;
+      color: #ffffff;
+      border-color: #000000;
+    }
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .wysiwyg-toolbar-button {
+    transition: none;
+
+    &:active:not(:disabled):not(.wysiwyg-toolbar-button--disabled) {
+      transform: none;
+    }
+  }
+}
+
+// Focus visible support for better keyboard navigation
+.wysiwyg-toolbar-button:focus-visible {
+  outline: 2px solid #0066cc;
+  outline-offset: 1px;
+}
+
+.wysiwyg-toolbar-button:focus:not(:focus-visible) {
+  outline: none;
+}

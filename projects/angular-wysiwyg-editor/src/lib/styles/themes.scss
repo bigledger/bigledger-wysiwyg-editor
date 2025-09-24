@@ -1,0 +1,492 @@
+// Global theme variables and mixins for the WYSIWYG editor
+// This file provides comprehensive theming support with light and dark modes
+
+// CSS Custom Properties for theming
+:root {
+  // Light theme colors (default)
+  --wysiwyg-primary-color: #3498db;
+  --wysiwyg-primary-hover: #2980b9;
+  --wysiwyg-primary-active: #21618c;
+  --wysiwyg-primary-light: #e6f3ff;
+  --wysiwyg-primary-lighter: #cce7ff;
+  
+  --wysiwyg-secondary-color: #95a5a6;
+  --wysiwyg-secondary-hover: #7f8c8d;
+  --wysiwyg-secondary-active: #6c7b7d;
+  
+  --wysiwyg-success-color: #27ae60;
+  --wysiwyg-success-hover: #229954;
+  --wysiwyg-success-active: #1e8449;
+  
+  --wysiwyg-danger-color: #e74c3c;
+  --wysiwyg-danger-hover: #c0392b;
+  --wysiwyg-danger-active: #a93226;
+  
+  --wysiwyg-warning-color: #f39c12;
+  --wysiwyg-warning-hover: #e67e22;
+  --wysiwyg-warning-active: #d35400;
+  
+  // Background colors
+  --wysiwyg-bg-primary: #ffffff;
+  --wysiwyg-bg-secondary: #f8f9fa;
+  --wysiwyg-bg-tertiary: #ecf0f1;
+  --wysiwyg-bg-quaternary: #d5dbdb;
+  --wysiwyg-bg-overlay: rgba(0, 0, 0, 0.5);
+  
+  // Text colors
+  --wysiwyg-text-primary: #2c3e50;
+  --wysiwyg-text-secondary: #7f8c8d;
+  --wysiwyg-text-tertiary: #95a5a6;
+  --wysiwyg-text-placeholder: #bdc3c7;
+  --wysiwyg-text-inverse: #ffffff;
+  
+  // Border colors
+  --wysiwyg-border-primary: #e1e5e9;
+  --wysiwyg-border-secondary: #d0d0d0;
+  --wysiwyg-border-tertiary: #bdc3c7;
+  --wysiwyg-border-focus: var(--wysiwyg-primary-color);
+  
+  // Shadow colors
+  --wysiwyg-shadow-light: rgba(0, 0, 0, 0.1);
+  --wysiwyg-shadow-medium: rgba(0, 0, 0, 0.15);
+  --wysiwyg-shadow-heavy: rgba(0, 0, 0, 0.25);
+  --wysiwyg-shadow-focus: rgba(52, 152, 219, 0.25);
+  
+  // Spacing
+  --wysiwyg-spacing-xs: 4px;
+  --wysiwyg-spacing-sm: 8px;
+  --wysiwyg-spacing-md: 12px;
+  --wysiwyg-spacing-lg: 16px;
+  --wysiwyg-spacing-xl: 20px;
+  --wysiwyg-spacing-xxl: 24px;
+  
+  // Border radius
+  --wysiwyg-border-radius-sm: 3px;
+  --wysiwyg-border-radius-md: 4px;
+  --wysiwyg-border-radius-lg: 6px;
+  --wysiwyg-border-radius-xl: 8px;
+  
+  // Typography
+  --wysiwyg-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --wysiwyg-font-family-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  --wysiwyg-font-size-xs: 10px;
+  --wysiwyg-font-size-sm: 12px;
+  --wysiwyg-font-size-md: 14px;
+  --wysiwyg-font-size-lg: 16px;
+  --wysiwyg-font-size-xl: 18px;
+  --wysiwyg-font-size-xxl: 20px;
+  --wysiwyg-line-height: 1.5;
+  --wysiwyg-font-weight-normal: 400;
+  --wysiwyg-font-weight-medium: 500;
+  --wysiwyg-font-weight-semibold: 600;
+  --wysiwyg-font-weight-bold: 700;
+  
+  // Transitions
+  --wysiwyg-transition-fast: 0.15s ease;
+  --wysiwyg-transition-normal: 0.2s ease;
+  --wysiwyg-transition-slow: 0.3s ease;
+  
+  // Z-index layers
+  --wysiwyg-z-dropdown: 1000;
+  --wysiwyg-z-sticky: 100;
+  --wysiwyg-z-modal: 2000;
+  --wysiwyg-z-tooltip: 3000;
+}
+
+// Dark theme overrides
+[data-theme="dark"],
+.wysiwyg-editor.dark-theme {
+  --wysiwyg-primary-color: #5dade2;
+  --wysiwyg-primary-hover: #85c1e9;
+  --wysiwyg-primary-active: #aed6f1;
+  --wysiwyg-primary-light: rgba(93, 173, 226, 0.2);
+  --wysiwyg-primary-lighter: rgba(93, 173, 226, 0.1);
+  
+  --wysiwyg-secondary-color: #bdc3c7;
+  --wysiwyg-secondary-hover: #d5dbdb;
+  --wysiwyg-secondary-active: #ecf0f1;
+  
+  --wysiwyg-success-color: #58d68d;
+  --wysiwyg-success-hover: #82e5aa;
+  --wysiwyg-success-active: #abebc6;
+  
+  --wysiwyg-danger-color: #ec7063;
+  --wysiwyg-danger-hover: #f1948a;
+  --wysiwyg-danger-active: #f5b7b1;
+  
+  --wysiwyg-warning-color: #f7dc6f;
+  --wysiwyg-warning-hover: #f9e79f;
+  --wysiwyg-warning-active: #fcf3cf;
+  
+  // Background colors
+  --wysiwyg-bg-primary: #2c3e50;
+  --wysiwyg-bg-secondary: #34495e;
+  --wysiwyg-bg-tertiary: #4a5f7a;
+  --wysiwyg-bg-quaternary: #5d6d7e;
+  --wysiwyg-bg-overlay: rgba(0, 0, 0, 0.7);
+  
+  // Text colors
+  --wysiwyg-text-primary: #ecf0f1;
+  --wysiwyg-text-secondary: #bdc3c7;
+  --wysiwyg-text-tertiary: #95a5a6;
+  --wysiwyg-text-placeholder: #7f8c8d;
+  --wysiwyg-text-inverse: #2c3e50;
+  
+  // Border colors
+  --wysiwyg-border-primary: #4a5f7a;
+  --wysiwyg-border-secondary: #5d6d7e;
+  --wysiwyg-border-tertiary: #6c7b7d;
+  --wysiwyg-border-focus: var(--wysiwyg-primary-color);
+  
+  // Shadow colors
+  --wysiwyg-shadow-light: rgba(0, 0, 0, 0.3);
+  --wysiwyg-shadow-medium: rgba(0, 0, 0, 0.4);
+  --wysiwyg-shadow-heavy: rgba(0, 0, 0, 0.6);
+  --wysiwyg-shadow-focus: rgba(93, 173, 226, 0.3);
+}
+
+// High contrast theme overrides
+@media (prefers-contrast: high) {
+  :root {
+    --wysiwyg-border-primary: #000000;
+    --wysiwyg-border-secondary: #000000;
+    --wysiwyg-border-tertiary: #000000;
+    --wysiwyg-text-primary: #000000;
+    --wysiwyg-bg-primary: #ffffff;
+  }
+  
+  [data-theme="dark"],
+  .wysiwyg-editor.dark-theme {
+    --wysiwyg-border-primary: #ffffff;
+    --wysiwyg-border-secondary: #ffffff;
+    --wysiwyg-border-tertiary: #ffffff;
+    --wysiwyg-text-primary: #ffffff;
+    --wysiwyg-bg-primary: #000000;
+  }
+}
+
+// Reduced motion preferences
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --wysiwyg-transition-fast: none;
+    --wysiwyg-transition-normal: none;
+    --wysiwyg-transition-slow: none;
+  }
+}
+
+// Responsive breakpoints
+$wysiwyg-breakpoint-xs: 480px;
+$wysiwyg-breakpoint-sm: 768px;
+$wysiwyg-breakpoint-md: 1024px;
+$wysiwyg-breakpoint-lg: 1200px;
+$wysiwyg-breakpoint-xl: 1440px;
+
+// Mixins for responsive design
+@mixin wysiwyg-mobile {
+  @media (max-width: #{$wysiwyg-breakpoint-sm - 1px}) {
+    @content;
+  }
+}
+
+@mixin wysiwyg-tablet {
+  @media (min-width: #{$wysiwyg-breakpoint-sm}) and (max-width: #{$wysiwyg-breakpoint-md - 1px}) {
+    @content;
+  }
+}
+
+@mixin wysiwyg-desktop {
+  @media (min-width: #{$wysiwyg-breakpoint-md}) {
+    @content;
+  }
+}
+
+@mixin wysiwyg-large-desktop {
+  @media (min-width: #{$wysiwyg-breakpoint-lg}) {
+    @content;
+  }
+}
+
+// Theme mixins
+@mixin wysiwyg-light-theme {
+  [data-theme="light"] &,
+  .wysiwyg-editor.light-theme & {
+    @content;
+  }
+}
+
+@mixin wysiwyg-dark-theme {
+  [data-theme="dark"] &,
+  .wysiwyg-editor.dark-theme & {
+    @content;
+  }
+}
+
+@mixin wysiwyg-auto-theme {
+  @media (prefers-color-scheme: light) {
+    .wysiwyg-editor.auto-theme & {
+      @content;
+    }
+  }
+}
+
+@mixin wysiwyg-auto-dark-theme {
+  @media (prefers-color-scheme: dark) {
+    .wysiwyg-editor.auto-theme & {
+      @content;
+    }
+  }
+}
+
+// Focus styles mixin
+@mixin wysiwyg-focus-ring($color: var(--wysiwyg-primary-color)) {
+  outline: 2px solid $color;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.2);
+  
+  @include wysiwyg-dark-theme {
+    box-shadow: 0 0 0 4px rgba(93, 173, 226, 0.2);
+  }
+}
+
+// Button styles mixin
+@mixin wysiwyg-button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--wysiwyg-spacing-sm) var(--wysiwyg-spacing-md);
+  border: 1px solid transparent;
+  border-radius: var(--wysiwyg-border-radius-md);
+  background-color: transparent;
+  color: var(--wysiwyg-text-primary);
+  font-family: var(--wysiwyg-font-family);
+  font-size: var(--wysiwyg-font-size-md);
+  font-weight: var(--wysiwyg-font-weight-medium);
+  cursor: pointer;
+  transition: all var(--wysiwyg-transition-normal);
+  user-select: none;
+  
+  &:focus-visible {
+    @include wysiwyg-focus-ring;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+@mixin wysiwyg-button-primary {
+  @include wysiwyg-button-base;
+  background-color: var(--wysiwyg-primary-color);
+  color: var(--wysiwyg-text-inverse);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--wysiwyg-primary-hover);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--wysiwyg-primary-active);
+  }
+}
+
+@mixin wysiwyg-button-secondary {
+  @include wysiwyg-button-base;
+  background-color: var(--wysiwyg-bg-tertiary);
+  color: var(--wysiwyg-text-primary);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--wysiwyg-bg-quaternary);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--wysiwyg-border-secondary);
+  }
+}
+
+@mixin wysiwyg-button-danger {
+  @include wysiwyg-button-base;
+  background-color: var(--wysiwyg-danger-color);
+  color: var(--wysiwyg-text-inverse);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--wysiwyg-danger-hover);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--wysiwyg-danger-active);
+  }
+}
+
+// Input styles mixin
+@mixin wysiwyg-input-base {
+  width: 100%;
+  padding: var(--wysiwyg-spacing-sm) var(--wysiwyg-spacing-md);
+  border: 2px solid var(--wysiwyg-border-primary);
+  border-radius: var(--wysiwyg-border-radius-md);
+  background-color: var(--wysiwyg-bg-primary);
+  color: var(--wysiwyg-text-primary);
+  font-family: var(--wysiwyg-font-family);
+  font-size: var(--wysiwyg-font-size-md);
+  transition: border-color var(--wysiwyg-transition-normal);
+  box-sizing: border-box;
+  
+  &:focus {
+    outline: none;
+    border-color: var(--wysiwyg-border-focus);
+  }
+  
+  &::placeholder {
+    color: var(--wysiwyg-text-placeholder);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: var(--wysiwyg-bg-secondary);
+  }
+  
+  &.error {
+    border-color: var(--wysiwyg-danger-color);
+  }
+}
+
+// Card/panel styles mixin
+@mixin wysiwyg-card {
+  background-color: var(--wysiwyg-bg-primary);
+  border: 1px solid var(--wysiwyg-border-primary);
+  border-radius: var(--wysiwyg-border-radius-lg);
+  box-shadow: 0 2px 8px var(--wysiwyg-shadow-light);
+}
+
+// Dropdown menu styles mixin
+@mixin wysiwyg-dropdown-menu {
+  position: absolute;
+  background-color: var(--wysiwyg-bg-primary);
+  border: 1px solid var(--wysiwyg-border-primary);
+  border-radius: var(--wysiwyg-border-radius-md);
+  box-shadow: 0 4px 12px var(--wysiwyg-shadow-medium);
+  z-index: var(--wysiwyg-z-dropdown);
+  overflow: hidden;
+}
+
+// Scrollbar styles mixin
+@mixin wysiwyg-scrollbar {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: var(--wysiwyg-bg-secondary);
+    border-radius: var(--wysiwyg-border-radius-sm);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--wysiwyg-border-secondary);
+    border-radius: var(--wysiwyg-border-radius-sm);
+    
+    &:hover {
+      background: var(--wysiwyg-border-tertiary);
+    }
+  }
+  
+  // Firefox scrollbar
+  scrollbar-width: thin;
+  scrollbar-color: var(--wysiwyg-border-secondary) var(--wysiwyg-bg-secondary);
+}
+
+// Screen reader only content
+@mixin wysiwyg-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Animation keyframes
+@keyframes wysiwyg-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wysiwyg-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes wysiwyg-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wysiwyg-slide-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+// Utility classes
+.wysiwyg-sr-only {
+  @include wysiwyg-sr-only;
+}
+
+.wysiwyg-fade-in {
+  animation: wysiwyg-fade-in 0.2s ease-out;
+}
+
+.wysiwyg-fade-out {
+  animation: wysiwyg-fade-out 0.2s ease-out;
+}
+
+.wysiwyg-slide-down {
+  animation: wysiwyg-slide-down 0.2s ease-out;
+}
+
+.wysiwyg-slide-up {
+  animation: wysiwyg-slide-up 0.2s ease-out;
+}
+
+// Print styles
+@media print {
+  .wysiwyg-editor {
+    .wysiwyg-toolbar {
+      display: none !important;
+    }
+    
+    .wysiwyg-content {
+      border: none !important;
+      box-shadow: none !important;
+      background: white !important;
+      color: black !important;
+    }
+  }
+}
