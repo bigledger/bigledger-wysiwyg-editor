@@ -5,6 +5,7 @@ import { ImageData } from '../models/image.interface';
 import { SelectionService } from './selection.service';
 import { BrowserCompatibilityService } from './browser-compatibility.service';
 import { ErrorHandlerService } from './error-handler.service';
+import { HistoryService } from './history.service';
 
 /**
  * Service for executing editor commands and managing formatting operations
@@ -16,7 +17,8 @@ export class CommandService {
   constructor(
     private selectionService: SelectionService,
     private browserCompatibilityService: BrowserCompatibilityService,
-    private errorHandlerService: ErrorHandlerService
+    private errorHandlerService: ErrorHandlerService,
+    private historyService: HistoryService
   ) {}
 
   /**
@@ -652,5 +654,658 @@ export class CommandService {
       this.errorHandlerService.handleCommandError('handleImageDrop', { fileType: 'image' }, false);
       return false;
     }
+  }
+
+  /**
+   * Execute multiple commands in batch with grouping
+   */
+  executeCommands(commands: any[]): boolean {
+    try {
+      // Save current selection once for all commands
+      this.selectionService.saveSelection();
+
+      // Start a command group for batch operations
+      const groupId = this.historyService.startGroup(`Batch operation: ${commands.length} commands`);
+
+      let allSuccessful = true;
+      
+      for (const commandData of commands) {
+        const command = commandData.command;
+        const value = commandData.value;
+        
+        const success = document.execCommand(command.name, command.options?.showUI || false, value);
+        
+        if (!success) {
+          // Try fallback for this command
+          const fallbackSuccess = this.executeFallbackCommand(command, value);
+          if (!fallbackSuccess) {
+            allSuccessful = false;
+          }
+        }
+      }
+
+      // End the command group
+      this.historyService.endGroup(groupId);
+
+      return allSuccessful;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('executeCommands', { commandCount: commands.length }, false);
+      return false;
+    }
+  }
+
+  /**
+   * Remove all formatting from selected text
+   */
+  removeFormatting(): boolean {
+    try {
+      // Save current selection
+      this.selectionService.saveSelection();
+
+      // Execute removeFormat command
+      const success = document.execCommand('removeFormat', false);
+
+      if (!success) {
+        // Fallback: wrap selection in plain text
+        return this.removeFormattingFallback();
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('removeFormatting', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Fallback method to remove formatting
+   */
+  private removeFormattingFallback(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    try {
+      const range = selection.getRangeAt(0);
+      const selectedText = range.toString();
+      
+      if (selectedText) {
+        range.deleteContents();
+        range.insertNode(document.createTextNode(selectedText));
+      }
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Insert HTML at current cursor position
+   */
+  insertHTML(html: string): boolean {
+    try {
+      // Save current selection
+      this.selectionService.saveSelection();
+
+      // Execute insertHTML command
+      const success = document.execCommand('insertHTML', false, html);
+
+      if (!success) {
+        // Fallback: insert HTML manually
+        return this.insertHTMLFallback(html);
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('insertHTML', { html }, false);
+      return false;
+    }
+  }
+
+  /**
+   * Fallback method to insert HTML
+   */
+  private insertHTMLFallback(html: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    try {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+
+      // Create a temporary container to parse HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+
+      // Insert each child node
+      const fragment = document.createDocumentFragment();
+      while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
+      }
+
+      range.insertNode(fragment);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Insert plain text at current cursor position
+   */
+  insertText(text: string): boolean {
+    try {
+      // Save current selection
+      this.selectionService.saveSelection();
+
+      // Execute insertText command
+      const success = document.execCommand('insertText', false, text);
+
+      if (!success) {
+        // Fallback: insert text manually
+        return this.insertTextFallback(text);
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('insertText', { text }, false);
+      return false;
+    }
+  }
+
+  /**
+   * Fallback method to insert text
+   */
+  private insertTextFallback(text: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    try {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(text));
+
+      // Move cursor to end of inserted text
+      range.setStartAfter(range.endContainer);
+      range.setEndAfter(range.endContainer);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Align text to the left
+   */
+  alignLeft(): boolean {
+    try {
+      // Save current selection
+      this.selectionService.saveSelection();
+
+      // Execute justifyLeft command
+      const success = document.execCommand('justifyLeft', false);
+
+      if (!success) {
+        // Fallback: set text-align style
+        return this.alignTextFallback('left');
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('alignLeft', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Align text to the center
+   */
+  alignCenter(): boolean {
+    try {
+      // Save current selection
+      this.selectionService.saveSelection();
+
+      // Execute justifyCenter command
+      const success = document.execCommand('justifyCenter', false);
+
+      if (!success) {
+        // Fallback: set text-align style
+        return this.alignTextFallback('center');
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('alignCenter', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Align text to the right
+   */
+  alignRight(): boolean {
+    try {
+      // Save current selection
+      this.selectionService.saveSelection();
+
+      // Execute justifyRight command
+      const success = document.execCommand('justifyRight', false);
+
+      if (!success) {
+        // Fallback: set text-align style
+        return this.alignTextFallback('right');
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('alignRight', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Justify text alignment
+   */
+  alignJustify(): boolean {
+    try {
+      // Save current selection
+      this.selectionService.saveSelection();
+
+      // Execute justifyFull command
+      const success = document.execCommand('justifyFull', false);
+
+      if (!success) {
+        // Fallback: set text-align style
+        return this.alignTextFallback('justify');
+      }
+
+      return success;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('alignJustify', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Fallback method for text alignment
+   */
+  private alignTextFallback(alignment: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    try {
+      const range = selection.getRangeAt(0);
+      const blockElement = this.findParentBlockElement(range.commonAncestorContainer);
+      
+      if (blockElement) {
+        blockElement.style.textAlign = alignment;
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Find the parent block element for alignment
+   */
+  private findParentBlockElement(node: Node): HTMLElement | null {
+    let element = node;
+    
+    // If it's a text node, get its parent
+    while (element && element.nodeType !== Node.ELEMENT_NODE) {
+      element = element.parentNode!;
+    }
+
+    // Find the closest block element
+    while (element && element.nodeType === Node.ELEMENT_NODE) {
+      const tagName = (element as Element).tagName.toLowerCase();
+      if (['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote'].includes(tagName)) {
+        return element as HTMLElement;
+      }
+      element = element.parentNode!;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get current text alignment
+   */
+  getCurrentAlignment(): string {
+    try {
+      // Check command states first
+      if (this.getCommandState('justifyCenter')) {
+        return 'center';
+      }
+      if (this.getCommandState('justifyRight')) {
+        return 'right';
+      }
+      if (this.getCommandState('justifyFull')) {
+        return 'justify';
+      }
+      if (this.getCommandState('justifyLeft')) {
+        return 'left';
+      }
+
+      // Fallback: check computed style
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const blockElement = this.findParentBlockElement(range.commonAncestorContainer);
+        
+        if (blockElement) {
+          const computedStyle = window.getComputedStyle(blockElement);
+          const textAlign = computedStyle.textAlign;
+          
+          if (['center', 'right', 'justify'].includes(textAlign)) {
+            return textAlign;
+          }
+        }
+      }
+
+      // Default to left
+      return 'left';
+    } catch (error) {
+      return 'left';
+    }
+  }
+
+  /**
+   * Check if text is aligned left
+   */
+  isAlignedLeft(): boolean {
+    return this.getCurrentAlignment() === 'left';
+  }
+
+  /**
+   * Check if text is aligned center
+   */
+  isAlignedCenter(): boolean {
+    return this.getCurrentAlignment() === 'center';
+  }
+
+  /**
+   * Check if text is aligned right
+   */
+  isAlignedRight(): boolean {
+    return this.getCurrentAlignment() === 'right';
+  }
+
+  /**
+   * Check if text is justified
+   */
+  isAlignedJustify(): boolean {
+    return this.getCurrentAlignment() === 'justify';
+  }
+
+  /**
+   * Undo the last action
+   */
+  undo(): boolean {
+    try {
+      const previousState = this.historyService.undo();
+      if (previousState) {
+        // Restore content and selection
+        this.restoreHistoryState(previousState);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('undo', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Redo the next action
+   */
+  redo(): boolean {
+    try {
+      const nextState = this.historyService.redo();
+      if (nextState) {
+        // Restore content and selection
+        this.restoreHistoryState(nextState);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('redo', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Check if undo is available
+   */
+  canUndo(): boolean {
+    return this.historyService.canUndo();
+  }
+
+  /**
+   * Check if redo is available
+   */
+  canRedo(): boolean {
+    return this.historyService.canRedo();
+  }
+
+  /**
+   * Save current state to history with optional grouping
+   */
+  saveState(element: HTMLElement, command: string, groupId?: string): void {
+    try {
+      const content = element.innerHTML;
+      const selection = this.historyService.getSelectionPosition(element);
+      
+      const state = this.historyService.createState(content, command, selection);
+      
+      if (groupId) {
+        this.historyService.addStateWithGrouping(state, groupId);
+      } else {
+        this.historyService.addState(state);
+      }
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('saveState', { command }, false);
+    }
+  }
+
+  /**
+   * Initialize history for an element
+   */
+  initializeHistory(element: HTMLElement): void {
+    try {
+      // Clear existing history
+      this.historyService.clear();
+      
+      // Save initial state
+      const content = element.innerHTML;
+      const selection = this.historyService.getSelectionPosition(element);
+      
+      const initialState = this.historyService.createState(content, 'initialize', selection);
+      this.historyService.addState(initialState);
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('initializeHistory', {}, false);
+    }
+  }
+
+  /**
+   * Clear history
+   */
+  clearHistory(): void {
+    this.historyService.clear();
+  }
+
+  /**
+   * Get history service instance
+   */
+  getHistoryService(): HistoryService {
+    return this.historyService;
+  }
+
+  /**
+   * Restore a history state
+   */
+  private restoreHistoryState(state: any): void {
+    // Find the editor element - this would typically be passed in or stored
+    const editorElement = document.querySelector('[contenteditable="true"]') as HTMLElement;
+    
+    if (editorElement && state.content !== undefined) {
+      // Restore content
+      editorElement.innerHTML = state.content;
+      
+      // Restore selection if available
+      if (state.selection) {
+        this.historyService.restoreSelectionPosition(editorElement, state.selection);
+      }
+    }
+  }
+
+  /**
+   * Start a command group for complex operations
+   */
+  startCommandGroup(description?: string): string {
+    return this.historyService.startGroup(description);
+  }
+
+  /**
+   * End a command group
+   */
+  endCommandGroup(groupId: string): void {
+    this.historyService.endGroup(groupId);
+  }
+
+  /**
+   * Undo entire group of commands
+   */
+  undoGroup(): boolean {
+    try {
+      const groupStates = this.historyService.undoGroup();
+      if (groupStates && groupStates.length > 0) {
+        // Restore the state before the group
+        this.restoreHistoryState(groupStates[groupStates.length - 1]);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('undoGroup', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Redo entire group of commands
+   */
+  redoGroup(): boolean {
+    try {
+      const groupStates = this.historyService.redoGroup();
+      if (groupStates && groupStates.length > 0) {
+        // Restore the final state of the group
+        this.restoreHistoryState(groupStates[groupStates.length - 1]);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('redoGroup', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Create a new history branch
+   */
+  createHistoryBranch(name: string): string {
+    return this.historyService.createBranch(name);
+  }
+
+  /**
+   * Switch to a different history branch
+   */
+  switchHistoryBranch(branchId: string): boolean {
+    const success = this.historyService.switchBranch(branchId);
+    if (success) {
+      // Restore the current state of the new branch
+      const currentState = this.historyService.getCurrentState();
+      if (currentState) {
+        this.restoreHistoryState(currentState);
+      }
+    }
+    return success;
+  }
+
+  /**
+   * Get all available history branches
+   */
+  getHistoryBranches(): any[] {
+    return this.historyService.getBranches();
+  }
+
+  /**
+   * Compress history to optimize memory usage
+   */
+  compressHistory(): void {
+    this.historyService.compressHistory();
+  }
+
+  /**
+   * Get memory usage statistics
+   */
+  getHistoryMemoryStats(): any {
+    return this.historyService.getMemoryStats();
+  }
+
+  /**
+   * Execute a complex operation with automatic grouping
+   */
+  executeComplexOperation(operations: Array<{ command: EditorCommand; value?: string }>, description?: string): boolean {
+    const groupId = this.startCommandGroup(description || 'Complex operation');
+    
+    try {
+      let allSuccessful = true;
+      
+      for (const operation of operations) {
+        const success = this.executeCommand(operation.command, operation.value);
+        if (!success) {
+          allSuccessful = false;
+        }
+      }
+      
+      return allSuccessful;
+    } finally {
+      this.endCommandGroup(groupId);
+    }
+  }
+
+  /**
+   * Execute command with enhanced history tracking
+   */
+  executeCommandWithHistory(command: EditorCommand, value?: string, element?: HTMLElement): boolean {
+    // Save state before command execution
+    if (element) {
+      this.saveState(element, command.name);
+    }
+
+    // Execute the command
+    const success = this.executeCommand(command, value);
+
+    // Save state after command execution if successful
+    if (success && element) {
+      this.saveState(element, command.name);
+    }
+
+    return success;
   }
 }

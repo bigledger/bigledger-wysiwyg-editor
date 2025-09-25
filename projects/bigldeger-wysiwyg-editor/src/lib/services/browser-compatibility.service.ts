@@ -145,7 +145,7 @@ export class BrowserCompatibilityService {
   /**
    * Detect browser information
    */
-  private detectBrowser(): void {
+  detectBrowser(): void {
     if (typeof navigator === 'undefined') {
       return;
     }

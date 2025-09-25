@@ -33,7 +33,15 @@
     "analyze:bundle:open": "npm run analyze:bundle && npx webpack-bundle-analyzer dist/angular-wysiwyg-editor/stats.json",
     "perf:test": "ng test bigldeger-wysiwyg-editor-lib --include='**/performance/**/*.spec.ts' --watch=false",
     "perf:benchmark": "node scripts/performance-benchmark.js",
-    "size:check": "npm run build:lib && bundlesize"
+    "size:check": "npm run build:lib && bundlesize",
+    "test:comprehensive": "node scripts/run-comprehensive-tests.js",
+    "test:comprehensive:unit": "node scripts/run-comprehensive-tests.js --unit-only",
+    "test:comprehensive:integration": "node scripts/run-comprehensive-tests.js --integration-only",
+    "test:comprehensive:performance": "node scripts/run-comprehensive-tests.js --performance-only",
+    "test:comprehensive:e2e": "node scripts/run-comprehensive-tests.js --e2e-only",
+    "test:comprehensive:cross-browser": "node scripts/run-comprehensive-tests.js --cross-browser-only",
+    "test:integration:all": "ng test bigldeger-wysiwyg-editor-lib --include='**/integration/**/*.spec.ts' --watch=false --browsers=ChromeHeadless",
+    "test:performance:all": "ng test bigldeger-wysiwyg-editor-lib --include='**/performance/**/*.spec.ts' --watch=false --browsers=ChromeHeadless"
   },
   "prettier": {
     "printWidth": 100,

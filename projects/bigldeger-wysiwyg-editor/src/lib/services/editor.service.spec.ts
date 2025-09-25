@@ -302,7 +302,7 @@ describe('EditorService', () => {
       const result = service.executeCommand(command);
       
       expect(result).toBe(true);
-      expect(commandService.executeCommand).toHaveBeenCalledWith(command, undefined, mockEditorElement);
+      expect(commandService.executeCommand).toHaveBeenCalledWith(command, undefined);
       expect(service.updateContentFromElement).toHaveBeenCalled();
       expect(service.updateSelectionState).toHaveBeenCalled();
     });

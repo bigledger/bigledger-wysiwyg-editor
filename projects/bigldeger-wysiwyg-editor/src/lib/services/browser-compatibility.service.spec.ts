@@ -308,7 +308,7 @@ describe('BrowserCompatibilityService', () => {
         await fallback.readText();
         fail('Should have thrown an error');
       } catch (error) {
-        expect(error.message).toContain('not supported in fallback mode');
+        expect((error as Error).message).toContain('not supported in fallback mode');
       }
     });
   });

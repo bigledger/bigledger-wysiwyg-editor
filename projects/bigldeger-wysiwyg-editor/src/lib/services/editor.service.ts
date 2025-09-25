@@ -6,6 +6,7 @@ import { EditorCommand } from '../models/editor-command.interface';
 import { SelectionService } from './selection.service';
 import { CommandService } from './command.service';
 import { DebounceService } from './debounce.service';
+import { ErrorHandlerService } from './error-handler.service';
 
 /**
  * Central service for managing editor state and coordinating operations
@@ -28,7 +29,8 @@ export class EditorService {
   constructor(
     private selectionService: SelectionService,
     private commandService: CommandService,
-    private debounceService: DebounceService
+    private debounceService: DebounceService,
+    private errorHandler: ErrorHandlerService
   ) {
     // Set up debounced content changes
     this.debounceService.debouncedContentChange$.subscribe(content => {
@@ -173,6 +175,9 @@ export class EditorService {
       const selectionState = this.selectionService.saveSelection();
       this.debounceService.emitSelectionChange(selectionState);
     } catch (error) {
+      this.errorHandler.handleSelectionError('updateSelectionState', {
+        error: (error as Error).message
+      });
       this.handleError('Failed to update selection state');
     }
   }
@@ -185,6 +190,9 @@ export class EditorService {
       const selectionState = this.selectionService.saveSelection();
       this.selectionStateSubject.next(selectionState);
     } catch (error) {
+      this.errorHandler.handleSelectionError('updateSelectionStateImmediately', {
+        error: (error as Error).message
+      });
       this.handleError('Failed to update selection state');
     }
   }
@@ -195,6 +203,7 @@ export class EditorService {
   executeCommand(command: EditorCommand): boolean {
     try {
       if (this.isReadonly()) {
+        this.errorHandler.handleConfigurationError('readonly', true, [false]);
         this.handleError('Cannot execute command in readonly mode');
         return false;
       }
@@ -209,6 +218,7 @@ export class EditorService {
       
       return result;
     } catch (error) {
+      this.errorHandler.handleCommandError(command.name, { command }, false);
       this.handleError(`Failed to execute command: ${command.name}`);
       return false;
     }
@@ -224,6 +234,7 @@ export class EditorService {
         this.focusStateSubject.next(true);
       }
     } catch (error) {
+      this.errorHandler.handleBrowserError('focus', 'Failed to focus editor element');
       this.handleError('Failed to focus editor');
     }
   }
@@ -238,6 +249,7 @@ export class EditorService {
         this.focusStateSubject.next(false);
       }
     } catch (error) {
+      this.errorHandler.handleBrowserError('blur', 'Failed to blur editor element');
       this.handleError('Failed to blur editor');
     }
   }

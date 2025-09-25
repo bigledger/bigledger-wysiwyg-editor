@@ -72,6 +72,13 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   content = '';
   currentSelection: SelectionState | null = null;
   
+  // Content change detection
+  private lastKnownContent = '';
+  
+  // Dialog visibility state
+  linkDialogVisible = false;
+  imageDialogVisible = false;
+  
   // Dialog state
   private linkDialogRef: ComponentRef<any> | null = null;
   private imageDialogRef: ComponentRef<any> | null = null;
@@ -188,6 +195,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     try {
+      // Set dialog visibility state
+      this.linkDialogVisible = true;
+      
       // Benchmark dialog loading
       this.performanceMonitor.startBenchmark('linkDialogLoad');
       
@@ -231,11 +241,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         });
 
         this.linkDialogRef.instance.dialogClosed.subscribe(() => {
-          this.closeLinkDialog();
+          this.onLinkDialogClosed();
         });
       }
     } catch (error) {
       console.error('Failed to load link dialog:', error);
+      this.linkDialogVisible = false;
     }
   }
 
@@ -260,7 +271,17 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
     
     this.updateSelectionState();
-    this.debounceService.emitContentChange(this.content);
+    this.emitContentChange();
+  }
+
+  /**
+   * Handle image insertion
+   */
+  onImageInserted(imageData: ImageData): void {
+    this.commandService.insertImage(imageData);
+    this.imageDialogVisible = false;
+    this.updateSelectionState();
+    this.emitContentChange();
   }
 
   /**
@@ -277,8 +298,15 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     const success = this.commandService.removeLink();
     if (success) {
       this.updateSelectionState();
-      this.debounceService.emitContentChange(this.content);
+      this.emitContentChange();
     }
+  }
+
+  /**
+   * Handle link dialog closed event
+   */
+  onLinkDialogClosed(): void {
+    this.closeLinkDialog();
   }
 
   /**
@@ -289,6 +317,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       this.linkDialogRef.destroy();
       this.linkDialogRef = null;
     }
+    this.linkDialogVisible = false;
     this.currentLinkData = null;
     this.isEditingLink = false;
   }
@@ -302,6 +331,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     try {
+      // Set dialog visibility state
+      this.imageDialogVisible = true;
+      
       // Benchmark dialog loading
       this.performanceMonitor.startBenchmark('imageDialogLoad');
       
@@ -337,11 +369,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         });
 
         this.imageDialogRef.instance.dialogClosed.subscribe(() => {
-          this.closeImageDialog();
+          this.onImageDialogClosed();
         });
       }
     } catch (error) {
       console.error('Failed to load image dialog:', error);
+      this.imageDialogVisible = false;
     }
   }
 
@@ -356,7 +389,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
     
     this.updateSelectionState();
-    this.debounceService.emitContentChange(this.content);
+    this.emitContentChange();
   }
 
   /**
@@ -373,8 +406,15 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     const success = this.commandService.removeImage();
     if (success) {
       this.updateSelectionState();
-      this.debounceService.emitContentChange(this.content);
+      this.emitContentChange();
     }
+  }
+
+  /**
+   * Handle image dialog closed event
+   */
+  onImageDialogClosed(): void {
+    this.closeImageDialog();
   }
 
   /**
@@ -385,6 +425,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       this.imageDialogRef.destroy();
       this.imageDialogRef = null;
     }
+    this.imageDialogVisible = false;
     this.currentImageData = null;
     this.isEditingImage = false;
   }
@@ -395,7 +436,38 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   onContentChange(content: string): void {
     this.content = content;
     this.onChange(content);
-    this.debounceService.emitContentChange(content);
+    this.emitContentChange();
+  }
+
+  /**
+   * Private method for content change handling with debouncing
+   */
+  private emitContentChange(): void {
+    // Detect if content has actually changed
+    if (this.hasContentChanged()) {
+      // Emit to debounce service for internal processing
+      this.debounceService.emitContentChange(this.content);
+      
+      // Also emit directly to parent components with debouncing
+      this.debouncedContentChange(this.content);
+      
+      // Update last known content for change detection
+      this.updateLastKnownContent();
+    }
+  }
+
+  /**
+   * Check if content has changed since last emission
+   */
+  private hasContentChanged(): boolean {
+    return this.content !== this.lastKnownContent;
+  }
+
+  /**
+   * Update the last known content for change detection
+   */
+  private updateLastKnownContent(): void {
+    this.lastKnownContent = this.content;
   }
 
   /**
@@ -507,6 +579,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   // ControlValueAccessor implementation
   writeValue(value: string | null): void {
     this.content = value || '';
+    this.lastKnownContent = this.content;
   }
 
   registerOnChange(fn: (value: string) => void): void {

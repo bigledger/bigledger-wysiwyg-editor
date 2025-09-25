@@ -1192,7 +1192,8 @@ describe('EditorContentComponent', () => {
         component.insertImageAtCursor('test.jpg', 'Test image', 'Test title', 200, 150);
         tick(150);
         
-        expect(commandService.insertImage).toHaveBeenCalledWith('test.jpg', 'Test image', 'Test title', 200, 150);
+        const expectedImageData = { src: 'test.jpg', alt: 'Test image', title: 'Test title', width: 200, height: 150 };
+        expect(commandService.insertImage).toHaveBeenCalledWith(expectedImageData);
         expect(component.commandExecuted.emit).toHaveBeenCalledWith({ name: 'insertImage' });
       }));
 
@@ -1478,4 +1479,8 @@ describe('EditorContentComponent', () => {
         
         component['handleImageMouseDown'](mouseEvent);
         
-        expect(mouseEvent.preventDefault).toHaveBeenCalled(
+        expect(mouseEvent.preventDefault).toHaveBeenCalled();
+      });
+    });
+  });
+});

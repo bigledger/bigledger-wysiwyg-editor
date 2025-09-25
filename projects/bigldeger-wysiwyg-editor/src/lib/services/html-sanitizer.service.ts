@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { SanitizerConfig, SanitizationRule } from '../models/editor-config.interface';
+import { ErrorHandlerService } from './error-handler.service';
 
 /**
  * Service for sanitizing HTML content to prevent XSS attacks
@@ -8,6 +9,8 @@ import { SanitizerConfig, SanitizationRule } from '../models/editor-config.inter
   providedIn: 'root'
 })
 export class HTMLSanitizerService {
+
+  constructor(private errorHandler: ErrorHandlerService) {}
   
   /**
    * Default allowed HTML tags for rich text editing
@@ -71,14 +74,39 @@ export class HTMLSanitizerService {
       return html;
     }
 
-    // Create a temporary DOM element to parse HTML
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
+    try {
+      // Create a temporary DOM element to parse HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
 
-    // Apply sanitization rules
-    this.sanitizeElement(tempDiv, config);
+      const originalContent = html;
+      
+      // Apply sanitization rules
+      this.sanitizeElement(tempDiv, config);
 
-    return tempDiv.innerHTML;
+      const sanitizedContent = tempDiv.innerHTML;
+      
+      // Report sanitization if content was modified
+      if (originalContent !== sanitizedContent) {
+        this.errorHandler.handleSanitizationError(
+          originalContent,
+          sanitizedContent,
+          this.getRemovedElements(originalContent, sanitizedContent),
+          this.getRemovedAttributes(originalContent, sanitizedContent)
+        );
+      }
+
+      return sanitizedContent;
+    } catch (error) {
+      this.errorHandler.handleSanitizationError(
+        html,
+        '',
+        [],
+        [],
+      );
+      // Return empty string on sanitization failure for security
+      return '';
+    }
   }
 
   /**
@@ -92,12 +120,30 @@ export class HTMLSanitizerService {
       return '';
     }
 
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
 
-    this.removeDisallowedTags(tempDiv, allowedTags);
+      const originalContent = html;
+      this.removeDisallowedTags(tempDiv, allowedTags);
+      const sanitizedContent = tempDiv.innerHTML;
 
-    return tempDiv.innerHTML;
+      // Report if tags were removed
+      if (originalContent !== sanitizedContent) {
+        const removedTags = this.getRemovedElements(originalContent, sanitizedContent);
+        this.errorHandler.handleSanitizationError(
+          originalContent,
+          sanitizedContent,
+          removedTags,
+          []
+        );
+      }
+
+      return sanitizedContent;
+    } catch (error) {
+      this.errorHandler.handleSanitizationError(html, '', [], []);
+      return '';
+    }
   }
 
   /**
@@ -111,12 +157,30 @@ export class HTMLSanitizerService {
       return '';
     }
 
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
 
-    this.cleanElementAttributes(tempDiv, allowedAttributes || this.DEFAULT_ALLOWED_ATTRIBUTES);
+      const originalContent = html;
+      this.cleanElementAttributes(tempDiv, allowedAttributes || this.DEFAULT_ALLOWED_ATTRIBUTES);
+      const sanitizedContent = tempDiv.innerHTML;
 
-    return tempDiv.innerHTML;
+      // Report if attributes were removed
+      if (originalContent !== sanitizedContent) {
+        const removedAttributes = this.getRemovedAttributes(originalContent, sanitizedContent);
+        this.errorHandler.handleSanitizationError(
+          originalContent,
+          sanitizedContent,
+          [],
+          removedAttributes
+        );
+      }
+
+      return sanitizedContent;
+    } catch (error) {
+      this.errorHandler.handleSanitizationError(html, '', [], []);
+      return '';
+    }
   }
 
   /**
@@ -371,6 +435,136 @@ export class HTMLSanitizerService {
             break;
         }
       }
+    }
+  }
+
+  /**
+   * Get list of removed elements by comparing original and sanitized content
+   * @param original Original HTML content
+   * @param sanitized Sanitized HTML content
+   * @returns Array of removed element tag names
+   */
+  private getRemovedElements(original: string, sanitized: string): string[] {
+    try {
+      const originalDiv = document.createElement('div');
+      originalDiv.innerHTML = original;
+      
+      const sanitizedDiv = document.createElement('div');
+      sanitizedDiv.innerHTML = sanitized;
+
+      const originalTags = this.extractTagNames(originalDiv);
+      const sanitizedTags = this.extractTagNames(sanitizedDiv);
+
+      return originalTags.filter(tag => !sanitizedTags.includes(tag));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Get list of removed attributes by comparing original and sanitized content
+   * @param original Original HTML content
+   * @param sanitized Sanitized HTML content
+   * @returns Array of removed attribute names
+   */
+  private getRemovedAttributes(original: string, sanitized: string): string[] {
+    try {
+      const originalDiv = document.createElement('div');
+      originalDiv.innerHTML = original;
+      
+      const sanitizedDiv = document.createElement('div');
+      sanitizedDiv.innerHTML = sanitized;
+
+      const originalAttrs = this.extractAttributeNames(originalDiv);
+      const sanitizedAttrs = this.extractAttributeNames(sanitizedDiv);
+
+      return originalAttrs.filter(attr => !sanitizedAttrs.includes(attr));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Extract all tag names from an element
+   * @param element Element to extract tag names from
+   * @returns Array of unique tag names
+   */
+  private extractTagNames(element: Element): string[] {
+    const tags: string[] = [];
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_ELEMENT,
+      null
+    );
+
+    let node: Node | null;
+    while (node = walker.nextNode()) {
+      const tagName = (node as Element).tagName.toLowerCase();
+      if (!tags.includes(tagName)) {
+        tags.push(tagName);
+      }
+    }
+
+    return tags;
+  }
+
+  /**
+   * Extract all attribute names from an element and its children
+   * @param element Element to extract attribute names from
+   * @returns Array of unique attribute names
+   */
+  private extractAttributeNames(element: Element): string[] {
+    const attributes: string[] = [];
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_ELEMENT,
+      null
+    );
+
+    let node: Node | null;
+    while (node = walker.nextNode()) {
+      const elementNode = node as Element;
+      Array.from(elementNode.attributes).forEach(attr => {
+        if (!attributes.includes(attr.name)) {
+          attributes.push(attr.name);
+        }
+      });
+    }
+
+    return attributes;
+  }
+
+  /**
+   * Check if HTML is valid and safe
+   * @param html HTML string to validate
+   * @returns True if HTML is valid and safe
+   */
+  isValidHTML(html: string): boolean {
+    try {
+      // Basic validation - check if HTML can be parsed
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      
+      // Check for potentially dangerous elements
+      const dangerousElements = tempDiv.querySelectorAll('script, object, embed, iframe, form');
+      if (dangerousElements.length > 0) {
+        return false;
+      }
+      
+      // Check for dangerous attributes
+      const allElements = tempDiv.querySelectorAll('*');
+      for (const element of Array.from(allElements)) {
+        const attributes = Array.from(element.attributes);
+        for (const attr of attributes) {
+          if (attr.name.startsWith('on') || attr.name === 'javascript:') {
+            return false;
+          }
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      return false;
     }
   }
 }

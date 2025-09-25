@@ -2,13 +2,15 @@ import { TestBed } from '@angular/core/testing';
 import { CommandService } from './command.service';
 import { SelectionService } from './selection.service';
 import { HistoryService } from './history.service';
+import { ErrorHandlerService } from './error-handler.service';
 import { EditorCommand } from '../models/editor-command.interface';
-import { SelectionState, ActiveFormats } from '../models/selection-state.interface';
+import { SelectionState, ActiveFormats, TextAlignment } from '../models/selection-state.interface';
 
 describe('CommandService', () => {
   let service: CommandService;
   let selectionService: jasmine.SpyObj<SelectionService>;
   let historyService: jasmine.SpyObj<HistoryService>;
+  let errorHandlerService: jasmine.SpyObj<ErrorHandlerService>;
   let mockDocument: any;
 
   beforeEach(() => {
@@ -29,17 +31,26 @@ describe('CommandService', () => {
       'clear'
     ]);
 
+    const errorHandlerServiceSpy = jasmine.createSpyObj('ErrorHandlerService', [
+      'isFeatureSupported',
+      'handleBrowserError',
+      'handleCommandError',
+      'handleSelectionError'
+    ]);
+
     TestBed.configureTestingModule({
       providers: [
         CommandService,
         { provide: SelectionService, useValue: selectionServiceSpy },
-        { provide: HistoryService, useValue: historyServiceSpy }
+        { provide: HistoryService, useValue: historyServiceSpy },
+        { provide: ErrorHandlerService, useValue: errorHandlerServiceSpy }
       ]
     });
 
     service = TestBed.inject(CommandService);
     selectionService = TestBed.inject(SelectionService) as jasmine.SpyObj<SelectionService>;
     historyService = TestBed.inject(HistoryService) as jasmine.SpyObj<HistoryService>;
+    errorHandlerService = TestBed.inject(ErrorHandlerService) as jasmine.SpyObj<ErrorHandlerService>;
 
     // Mock document.execCommand and related methods
     mockDocument = {
@@ -58,6 +69,23 @@ describe('CommandService', () => {
     spyOn(document, 'queryCommandValue').and.callFake(mockDocument.queryCommandValue);
   });
 
+  // Helper function to create mock SelectionState with proper types
+  function createMockSelectionState(): SelectionState {
+    return {
+      range: null,
+      collapsed: true,
+      formats: {
+        bold: false,
+        italic: false,
+        underline: false,
+        fontSize: '14px',
+        fontColor: '#000000',
+        backgroundColor: '#ffffff',
+        alignment: 'left' as TextAlignment
+      }
+    };
+  }
+
   it('should be created', () => {
     expect(service).toBeTruthy();
   });
@@ -75,7 +103,7 @@ describe('CommandService', () => {
           fontSize: '14px',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
-          alignment: 'left'
+          alignment: 'left' as TextAlignment
         }
       };
       selectionService.saveSelection.and.returnValue(mockSelection);
@@ -101,7 +129,7 @@ describe('CommandService', () => {
           fontSize: '14px',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
-          alignment: 'left'
+          alignment: 'left' as TextAlignment
         }
       };
       selectionService.saveSelection.and.returnValue(mockSelection);
@@ -226,7 +254,7 @@ describe('CommandService', () => {
           fontSize: '14px',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
-          alignment: 'left'
+          alignment: 'left' as TextAlignment
         }
       };
       selectionService.saveSelection.and.returnValue(mockSelection);
@@ -256,7 +284,7 @@ describe('CommandService', () => {
           fontSize: '14px',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
-          alignment: 'left'
+          alignment: 'left' as TextAlignment
         }
       };
       selectionService.saveSelection.and.returnValue(mockSelection);
@@ -279,7 +307,7 @@ describe('CommandService', () => {
           fontSize: '14px',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
-          alignment: 'left'
+          alignment: 'left' as TextAlignment
         }
       };
       selectionService.saveSelection.and.returnValue(mockSelection);
@@ -302,7 +330,7 @@ describe('CommandService', () => {
           fontSize: '14px',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
-          alignment: 'left'
+          alignment: 'left' as TextAlignment
         }
       };
       selectionService.saveSelection.and.returnValue(mockSelection);
@@ -325,7 +353,7 @@ describe('CommandService', () => {
           fontSize: '14px',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
-          alignment: 'left'
+          alignment: 'left' as TextAlignment
         }
       };
       selectionService.saveSelection.and.returnValue(mockSelection);
@@ -440,7 +468,7 @@ describe('CommandService', () => {
             fontSize: '14px',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
-            alignment: 'left'
+            alignment: 'left' as TextAlignment
           }
         };
         selectionService.saveSelection.and.returnValue(mockSelection);
@@ -486,7 +514,7 @@ describe('CommandService', () => {
             fontSize: '14px',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
-            alignment: 'left'
+            alignment: 'left' as TextAlignment
           }
         };
         selectionService.saveSelection.and.returnValue(mockSelection);
@@ -678,7 +706,7 @@ describe('CommandService', () => {
             fontSize: '14px',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
-            alignment: 'left'
+            alignment: 'left' as TextAlignment
           }
         };
         selectionService.saveSelection.and.returnValue(mockSelectionState);
@@ -712,7 +740,7 @@ describe('CommandService', () => {
             fontSize: '14px',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
-            alignment: 'left'
+            alignment: 'left' as TextAlignment
           }
         };
         selectionService.saveSelection.and.returnValue(mockSelectionState);
@@ -746,7 +774,7 @@ describe('CommandService', () => {
             fontSize: '14px',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
-            alignment: 'left'
+            alignment: 'left' as TextAlignment
           }
         };
         selectionService.saveSelection.and.returnValue(mockSelectionState);
@@ -780,7 +808,7 @@ describe('CommandService', () => {
             fontSize: '14px',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
-            alignment: 'left'
+            alignment: 'left' as TextAlignment
           }
         };
         selectionService.saveSelection.and.returnValue(mockSelectionState);
@@ -1026,8 +1054,8 @@ describe('CommandService', () => {
       expect(console.error).toHaveBeenCalledWith('Text insertion fallback failed:', jasmine.any(Error));
     });
   });
-});  describ
-e('Undo/Redo Functionality', () => {
+
+  describe('Undo/Redo Functionality', () => {
     let mockElement: HTMLElement;
 
     beforeEach(() => {
@@ -1057,7 +1085,7 @@ e('Undo/Redo Functionality', () => {
             fontSize: '14px',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
-            alignment: 'left'
+            alignment: 'left' as TextAlignment
           }
         };
         selectionService.saveSelection.and.returnValue(mockSelection);
@@ -1067,7 +1095,7 @@ e('Undo/Redo Functionality', () => {
           timestamp: Date.now()
         });
 
-        const result = service.executeCommand(command, undefined, mockElement);
+        const result = service.executeCommand(command, undefined);
 
         expect(result).toBe(true);
         expect(historyService.createState).toHaveBeenCalled();
@@ -1083,7 +1111,7 @@ e('Undo/Redo Functionality', () => {
           timestamp: Date.now()
         });
 
-        const result = service.executeCommand(command, undefined, mockElement);
+        const result = service.executeCommand(command, undefined);
 
         expect(result).toBe(true);
         expect(historyService.createState).not.toHaveBeenCalled();
@@ -1100,7 +1128,7 @@ e('Undo/Redo Functionality', () => {
           timestamp: Date.now()
         });
 
-        const result = service.executeCommand(command, undefined, mockElement);
+        const result = service.executeCommand(command, undefined);
 
         expect(result).toBe(true);
         expect(historyService.createState).not.toHaveBeenCalled();
@@ -1373,8 +1401,8 @@ e('Undo/Redo Functionality', () => {
       expect(historyService.redo).toHaveBeenCalled();
     });
   });
-}); 
- describe('Enhanced Error Handling and Fallbacks', () => {
+
+  describe('Enhanced Error Handling and Fallbacks', () => {
     beforeEach(() => {
       // Mock error handler
       spyOn(errorHandlerService, 'isFeatureSupported').and.returnValue(true);
@@ -1693,4 +1721,669 @@ e('Undo/Redo Functionality', () => {
         expect(errorHandlerService.handleCommandError).not.toHaveBeenCalled();
       });
     });
+  });  
+describe('batch command execution and advanced formatting', () => {
+    let mockSelection: any;
+    let mockRange: any;
+
+    beforeEach(() => {
+      mockRange = {
+        deleteContents: jasmine.createSpy('deleteContents'),
+        insertNode: jasmine.createSpy('insertNode'),
+        toString: jasmine.createSpy('toString').and.returnValue('selected text'),
+        setStartAfter: jasmine.createSpy('setStartAfter'),
+        setEndAfter: jasmine.createSpy('setEndAfter')
+      };
+
+      mockSelection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(mockRange),
+        removeAllRanges: jasmine.createSpy('removeAllRanges'),
+        addRange: jasmine.createSpy('addRange')
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(mockSelection);
+    });
+
+    describe('executeCommands', () => {
+      it('should execute multiple commands successfully', () => {
+        const commands = [
+          { command: { name: 'bold' } },
+          { command: { name: 'italic' } },
+          { command: { name: 'fontSize' }, value: '16px' }
+        ];
+        const mockSelectionState = createMockSelectionState();
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+        
+        const result = service.executeCommands(commands);
+        
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledTimes(3);
+        expect(document.execCommand).toHaveBeenCalledWith('bold', false, undefined);
+        expect(document.execCommand).toHaveBeenCalledWith('italic', false, undefined);
+        expect(document.execCommand).toHaveBeenCalledWith('fontSize', false, '16px');
+      });
+
+      it('should return false if any command fails', () => {
+        const commands = [
+          { command: { name: 'bold' } },
+          { command: { name: 'italic' } }
+        ];
+        mockDocument.execCommand.and.returnValues(true, false);
+        const mockSelectionState = createMockSelectionState();
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+        
+        const result = service.executeCommands(commands);
+        
+        expect(result).toBe(false);
+      });
+
+      it('should handle errors gracefully', () => {
+        const commands = [{ command: { name: 'bold' } }];
+        mockDocument.execCommand.and.throwError('Command failed');
+        
+        const result = service.executeCommands(commands);
+        
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('removeFormatting', () => {
+      it('should remove formatting successfully', () => {
+        const mockSelectionState = createMockSelectionState();
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+        
+        const result = service.removeFormatting();
+        
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledWith('removeFormat', false);
+      });
+
+      it('should use fallback when execCommand fails', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        spyOn(document, 'createTextNode').and.returnValue(document.createTextNode('selected text'));
+        
+        const result = service.removeFormatting();
+        
+        expect(result).toBe(true);
+        expect(mockRange.deleteContents).toHaveBeenCalled();
+        expect(mockRange.insertNode).toHaveBeenCalled();
+      });
+
+      it('should handle missing selection', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        (window.getSelection as jasmine.Spy).and.returnValue(null);
+        
+        const result = service.removeFormatting();
+        
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('insertHTML', () => {
+      it('should insert HTML successfully', () => {
+        const html = '<strong>Bold text</strong>';
+        const mockSelectionState = {
+          range: null,
+          collapsed: true,
+          formats: {
+            bold: false,
+            italic: false,
+            underline: false,
+            fontSize: '14px',
+            fontColor: '#000000',
+            backgroundColor: '#ffffff',
+            alignment: 'left' as TextAlignment
+          }
+        };
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+        
+        const result = service.insertHTML(html);
+        
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledWith('insertHTML', false, html);
+      });
+
+      it('should use fallback when execCommand fails', () => {
+        const html = '<strong>Bold text</strong>';
+        mockDocument.execCommand.and.returnValue(false);
+        
+        const mockDiv = document.createElement('div');
+        const mockFragment = document.createDocumentFragment();
+        spyOn(document, 'createElement').and.returnValue(mockDiv);
+        spyOn(document, 'createDocumentFragment').and.returnValue(mockFragment);
+        
+        const result = service.insertHTML(html);
+        
+        expect(result).toBe(true);
+        expect(mockRange.deleteContents).toHaveBeenCalled();
+        expect(mockRange.insertNode).toHaveBeenCalledWith(mockFragment);
+      });
+
+      it('should handle missing selection', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        (window.getSelection as jasmine.Spy).and.returnValue(null);
+        
+        const result = service.insertHTML('<strong>test</strong>');
+        
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('insertText', () => {
+      it('should insert text successfully', () => {
+        const text = 'Plain text';
+        const mockSelectionState = {
+          range: null,
+          collapsed: true,
+          formats: {
+            bold: false,
+            italic: false,
+            underline: false,
+            fontSize: '14px',
+            fontColor: '#000000',
+            backgroundColor: '#ffffff',
+            alignment: 'left' as TextAlignment
+          }
+        };
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+        
+        const result = service.insertText(text);
+        
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledWith('insertText', false, text);
+      });
+
+      it('should use fallback when execCommand fails', () => {
+        const text = 'Plain text';
+        mockDocument.execCommand.and.returnValue(false);
+        
+        const mockTextNode = document.createTextNode(text);
+        spyOn(document, 'createTextNode').and.returnValue(mockTextNode);
+        
+        const result = service.insertText(text);
+        
+        expect(result).toBe(true);
+        expect(mockRange.deleteContents).toHaveBeenCalled();
+        expect(mockRange.insertNode).toHaveBeenCalledWith(mockTextNode);
+        expect(mockRange.setStartAfter).toHaveBeenCalled();
+        expect(mockRange.setEndAfter).toHaveBeenCalled();
+      });
+
+      it('should handle missing selection', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        (window.getSelection as jasmine.Spy).and.returnValue(null);
+        
+        const result = service.insertText('test');
+        
+        expect(result).toBe(false);
+      });
+    });
   });
+
+  describe('text alignment methods', () => {
+    let mockSelection: any;
+    let mockRange: any;
+    let mockElement: HTMLElement;
+
+    beforeEach(() => {
+      mockElement = document.createElement('p');
+      mockElement.innerHTML = 'Test content';
+      
+      mockRange = {
+        commonAncestorContainer: mockElement
+      };
+
+      mockSelection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(mockRange)
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(mockSelection);
+    });
+
+    describe('alignLeft', () => {
+      it('should execute justifyLeft command', () => {
+        const mockSelectionState = {
+          range: null,
+          collapsed: true,
+          formats: {
+            bold: false,
+            italic: false,
+            underline: false,
+            fontSize: '14px',
+            fontColor: '#000000',
+            backgroundColor: '#ffffff',
+            alignment: 'left' as TextAlignment
+          }
+        };
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+
+        const result = service.alignLeft();
+
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledWith('justifyLeft', false);
+      });
+
+      it('should use fallback when execCommand fails', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        spyOn(service as any, 'findParentBlockElement').and.returnValue(mockElement);
+
+        const result = service.alignLeft();
+
+        expect(result).toBe(true);
+        expect(mockElement.style.textAlign).toBe('left');
+      });
+    });
+
+    describe('alignCenter', () => {
+      it('should execute justifyCenter command', () => {
+        const mockSelectionState = {
+          range: null,
+          collapsed: true,
+          formats: {
+            bold: false,
+            italic: false,
+            underline: false,
+            fontSize: '14px',
+            fontColor: '#000000',
+            backgroundColor: '#ffffff',
+            alignment: 'left' as TextAlignment
+          }
+        };
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+
+        const result = service.alignCenter();
+
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledWith('justifyCenter', false);
+      });
+
+      it('should use fallback when execCommand fails', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        spyOn(service as any, 'findParentBlockElement').and.returnValue(mockElement);
+
+        const result = service.alignCenter();
+
+        expect(result).toBe(true);
+        expect(mockElement.style.textAlign).toBe('center');
+      });
+    });
+
+    describe('alignRight', () => {
+      it('should execute justifyRight command', () => {
+        const mockSelectionState = {
+          range: null,
+          collapsed: true,
+          formats: {
+            bold: false,
+            italic: false,
+            underline: false,
+            fontSize: '14px',
+            fontColor: '#000000',
+            backgroundColor: '#ffffff',
+            alignment: 'left' as TextAlignment
+          }
+        };
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+
+        const result = service.alignRight();
+
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledWith('justifyRight', false);
+      });
+
+      it('should use fallback when execCommand fails', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        spyOn(service as any, 'findParentBlockElement').and.returnValue(mockElement);
+
+        const result = service.alignRight();
+
+        expect(result).toBe(true);
+        expect(mockElement.style.textAlign).toBe('right');
+      });
+    });
+
+    describe('alignJustify', () => {
+      it('should execute justifyFull command', () => {
+        const mockSelectionState = {
+          range: null,
+          collapsed: true,
+          formats: {
+            bold: false,
+            italic: false,
+            underline: false,
+            fontSize: '14px',
+            fontColor: '#000000',
+            backgroundColor: '#ffffff',
+            alignment: 'left' as TextAlignment
+          }
+        };
+        selectionService.saveSelection.and.returnValue(mockSelectionState);
+
+        const result = service.alignJustify();
+
+        expect(result).toBe(true);
+        expect(document.execCommand).toHaveBeenCalledWith('justifyFull', false);
+      });
+
+      it('should use fallback when execCommand fails', () => {
+        mockDocument.execCommand.and.returnValue(false);
+        spyOn(service as any, 'findParentBlockElement').and.returnValue(mockElement);
+
+        const result = service.alignJustify();
+
+        expect(result).toBe(true);
+        expect(mockElement.style.textAlign).toBe('justify');
+      });
+    });
+
+    describe('getCurrentAlignment', () => {
+      it('should return center when justifyCenter is active', () => {
+        mockDocument.queryCommandState.and.callFake((command: string) => command === 'justifyCenter');
+
+        const result = service.getCurrentAlignment();
+
+        expect(result).toBe('center');
+      });
+
+      it('should return right when justifyRight is active', () => {
+        mockDocument.queryCommandState.and.callFake((command: string) => command === 'justifyRight');
+
+        const result = service.getCurrentAlignment();
+
+        expect(result).toBe('right');
+      });
+
+      it('should return justify when justifyFull is active', () => {
+        mockDocument.queryCommandState.and.callFake((command: string) => command === 'justifyFull');
+
+        const result = service.getCurrentAlignment();
+
+        expect(result).toBe('justify');
+      });
+
+      it('should return left as default', () => {
+        mockDocument.queryCommandState.and.returnValue(false);
+
+        const result = service.getCurrentAlignment();
+
+        expect(result).toBe('left');
+      });
+
+      it('should check computed style when command state is not available', () => {
+        mockDocument.queryCommandState.and.returnValue(false);
+        spyOn(service as any, 'findParentBlockElement').and.returnValue(mockElement);
+        spyOn(window, 'getComputedStyle').and.returnValue({
+          textAlign: 'center'
+        } as CSSStyleDeclaration);
+
+        const result = service.getCurrentAlignment();
+
+        expect(result).toBe('center');
+        expect(window.getComputedStyle).toHaveBeenCalledWith(mockElement);
+      });
+
+      it('should handle missing selection gracefully', () => {
+        mockDocument.queryCommandState.and.returnValue(false);
+        (window.getSelection as jasmine.Spy).and.returnValue(null);
+
+        const result = service.getCurrentAlignment();
+
+        expect(result).toBe('left');
+      });
+    });
+
+    describe('alignment state checking methods', () => {
+      it('should correctly identify left alignment', () => {
+        spyOn(service, 'getCurrentAlignment').and.returnValue('left');
+
+        expect(service.isAlignedLeft()).toBe(true);
+        expect(service.isAlignedCenter()).toBe(false);
+        expect(service.isAlignedRight()).toBe(false);
+        expect(service.isAlignedJustify()).toBe(false);
+      });
+
+      it('should correctly identify center alignment', () => {
+        spyOn(service, 'getCurrentAlignment').and.returnValue('center');
+
+        expect(service.isAlignedLeft()).toBe(false);
+        expect(service.isAlignedCenter()).toBe(true);
+        expect(service.isAlignedRight()).toBe(false);
+        expect(service.isAlignedJustify()).toBe(false);
+      });
+
+      it('should correctly identify right alignment', () => {
+        spyOn(service, 'getCurrentAlignment').and.returnValue('right');
+
+        expect(service.isAlignedLeft()).toBe(false);
+        expect(service.isAlignedCenter()).toBe(false);
+        expect(service.isAlignedRight()).toBe(true);
+        expect(service.isAlignedJustify()).toBe(false);
+      });
+
+      it('should correctly identify justify alignment', () => {
+        spyOn(service, 'getCurrentAlignment').and.returnValue('justify');
+
+        expect(service.isAlignedLeft()).toBe(false);
+        expect(service.isAlignedCenter()).toBe(false);
+        expect(service.isAlignedRight()).toBe(false);
+        expect(service.isAlignedJustify()).toBe(true);
+      });
+    });
+  });
+
+  describe('undo/redo system integration', () => {
+    let mockElement: HTMLElement;
+    let mockHistoryState: any;
+
+    beforeEach(() => {
+      mockElement = document.createElement('div');
+      mockElement.setAttribute('contenteditable', 'true');
+      mockElement.innerHTML = 'Test content';
+      
+      mockHistoryState = {
+        id: 'test-state',
+        content: 'Previous content',
+        selection: { start: 0, end: 5 },
+        timestamp: Date.now(),
+        command: 'bold'
+      };
+
+      // Mock querySelector to return our test element
+      spyOn(document, 'querySelector').and.returnValue(mockElement);
+    });
+
+    describe('undo', () => {
+      it('should undo successfully when history is available', () => {
+        historyService.undo.and.returnValue(mockHistoryState);
+        spyOn(service as any, 'restoreHistoryState');
+
+        const result = service.undo();
+
+        expect(result).toBe(true);
+        expect(historyService.undo).toHaveBeenCalled();
+        expect(service['restoreHistoryState']).toHaveBeenCalledWith(mockHistoryState);
+      });
+
+      it('should return false when no history is available', () => {
+        historyService.undo.and.returnValue(null);
+
+        const result = service.undo();
+
+        expect(result).toBe(false);
+        expect(historyService.undo).toHaveBeenCalled();
+      });
+
+      it('should handle errors gracefully', () => {
+        historyService.undo.and.throwError('Undo failed');
+
+        const result = service.undo();
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('redo', () => {
+      it('should redo successfully when history is available', () => {
+        historyService.redo.and.returnValue(mockHistoryState);
+        spyOn(service as any, 'restoreHistoryState');
+
+        const result = service.redo();
+
+        expect(result).toBe(true);
+        expect(historyService.redo).toHaveBeenCalled();
+        expect(service['restoreHistoryState']).toHaveBeenCalledWith(mockHistoryState);
+      });
+
+      it('should return false when no history is available', () => {
+        historyService.redo.and.returnValue(null);
+
+        const result = service.redo();
+
+        expect(result).toBe(false);
+        expect(historyService.redo).toHaveBeenCalled();
+      });
+
+      it('should handle errors gracefully', () => {
+        historyService.redo.and.throwError('Redo failed');
+
+        const result = service.redo();
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('canUndo', () => {
+      it('should return true when undo is available', () => {
+        historyService.canUndo.and.returnValue(true);
+
+        const result = service.canUndo();
+
+        expect(result).toBe(true);
+        expect(historyService.canUndo).toHaveBeenCalled();
+      });
+
+      it('should return false when undo is not available', () => {
+        historyService.canUndo.and.returnValue(false);
+
+        const result = service.canUndo();
+
+        expect(result).toBe(false);
+        expect(historyService.canUndo).toHaveBeenCalled();
+      });
+    });
+
+    describe('canRedo', () => {
+      it('should return true when redo is available', () => {
+        historyService.canRedo.and.returnValue(true);
+
+        const result = service.canRedo();
+
+        expect(result).toBe(true);
+        expect(historyService.canRedo).toHaveBeenCalled();
+      });
+
+      it('should return false when redo is not available', () => {
+        historyService.canRedo.and.returnValue(false);
+
+        const result = service.canRedo();
+
+        expect(result).toBe(false);
+        expect(historyService.canRedo).toHaveBeenCalled();
+      });
+    });
+
+    describe('saveState', () => {
+      it('should save state successfully', () => {
+        const command = 'bold';
+        const mockSelection = { start: 0, end: 5 };
+        const mockState = { id: 'new-state', content: 'Test content', command, timestamp: Date.now() };
+        
+        historyService.getSelectionPosition.and.returnValue(mockSelection);
+        historyService.createState.and.returnValue(mockState);
+
+        service.saveState(mockElement, command);
+
+        expect(historyService.getSelectionPosition).toHaveBeenCalledWith(mockElement);
+        expect(historyService.createState).toHaveBeenCalledWith('Test content', command, mockSelection);
+        expect(historyService.addState).toHaveBeenCalledWith(mockState);
+      });
+
+      it('should handle errors gracefully', () => {
+        historyService.getSelectionPosition.and.throwError('Selection failed');
+
+        expect(() => service.saveState(mockElement, 'bold')).not.toThrow();
+      });
+    });
+
+    describe('initializeHistory', () => {
+      it('should initialize history successfully', () => {
+        const mockSelection = { start: 0, end: 0 };
+        const mockState = { id: 'init-state', content: 'Test content', command: 'initialize', timestamp: Date.now() };
+        
+        historyService.getSelectionPosition.and.returnValue(mockSelection);
+        historyService.createState.and.returnValue(mockState);
+
+        service.initializeHistory(mockElement);
+
+        expect(historyService.clear).toHaveBeenCalled();
+        expect(historyService.getSelectionPosition).toHaveBeenCalledWith(mockElement);
+        expect(historyService.createState).toHaveBeenCalledWith('Test content', 'initialize', mockSelection);
+        expect(historyService.addState).toHaveBeenCalledWith(mockState);
+      });
+
+      it('should handle errors gracefully', () => {
+        historyService.clear.and.throwError('Clear failed');
+
+        expect(() => service.initializeHistory(mockElement)).not.toThrow();
+      });
+    });
+
+    describe('clearHistory', () => {
+      it('should clear history', () => {
+        service.clearHistory();
+
+        expect(historyService.clear).toHaveBeenCalled();
+      });
+    });
+
+    describe('getHistoryService', () => {
+      it('should return history service instance', () => {
+        const result = service.getHistoryService();
+
+        expect(result).toBe(historyService);
+      });
+    });
+
+    describe('restoreHistoryState', () => {
+      it('should restore content and selection', () => {
+        const state = {
+          content: 'Restored content',
+          selection: { start: 2, end: 8 }
+        };
+
+        service['restoreHistoryState'](state);
+
+        expect(mockElement.innerHTML).toBe('Restored content');
+        expect(historyService.restoreSelectionPosition).toHaveBeenCalledWith(mockElement, state.selection);
+      });
+
+      it('should handle missing element gracefully', () => {
+        (document.querySelector as jasmine.Spy).and.returnValue(null);
+        const state = { content: 'Test content' };
+
+        expect(() => service['restoreHistoryState'](state)).not.toThrow();
+      });
+
+      it('should restore content without selection', () => {
+        const state = { content: 'Restored content' };
+
+        service['restoreHistoryState'](state);
+
+        expect(mockElement.innerHTML).toBe('Restored content');
+        expect(historyService.restoreSelectionPosition).not.toHaveBeenCalled();
+      });
+    });
+  });
+});

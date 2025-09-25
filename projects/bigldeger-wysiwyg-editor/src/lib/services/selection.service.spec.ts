@@ -1,16 +1,28 @@
 import { TestBed } from '@angular/core/testing';
 import { SelectionService } from './selection.service';
+import { ErrorHandlerService } from './error-handler.service';
 import { SelectionState } from '../models/selection-state.interface';
 
 describe('SelectionService', () => {
   let service: SelectionService;
+  let errorHandlerService: jasmine.SpyObj<ErrorHandlerService>;
   let mockSelection: jasmine.SpyObj<Selection>;
   let mockRange: jasmine.SpyObj<Range>;
   let testElement: HTMLElement;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    const errorHandlerServiceSpy = jasmine.createSpyObj('ErrorHandlerService', [
+      'handleSelectionError'
+    ]);
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ErrorHandlerService, useValue: errorHandlerServiceSpy }
+      ]
+    });
+    
     service = TestBed.inject(SelectionService);
+    errorHandlerService = TestBed.inject(ErrorHandlerService) as jasmine.SpyObj<ErrorHandlerService>;
 
     // Create test element
     testElement = document.createElement('div');
@@ -399,54 +411,714 @@ describe('SelectionService', () => {
       
       expect(result).toBe('');
     });
+
+    it('should handle errors gracefully', () => {
+      spyOn(service, 'getSelection').and.throwError('Selection error');
+      
+      const result = service.getSelectedText();
+      
+      expect(result).toBe('');
+    });
   });
 
-  describe('wrapSelection', () => {
-    it('should wrap selection with specified tag', () => {
-      spyOn(service, 'getRange').and.returnValue(mockRange);
-      spyOn(document, 'createElement').and.returnValue(document.createElement('strong'));
-      
-      service.wrapSelection('strong');
-      
-      expect(document.createElement).toHaveBeenCalledWith('strong');
-      expect(mockRange.surroundContents).toHaveBeenCalled();
-    });
-
-    it('should add attributes to wrapper element', () => {
-      const mockElement = document.createElement('a');
-      spyOn(service, 'getRange').and.returnValue(mockRange);
-      spyOn(document, 'createElement').and.returnValue(mockElement);
-      spyOn(mockElement, 'setAttribute');
-      
-      service.wrapSelection('a', { href: 'http://example.com', target: '_blank' });
-      
-      expect(mockElement.setAttribute).toHaveBeenCalledWith('href', 'http://example.com');
-      expect(mockElement.setAttribute).toHaveBeenCalledWith('target', '_blank');
-    });
-
-    it('should handle collapsed selection gracefully', () => {
-      const mockRangeCollapsed = jasmine.createSpyObj('Range', [
-        'cloneRange', 'collapse', 'selectNodeContents', 'setStart', 'surroundContents',
-        'extractContents', 'insertNode'
-      ], {
-        collapsed: true,
-        startOffset: 0,
-        endOffset: 0
+  describe('Advanced Selection Management', () => {
+    describe('selectAll', () => {
+      it('should select all content in document body by default', () => {
+        spyOn(service, 'getSelection').and.returnValue(mockSelection);
+        spyOn(document, 'createRange').and.returnValue(mockRange);
+        
+        service.selectAll();
+        
+        expect(mockRange.selectNodeContents).toHaveBeenCalledWith(document.body);
+        expect(mockSelection.removeAllRanges).toHaveBeenCalled();
+        expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
       });
-      spyOn(service, 'getRange').and.returnValue(mockRangeCollapsed);
-      
-      expect(() => service.wrapSelection('strong')).not.toThrow();
+
+      it('should select all content in specified element', () => {
+        spyOn(service, 'getSelection').and.returnValue(mockSelection);
+        spyOn(document, 'createRange').and.returnValue(mockRange);
+        
+        service.selectAll(testElement);
+        
+        expect(mockRange.selectNodeContents).toHaveBeenCalledWith(testElement);
+      });
+
+      it('should handle errors gracefully', () => {
+        spyOn(service, 'getSelection').and.returnValue(mockSelection);
+        spyOn(document, 'createRange').and.returnValue(mockRange);
+        mockRange.selectNodeContents.and.throwError('Range error');
+        
+        expect(() => service.selectAll()).not.toThrow();
+      });
     });
 
-    it('should use fallback method when surroundContents fails', () => {
-      spyOn(service, 'getRange').and.returnValue(mockRange);
-      spyOn(document, 'createElement').and.returnValue(document.createElement('strong'));
-      mockRange.surroundContents.and.throwError('Cannot surround');
-      spyOn(service as any, 'wrapSelectionFallback');
-      
-      service.wrapSelection('strong');
-      
-      expect((service as any).wrapSelectionFallback).toHaveBeenCalledWith('strong', undefined);
+    describe('collapse', () => {
+      it('should collapse to start by default', () => {
+        spyOn(service, 'collapseSelection');
+        
+        service.collapse();
+        
+        expect(service.collapseSelection).toHaveBeenCalledWith(true);
+      });
+
+      it('should collapse to end when specified', () => {
+        spyOn(service, 'collapseSelection');
+        
+        service.collapse(false);
+        
+        expect(service.collapseSelection).toHaveBeenCalledWith(false);
+      });
+
+      it('should handle undefined parameter', () => {
+        spyOn(service, 'collapseSelection');
+        
+        service.collapse(undefined);
+        
+        expect(service.collapseSelection).toHaveBeenCalledWith(true);
+      });
+    });
+
+    describe('hasSelection', () => {
+      it('should return true when selection is not collapsed', () => {
+        const mockSelectionNotCollapsed = jasmine.createSpyObj('Selection', [
+          'getRangeAt', 'removeAllRanges', 'addRange', 'toString', 
+          'collapseToStart', 'collapseToEnd'
+        ], {
+          rangeCount: 1,
+          isCollapsed: false
+        });
+        spyOn(service, 'getSelection').and.returnValue(mockSelectionNotCollapsed);
+        
+        const result = service.hasSelection();
+        
+        expect(result).toBe(true);
+      });
+
+      it('should return false when selection is collapsed', () => {
+        const mockSelectionCollapsed = jasmine.createSpyObj('Selection', [
+          'getRangeAt', 'removeAllRanges', 'addRange', 'toString', 
+          'collapseToStart', 'collapseToEnd'
+        ], {
+          rangeCount: 1,
+          isCollapsed: true
+        });
+        spyOn(service, 'getSelection').and.returnValue(mockSelectionCollapsed);
+        
+        const result = service.hasSelection();
+        
+        expect(result).toBe(false);
+      });
+
+      it('should return false when no selection', () => {
+        spyOn(service, 'getSelection').and.returnValue(null);
+        
+        const result = service.hasSelection();
+        
+        expect(result).toBe(false);
+      });
+
+      it('should return false when no ranges', () => {
+        const mockSelectionNoRanges = jasmine.createSpyObj('Selection', [
+          'getRangeAt', 'removeAllRanges', 'addRange', 'toString', 
+          'collapseToStart', 'collapseToEnd'
+        ], {
+          rangeCount: 0,
+          isCollapsed: false
+        });
+        spyOn(service, 'getSelection').and.returnValue(mockSelectionNoRanges);
+        
+        const result = service.hasSelection();
+        
+        expect(result).toBe(false);
+      });
+
+      it('should handle errors gracefully', () => {
+        spyOn(service, 'getSelection').and.throwError('Selection error');
+        
+        const result = service.hasSelection();
+        
+        expect(result).toBe(false);
+      });
+    });
+  });
+
+  describe('Selection Wrapping and Error Handling', () => {
+    describe('wrapSelection', () => {
+      it('should wrap selection with specified tag', () => {
+        spyOn(service, 'getRange').and.returnValue(mockRange);
+        spyOn(service as any, 'isValidRange').and.returnValue(true);
+        spyOn(document, 'createElement').and.returnValue(document.createElement('strong'));
+        
+        service.wrapSelection('strong');
+        
+        expect(document.createElement).toHaveBeenCalledWith('strong');
+        expect(mockRange.surroundContents).toHaveBeenCalled();
+      });
+
+      it('should add attributes to wrapper element', () => {
+        const mockElement = document.createElement('a');
+        spyOn(service, 'getRange').and.returnValue(mockRange);
+        spyOn(service as any, 'isValidRange').and.returnValue(true);
+        spyOn(document, 'createElement').and.returnValue(mockElement);
+        spyOn(mockElement, 'setAttribute');
+        
+        service.wrapSelection('a', { href: 'http://example.com', target: '_blank' });
+        
+        expect(mockElement.setAttribute).toHaveBeenCalledWith('href', 'http://example.com');
+        expect(mockElement.setAttribute).toHaveBeenCalledWith('target', '_blank');
+      });
+
+      it('should handle collapsed selection gracefully', () => {
+        const mockRangeCollapsed = jasmine.createSpyObj('Range', [
+          'cloneRange', 'collapse', 'selectNodeContents', 'setStart', 'surroundContents',
+          'extractContents', 'insertNode'
+        ], {
+          collapsed: true,
+          startOffset: 0,
+          endOffset: 0
+        });
+        spyOn(service, 'getRange').and.returnValue(mockRangeCollapsed);
+        
+        expect(() => service.wrapSelection('strong')).not.toThrow();
+      });
+
+      it('should handle invalid range gracefully', () => {
+        spyOn(service, 'getRange').and.returnValue(mockRange);
+        spyOn(service as any, 'isValidRange').and.returnValue(false);
+        
+        expect(() => service.wrapSelection('strong')).not.toThrow();
+      });
+
+      it('should use fallback method when surroundContents fails', () => {
+        spyOn(service, 'getRange').and.returnValue(mockRange);
+        spyOn(service as any, 'isValidRange').and.returnValue(true);
+        spyOn(document, 'createElement').and.returnValue(document.createElement('strong'));
+        mockRange.surroundContents.and.throwError('Cannot surround');
+        spyOn(service as any, 'wrapSelectionFallback');
+        
+        service.wrapSelection('strong');
+        
+        expect((service as any).wrapSelectionFallback).toHaveBeenCalledWith('strong', undefined);
+      });
+
+      it('should handle null range gracefully', () => {
+        spyOn(service, 'getRange').and.returnValue(null);
+        
+        expect(() => service.wrapSelection('strong')).not.toThrow();
+      });
+    });
+
+    describe('wrapSelectionFallback', () => {
+      it('should wrap selection using fallback method', () => {
+        const mockElement = document.createElement('em');
+        const mockContents = document.createDocumentFragment();
+        
+        spyOn(service, 'getRange').and.returnValue(mockRange);
+        spyOn(document, 'createElement').and.returnValue(mockElement);
+        spyOn(mockRange, 'extractContents').and.returnValue(mockContents);
+        spyOn(mockElement, 'appendChild');
+        spyOn(service, 'getSelection').and.returnValue(mockSelection);
+        
+        (service as any).wrapSelectionFallback('em');
+        
+        expect(mockRange.extractContents).toHaveBeenCalled();
+        expect(mockElement.appendChild).toHaveBeenCalledWith(mockContents);
+        expect(mockRange.insertNode).toHaveBeenCalledWith(mockElement);
+      });
+
+      it('should add attributes in fallback method', () => {
+        const mockElement = document.createElement('a');
+        const mockContents = document.createDocumentFragment();
+        
+        spyOn(service, 'getRange').and.returnValue(mockRange);
+        spyOn(document, 'createElement').and.returnValue(mockElement);
+        spyOn(mockRange, 'extractContents').and.returnValue(mockContents);
+        spyOn(mockElement, 'setAttribute');
+        spyOn(service, 'getSelection').and.returnValue(mockSelection);
+        
+        (service as any).wrapSelectionFallback('a', { href: 'test.com' });
+        
+        expect(mockElement.setAttribute).toHaveBeenCalledWith('href', 'test.com');
+      });
+
+      it('should handle errors in fallback method', () => {
+        spyOn(service, 'getRange').and.returnValue(null);
+        
+        expect(() => (service as any).wrapSelectionFallback('strong')).not.toThrow();
+      });
+    });
+
+    describe('Range Validation', () => {
+      describe('isValidRange', () => {
+        it('should return true for valid range', () => {
+          const validRange = {
+            startContainer: document.body,
+            endContainer: document.body,
+            startOffset: 0,
+            endOffset: 0,
+            cloneRange: jasmine.createSpy().and.returnValue({})
+          } as any;
+          
+          spyOn(document, 'contains').and.returnValue(true);
+          
+          const result = (service as any).isValidRange(validRange);
+          
+          expect(result).toBe(true);
+        });
+
+        it('should return false for null range', () => {
+          const result = (service as any).isValidRange(null);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should return false for range with null containers', () => {
+          const invalidRange = {
+            startContainer: null,
+            endContainer: null,
+            startOffset: 0,
+            endOffset: 0
+          } as any;
+          
+          const result = (service as any).isValidRange(invalidRange);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should return false for disconnected range', () => {
+          const disconnectedRange = {
+            startContainer: document.createElement('div'),
+            endContainer: document.createElement('div'),
+            startOffset: 0,
+            endOffset: 0,
+            cloneRange: jasmine.createSpy()
+          } as any;
+          
+          spyOn(document, 'contains').and.returnValue(false);
+          
+          const result = (service as any).isValidRange(disconnectedRange);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should return false for out-of-bounds text offsets', () => {
+          const textNode = document.createTextNode('test');
+          const outOfBoundsRange = {
+            startContainer: textNode,
+            endContainer: textNode,
+            startOffset: 10, // Beyond text length
+            endOffset: 0,
+            cloneRange: jasmine.createSpy()
+          } as any;
+          
+          spyOn(document, 'contains').and.returnValue(true);
+          
+          const result = (service as any).isValidRange(outOfBoundsRange);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should handle cloneRange errors', () => {
+          const errorRange = {
+            startContainer: document.body,
+            endContainer: document.body,
+            startOffset: 0,
+            endOffset: 0,
+            cloneRange: jasmine.createSpy().and.throwError('Clone failed')
+          } as any;
+          
+          spyOn(document, 'contains').and.returnValue(true);
+          
+          const result = (service as any).isValidRange(errorRange);
+          
+          expect(result).toBe(false);
+        });
+      });
+
+      describe('validateAndRecoverSelection', () => {
+        it('should return valid selection when available', () => {
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          spyOn(service as any, 'isValidRange').and.returnValue(true);
+          
+          const result = (service as any).validateAndRecoverSelection();
+          
+          expect(result.valid).toBe(true);
+          expect(result.selection).toBe(mockSelection);
+          expect(result.range).toBe(mockRange);
+        });
+
+        it('should return invalid when no selection', () => {
+          spyOn(service, 'getSelection').and.returnValue(null);
+          
+          const result = (service as any).validateAndRecoverSelection();
+          
+          expect(result.valid).toBe(false);
+          expect(result.selection).toBeNull();
+          expect(result.range).toBeNull();
+        });
+
+        it('should recover selection when no ranges', () => {
+          const mockSelectionNoRanges = jasmine.createSpyObj('Selection', [
+            'removeAllRanges', 'addRange'
+          ], {
+            rangeCount: 0
+          });
+          
+          spyOn(service, 'getSelection').and.returnValue(mockSelectionNoRanges);
+          spyOn(document, 'createRange').and.returnValue(mockRange);
+          
+          const result = (service as any).validateAndRecoverSelection();
+          
+          expect(result.valid).toBe(true);
+          expect(mockSelectionNoRanges.removeAllRanges).toHaveBeenCalled();
+          expect(mockSelectionNoRanges.addRange).toHaveBeenCalled();
+        });
+
+        it('should repair invalid range', () => {
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          spyOn(service as any, 'isValidRange').and.returnValue(false);
+          spyOn(service as any, 'repairRange').and.returnValue(mockRange);
+          
+          const result = (service as any).validateAndRecoverSelection();
+          
+          expect(result.valid).toBe(true);
+          expect(mockSelection.removeAllRanges).toHaveBeenCalled();
+          expect(mockSelection.addRange).toHaveBeenCalled();
+        });
+
+        it('should handle repair failure', () => {
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          spyOn(service as any, 'isValidRange').and.returnValue(false);
+          spyOn(service as any, 'repairRange').and.returnValue(null);
+          
+          const result = (service as any).validateAndRecoverSelection();
+          
+          expect(result.valid).toBe(false);
+        });
+      });
+
+      describe('repairRange', () => {
+        it('should repair range with valid containers', () => {
+          const corruptedRange = {
+            startContainer: document.body,
+            endContainer: document.body,
+            startOffset: 0,
+            endOffset: 0
+          } as any;
+          
+          spyOn(document, 'createRange').and.returnValue(mockRange);
+          spyOn(document, 'contains').and.returnValue(true);
+          
+          const result = (service as any).repairRange(corruptedRange);
+          
+          expect(result).toBe(mockRange);
+          expect(mockRange.setStart).toHaveBeenCalledWith(document.body, 0);
+          expect(mockRange.setEnd).toHaveBeenCalledWith(document.body, 0);
+        });
+
+        it('should use document.body for disconnected containers', () => {
+          const disconnectedElement = document.createElement('div');
+          const corruptedRange = {
+            startContainer: disconnectedElement,
+            endContainer: disconnectedElement,
+            startOffset: 0,
+            endOffset: 0
+          } as any;
+          
+          spyOn(document, 'createRange').and.returnValue(mockRange);
+          spyOn(document, 'contains').and.returnValue(false);
+          
+          const result = (service as any).repairRange(corruptedRange);
+          
+          expect(result).toBe(mockRange);
+          expect(mockRange.setStart).toHaveBeenCalledWith(document.body, 0);
+          expect(mockRange.setEnd).toHaveBeenCalledWith(document.body, 0);
+        });
+
+        it('should clamp text node offsets', () => {
+          const textNode = document.createTextNode('test');
+          const corruptedRange = {
+            startContainer: textNode,
+            endContainer: textNode,
+            startOffset: 10, // Beyond text length
+            endOffset: 20   // Beyond text length
+          } as any;
+          
+          spyOn(document, 'createRange').and.returnValue(mockRange);
+          spyOn(document, 'contains').and.returnValue(true);
+          
+          const result = (service as any).repairRange(corruptedRange);
+          
+          expect(result).toBe(mockRange);
+          expect(mockRange.setStart).toHaveBeenCalledWith(textNode, 4); // Clamped to text length
+          expect(mockRange.setEnd).toHaveBeenCalledWith(textNode, 4);
+        });
+
+        it('should handle range creation errors', () => {
+          const corruptedRange = {
+            startContainer: document.body,
+            endContainer: document.body,
+            startOffset: 0,
+            endOffset: 0
+          } as any;
+          
+          spyOn(document, 'createRange').and.throwError('Range creation failed');
+          
+          const result = (service as any).repairRange(corruptedRange);
+          
+          expect(result).toBeNull();
+        });
+      });
+    });
+
+    describe('Safe Selection Methods', () => {
+      describe('restoreSelectionSafely', () => {
+        it('should restore valid selection', () => {
+          const state = {
+            range: mockRange,
+            collapsed: false,
+            formats: {
+              bold: false,
+              italic: false,
+              underline: false,
+              fontSize: '14px',
+              fontColor: '#000000',
+              backgroundColor: 'transparent',
+              alignment: 'left'
+            }
+          } as any;
+          
+          spyOn(service as any, 'isValidRange').and.returnValue(true);
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          
+          const result = service.restoreSelectionSafely(state);
+          
+          expect(result).toBe(true);
+          expect(mockSelection.removeAllRanges).toHaveBeenCalled();
+          expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
+        });
+
+        it('should return false for null range', () => {
+          const state = {
+            range: null,
+            collapsed: true,
+            formats: {} as any
+          };
+          
+          const result = service.restoreSelectionSafely(state);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should repair invalid range', () => {
+          const state = {
+            range: mockRange,
+            collapsed: false,
+            formats: {} as any
+          };
+          
+          spyOn(service as any, 'isValidRange').and.returnValue(false);
+          spyOn(service as any, 'repairRange').and.returnValue(mockRange);
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          
+          const result = service.restoreSelectionSafely(state);
+          
+          expect(result).toBe(true);
+        });
+
+        it('should handle restoration errors with fallback', () => {
+          const state = {
+            range: mockRange,
+            collapsed: false,
+            formats: {} as any
+          };
+          
+          spyOn(service as any, 'isValidRange').and.returnValue(true);
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          mockSelection.addRange.and.throwError('Add range failed');
+          spyOn(document, 'createRange').and.returnValue(mockRange);
+          
+          const result = service.restoreSelectionSafely(state);
+          
+          expect(result).toBe(false);
+        });
+      });
+
+      describe('selectTextSafely', () => {
+        it('should select text safely', () => {
+          const element = document.createElement('div');
+          element.textContent = 'test text';
+          
+          spyOn(service as any, 'findFirstTextNode').and.returnValue(element.firstChild);
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          spyOn(service as any, 'createSafeRange').and.returnValue(mockRange);
+          
+          const result = service.selectTextSafely(element, 0, 4);
+          
+          expect(result).toBe(true);
+          expect(mockSelection.removeAllRanges).toHaveBeenCalled();
+          expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
+        });
+
+        it('should return false when no text node found', () => {
+          const element = document.createElement('div');
+          
+          spyOn(service as any, 'findFirstTextNode').and.returnValue(null);
+          
+          const result = service.selectTextSafely(element, 0, 4);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should return false when no selection available', () => {
+          const element = document.createElement('div');
+          element.textContent = 'test';
+          
+          spyOn(service as any, 'findFirstTextNode').and.returnValue(element.firstChild);
+          spyOn(service, 'getSelection').and.returnValue(null);
+          
+          const result = service.selectTextSafely(element, 0, 4);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should return false when range creation fails', () => {
+          const element = document.createElement('div');
+          element.textContent = 'test';
+          
+          spyOn(service as any, 'findFirstTextNode').and.returnValue(element.firstChild);
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          spyOn(service as any, 'createSafeRange').and.returnValue(null);
+          
+          const result = service.selectTextSafely(element, 0, 4);
+          
+          expect(result).toBe(false);
+        });
+      });
+
+      describe('setCursorPositionSafely', () => {
+        it('should set cursor position safely', () => {
+          const element = document.createTextNode('test');
+          
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          spyOn(service as any, 'createSafeRange').and.returnValue(mockRange);
+          
+          const result = service.setCursorPositionSafely(element, 2);
+          
+          expect(result).toBe(true);
+          expect(mockSelection.removeAllRanges).toHaveBeenCalled();
+          expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
+        });
+
+        it('should return false when no selection available', () => {
+          const element = document.createTextNode('test');
+          
+          spyOn(service, 'getSelection').and.returnValue(null);
+          
+          const result = service.setCursorPositionSafely(element, 2);
+          
+          expect(result).toBe(false);
+        });
+
+        it('should return false when range creation fails', () => {
+          const element = document.createTextNode('test');
+          
+          spyOn(service, 'getSelection').and.returnValue(mockSelection);
+          spyOn(service as any, 'createSafeRange').and.returnValue(null);
+          
+          const result = service.setCursorPositionSafely(element, 2);
+          
+          expect(result).toBe(false);
+        });
+      });
+
+      describe('getSelectionSafely', () => {
+        it('should return valid selection when available', () => {
+          spyOn(service as any, 'validateAndRecoverSelection').and.returnValue({
+            valid: true,
+            selection: mockSelection,
+            range: mockRange
+          });
+          
+          const result = service.getSelectionSafely();
+          
+          expect(result.selection).toBe(mockSelection);
+          expect(result.range).toBe(mockRange);
+          expect(result.error).toBeUndefined();
+        });
+
+        it('should return null when validation fails', () => {
+          spyOn(service as any, 'validateAndRecoverSelection').and.returnValue({
+            valid: false,
+            selection: null,
+            range: null
+          });
+          
+          const result = service.getSelectionSafely();
+          
+          expect(result).toBeNull();
+        });
+
+        it('should handle errors gracefully', () => {
+          spyOn(service as any, 'validateAndRecoverSelection').and.throwError('Validation failed');
+          
+          const result = service.getSelectionSafely();
+          
+          expect(result).toBeNull();
+          expect(errorHandlerService.handleSelectionError).toHaveBeenCalled();
+        });
+      });
+
+      describe('findValidParent', () => {
+        it('should return element when node is valid element', () => {
+          const element = document.createElement('div');
+          document.body.appendChild(element);
+          
+          spyOn(document, 'contains').and.returnValue(true);
+          
+          const result = (service as any).findValidParent(element);
+          
+          expect(result).toBe(element);
+          
+          document.body.removeChild(element);
+        });
+
+        it('should return parent element when node is text node', () => {
+          const element = document.createElement('div');
+          const textNode = document.createTextNode('test');
+          element.appendChild(textNode);
+          document.body.appendChild(element);
+          
+          spyOn(document, 'contains').and.returnValue(true);
+          
+          const result = (service as any).findValidParent(textNode);
+          
+          expect(result).toBe(element);
+          
+          document.body.removeChild(element);
+        });
+
+        it('should return document.body as fallback', () => {
+          const disconnectedElement = document.createElement('div');
+          
+          spyOn(document, 'contains').and.returnValue(false);
+          
+          const result = (service as any).findValidParent(disconnectedElement);
+          
+          expect(result).toBe(document.body);
+        });
+
+        it('should handle errors and return document.body', () => {
+          const mockNode = {
+            nodeType: Node.ELEMENT_NODE,
+            parentNode: null
+          } as any;
+          
+          const result = (service as any).findValidParent(mockNode);
+          
+          expect(result).toBe(document.body);
+        });
+      });
     });
   });
 
@@ -506,12 +1178,20 @@ describe('SelectionService', () => {
       expect(() => service.saveSelection()).not.toThrow();
     });
   });
-});  de
-scribe('Enhanced Error Handling and Recovery', () => {
+
+  describe('Enhanced Error Handling and Recovery', () => {
+    let errorHandlerService: jasmine.SpyObj<any>;
+
     beforeEach(() => {
-      spyOn(errorHandlerService, 'isFeatureSupported').and.returnValue(true);
-      spyOn(errorHandlerService, 'handleBrowserError').and.stub();
-      spyOn(errorHandlerService, 'handleSelectionError').and.stub();
+      errorHandlerService = jasmine.createSpyObj('ErrorHandlerService', [
+        'isFeatureSupported',
+        'handleBrowserError', 
+        'handleSelectionError'
+      ]);
+      
+      errorHandlerService.isFeatureSupported.and.returnValue(true);
+      errorHandlerService.handleBrowserError.and.stub();
+      errorHandlerService.handleSelectionError.and.stub();
     });
 
     describe('Selection API Fallbacks', () => {
@@ -986,3 +1666,4 @@ scribe('Enhanced Error Handling and Recovery', () => {
       });
     });
   });
+});

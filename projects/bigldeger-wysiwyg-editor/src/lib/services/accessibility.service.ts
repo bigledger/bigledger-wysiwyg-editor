@@ -1,5 +1,6 @@
 import { Injectable, ElementRef } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { ErrorHandlerService } from './error-handler.service';
 
 export interface FocusableElement {
   element: HTMLElement;
@@ -31,7 +32,7 @@ export class AccessibilityService {
   private trapFocus = false;
   private focusTrapContainer: HTMLElement | null = null;
 
-  constructor() {
+  constructor(private errorHandler: ErrorHandlerService) {
     this.initializeKeyboardShortcuts();
   }
 
@@ -142,14 +143,18 @@ export class AccessibilityService {
    * Set up focus trap for dialogs
    */
   setupFocusTrap(container: HTMLElement): void {
-    this.focusTrapContainer = container;
-    this.trapFocus = true;
-    this.updateFocusableElements();
-    
-    // Focus first focusable element
-    const firstFocusable = this.getFirstFocusableElement();
-    if (firstFocusable) {
-      firstFocusable.focus();
+    try {
+      this.focusTrapContainer = container;
+      this.trapFocus = true;
+      this.updateFocusableElements();
+      
+      // Focus first focusable element
+      const firstFocusable = this.getFirstFocusableElement();
+      if (firstFocusable) {
+        firstFocusable.focus();
+      }
+    } catch (error) {
+      this.errorHandler.handleBrowserError('focusTrap', 'Failed to setup focus trap');
     }
   }
 
@@ -168,24 +173,29 @@ export class AccessibilityService {
   updateFocusableElements(): void {
     if (!this.focusTrapContainer) return;
 
-    const focusableSelectors = [
-      'button:not([disabled])',
-      'input:not([disabled])',
-      'select:not([disabled])',
-      'textarea:not([disabled])',
-      'a[href]',
-      '[tabindex]:not([tabindex="-1"])',
-      '[contenteditable="true"]'
-    ].join(', ');
+    try {
+      const focusableSelectors = [
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        'a[href]',
+        '[tabindex]:not([tabindex="-1"])',
+        '[contenteditable="true"]'
+      ].join(', ');
 
-    const elements = this.focusTrapContainer.querySelectorAll(focusableSelectors);
-    
-    this.focusableElements = Array.from(elements).map((element, index) => ({
-      element: element as HTMLElement,
-      tabIndex: (element as HTMLElement).tabIndex || 0,
-      role: element.getAttribute('role') || undefined,
-      ariaLabel: element.getAttribute('aria-label') || undefined
-    }));
+      const elements = this.focusTrapContainer.querySelectorAll(focusableSelectors);
+      
+      this.focusableElements = Array.from(elements).map((element, index) => ({
+        element: element as HTMLElement,
+        tabIndex: (element as HTMLElement).tabIndex || 0,
+        role: element.getAttribute('role') || undefined,
+        ariaLabel: element.getAttribute('aria-label') || undefined
+      }));
+    } catch (error) {
+      this.errorHandler.handleBrowserError('queryFocusableElements', 'Failed to query focusable elements');
+      this.focusableElements = [];
+    }
   }
 
   /**
@@ -263,18 +273,28 @@ export class AccessibilityService {
    * Announce text to screen readers
    */
   announceToScreenReader(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
-    const announcement = document.createElement('div');
-    announcement.setAttribute('aria-live', priority);
-    announcement.setAttribute('aria-atomic', 'true');
-    announcement.className = 'sr-only';
-    announcement.textContent = message;
+    try {
+      const announcement = document.createElement('div');
+      announcement.setAttribute('aria-live', priority);
+      announcement.setAttribute('aria-atomic', 'true');
+      announcement.className = 'sr-only';
+      announcement.textContent = message;
 
-    document.body.appendChild(announcement);
+      document.body.appendChild(announcement);
 
-    // Remove after announcement
-    setTimeout(() => {
-      document.body.removeChild(announcement);
-    }, 1000);
+      // Remove after announcement
+      setTimeout(() => {
+        try {
+          if (document.body.contains(announcement)) {
+            document.body.removeChild(announcement);
+          }
+        } catch (removeError) {
+          // Silent failure for cleanup
+        }
+      }, 1000);
+    } catch (error) {
+      this.errorHandler.handleBrowserError('screenReaderAnnouncement', 'Failed to announce to screen reader');
+    }
   }
 
   /**
@@ -341,21 +361,25 @@ export class AccessibilityService {
    * Set up roving tabindex for toolbar navigation
    */
   setupRovingTabindex(container: HTMLElement, selector: string): void {
-    const elements = container.querySelectorAll(selector) as NodeListOf<HTMLElement>;
-    
-    elements.forEach((element, index) => {
-      element.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    try {
+      const elements = container.querySelectorAll(selector) as NodeListOf<HTMLElement>;
       
-      element.addEventListener('keydown', (event) => {
-        this.handleRovingTabindexNavigation(event, elements, element);
-      });
+      elements.forEach((element, index) => {
+        element.setAttribute('tabindex', index === 0 ? '0' : '-1');
+        
+        element.addEventListener('keydown', (event) => {
+          this.handleRovingTabindexNavigation(event, elements, element);
+        });
 
-      element.addEventListener('focus', () => {
-        // Update tabindex when element receives focus
-        elements.forEach(el => el.setAttribute('tabindex', '-1'));
-        element.setAttribute('tabindex', '0');
+        element.addEventListener('focus', () => {
+          // Update tabindex when element receives focus
+          elements.forEach(el => el.setAttribute('tabindex', '-1'));
+          element.setAttribute('tabindex', '0');
+        });
       });
-    });
+    } catch (error) {
+      this.errorHandler.handleBrowserError('rovingTabindex', 'Failed to setup roving tabindex');
+    }
   }
 
   /**
@@ -394,6 +418,111 @@ export class AccessibilityService {
 
     if (targetIndex !== currentIndex) {
       elements[targetIndex].focus();
+    }
+  }
+
+  /**
+   * Get accessible description for an element
+   */
+  getAccessibleDescription(element: HTMLElement): string {
+    try {
+      const ariaDescribedBy = element.getAttribute('aria-describedby');
+      if (ariaDescribedBy) {
+        const describedByElement = document.getElementById(ariaDescribedBy);
+        if (describedByElement) {
+          return describedByElement.textContent || '';
+        }
+      }
+      
+      const title = element.getAttribute('title');
+      if (title) {
+        return title;
+      }
+      
+      return element.getAttribute('aria-label') || '';
+    } catch (error) {
+      this.errorHandler.handleBrowserError('getAccessibleDescription', 'Failed to get accessible description');
+      return '';
+    }
+  }
+
+  /**
+   * Validate ARIA labels on elements
+   */
+  validateAriaLabels(container?: HTMLElement): boolean {
+    try {
+      const root = container || document.body;
+      const elementsWithAriaLabel = root.querySelectorAll('[aria-label]');
+      const elementsWithAriaLabelledBy = root.querySelectorAll('[aria-labelledby]');
+      
+      let isValid = true;
+      
+      // Check aria-labelledby references
+      elementsWithAriaLabelledBy.forEach(element => {
+        const labelledBy = element.getAttribute('aria-labelledby');
+        if (labelledBy) {
+          const referencedElement = document.getElementById(labelledBy);
+          if (!referencedElement) {
+            isValid = false;
+          }
+        }
+      });
+      
+      return isValid;
+    } catch (error) {
+      this.errorHandler.handleBrowserError('validateAriaLabels', 'Failed to validate ARIA labels');
+      return false;
+    }
+  }
+
+  /**
+   * Check color contrast for accessibility
+   */
+  checkColorContrast(element: HTMLElement): boolean {
+    try {
+      const computedStyle = window.getComputedStyle(element);
+      const color = computedStyle.color;
+      const backgroundColor = computedStyle.backgroundColor;
+      
+      // Basic contrast check - in a real implementation, you'd calculate the actual contrast ratio
+      // For now, just return true if both colors are defined
+      return !!(color && backgroundColor && color !== backgroundColor);
+    } catch (error) {
+      this.errorHandler.handleBrowserError('checkColorContrast', 'Failed to check color contrast');
+      return false;
+    }
+  }
+
+  /**
+   * Ensure keyboard navigation is properly set up
+   */
+  ensureKeyboardNavigation(container?: HTMLElement): boolean {
+    try {
+      const root = container || document.body;
+      const interactiveElements = root.querySelectorAll('button, input, select, textarea, a[href], [tabindex]');
+      
+      let hasProperNavigation = true;
+      
+      interactiveElements.forEach(element => {
+        const htmlElement = element as HTMLElement;
+        const tabIndex = htmlElement.getAttribute('tabindex');
+        
+        // Check if element is focusable
+        const isDisabled = (htmlElement as any).disabled;
+        if (tabIndex === '-1' && !isDisabled) {
+          // Element might be part of a roving tabindex pattern, which is okay
+        } else if (!htmlElement.getAttribute('aria-hidden')) {
+          // Element should be focusable
+          if (isDisabled || tabIndex === '-1') {
+            hasProperNavigation = false;
+          }
+        }
+      });
+      
+      return hasProperNavigation;
+    } catch (error) {
+      this.errorHandler.handleBrowserError('ensureKeyboardNavigation', 'Failed to ensure keyboard navigation');
+      return false;
     }
   }
 }

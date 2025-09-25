@@ -3,11 +3,11 @@ import {
   SanitizerConfig, 
   SanitizationRule,
   AutoSaveConfig,
-  ImageUploadConfig,
   LinkConfig,
   ShortcutConfig,
   AccessibilityConfig
 } from './editor-config.interface';
+import { ImageUploadConfig } from './image.interface';
 import { ToolbarConfig } from './toolbar.interface';
 
 describe('Editor Config Interfaces', () => {
@@ -147,34 +147,50 @@ describe('Editor Config Interfaces', () => {
   });
 
   describe('ImageUploadConfig', () => {
-    it('should create a valid ImageUploadConfig with required properties', () => {
+    it('should create a valid ImageUploadConfig with minimal properties', () => {
       const config: ImageUploadConfig = {
-        enabled: true
+        maxFileSize: 5 * 1024 * 1024
       };
 
-      expect(config.enabled).toBe(true);
+      expect(config.maxFileSize).toBe(5 * 1024 * 1024);
     });
 
-    it('should create a valid ImageUploadConfig with all optional properties', () => {
-      const uploadFn = async (file: File) => 'uploaded-url';
+    it('should create a valid ImageUploadConfig with all properties', () => {
+      const uploadHandler = async (file: File) => 'uploaded-url';
       const config: ImageUploadConfig = {
-        enabled: true,
-        maxFileSize: 5242880, // 5MB
-        allowedFormats: ['jpg', 'jpeg', 'png', 'gif'],
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        allowedFormats: ['image/jpeg', 'image/png', 'image/gif'],
+        allowUrlInput: true,
+        allowFileUpload: true,
+        uploadHandler,
         uploadUrl: '/api/upload',
-        uploadFunction: uploadFn,
-        resize: true,
+        uploadHeaders: { 'Authorization': 'Bearer token' },
         maxWidth: 1920,
-        maxHeight: 1080
+        maxHeight: 1080,
+        autoResize: true,
+        quality: 0.9
       };
 
-      expect(config.maxFileSize).toBe(5242880);
-      expect(config.allowedFormats).toEqual(['jpg', 'jpeg', 'png', 'gif']);
+      expect(config.maxFileSize).toBe(10 * 1024 * 1024);
+      expect(config.allowedFormats).toEqual(['image/jpeg', 'image/png', 'image/gif']);
+      expect(config.allowUrlInput).toBe(true);
+      expect(config.allowFileUpload).toBe(true);
+      expect(config.uploadHandler).toBe(uploadHandler);
       expect(config.uploadUrl).toBe('/api/upload');
-      expect(config.uploadFunction).toBe(uploadFn);
-      expect(config.resize).toBe(true);
+      expect(config.uploadHeaders).toEqual({ 'Authorization': 'Bearer token' });
       expect(config.maxWidth).toBe(1920);
       expect(config.maxHeight).toBe(1080);
+      expect(config.autoResize).toBe(true);
+      expect(config.quality).toBe(0.9);
+    });
+
+    it('should work with empty config object', () => {
+      const config: ImageUploadConfig = {};
+
+      expect(config.maxFileSize).toBeUndefined();
+      expect(config.allowedFormats).toBeUndefined();
+      expect(config.allowUrlInput).toBeUndefined();
+      expect(config.allowFileUpload).toBeUndefined();
     });
   });
 
@@ -289,9 +305,10 @@ describe('Editor Config Interfaces', () => {
           storageKey: 'editor-content'
         },
         imageUpload: {
-          enabled: true,
           maxFileSize: 2097152,
-          allowedFormats: ['jpg', 'png']
+          allowedFormats: ['image/jpeg', 'image/png'],
+          allowUrlInput: true,
+          allowFileUpload: true
         },
         linkConfig: {
           validateUrls: true,

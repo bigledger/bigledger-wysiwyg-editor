@@ -312,7 +312,12 @@ describe('Link and Image Workflows Integration Tests', () => {
       const fileList = {
         0: mockFile,
         length: 1,
-        item: (index: number) => mockFile
+        item: (index: number) => mockFile,
+        [Symbol.iterator]: function* () {
+          for (let i = 0; i < this.length; i++) {
+            yield this[i];
+          }
+        }
       } as FileList;
       
       // Simulate file selection
@@ -345,7 +350,12 @@ describe('Link and Image Workflows Integration Tests', () => {
       const fileList = {
         0: invalidFile,
         length: 1,
-        item: (index: number) => invalidFile
+        item: (index: number) => invalidFile,
+        [Symbol.iterator]: function* () {
+          for (let i = 0; i < this.length; i++) {
+            yield this[i];
+          }
+        }
       } as FileList;
       
       Object.defineProperty(fileInput.nativeElement, 'files', {

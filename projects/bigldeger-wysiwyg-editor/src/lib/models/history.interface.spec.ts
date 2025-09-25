@@ -1,4 +1,4 @@
-import { HistoryState, HistoryConfig, HistoryManager } from './history.interface';
+import { HistoryState, HistoryConfig, HistoryManager, HistoryBranch } from './history.interface';
 
 describe('History Interfaces', () => {
   describe('HistoryState', () => {
@@ -108,6 +108,30 @@ describe('History Interfaces', () => {
 
       getStateCount(): number {
         return this.states.length;
+      }
+
+      startGroup(description?: string): string {
+        return 'group-id';
+      }
+
+      endGroup(groupId: string): void {
+        // Mock implementation
+      }
+
+      createBranch(name: string): string {
+        return 'branch-id';
+      }
+
+      switchBranch(branchId: string): boolean {
+        return true;
+      }
+
+      getBranches(): HistoryBranch[] {
+        return [];
+      }
+
+      compressHistory(): void {
+        // Mock implementation
       }
     }
 

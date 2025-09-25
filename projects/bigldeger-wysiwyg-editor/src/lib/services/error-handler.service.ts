@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, Optional } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { 
   EditorError, 
@@ -32,12 +32,22 @@ export class ErrorHandlerService {
     reportErrors: false
   };
 
+  private notificationService: any = null;
+
   private browserInfo: BrowserInfo | null = null;
   private supportedFeatures: Map<string, boolean> = new Map();
 
   constructor() {
     this.initializeBrowserDetection();
     this.checkBrowserSupport();
+  }
+
+  /**
+   * Set notification service for user notifications
+   * Using setter to avoid circular dependency
+   */
+  setNotificationService(notificationService: any): void {
+    this.notificationService = notificationService;
   }
 
   /**
@@ -85,6 +95,11 @@ export class ErrorHandlerService {
       } catch (handlerError) {
         console.error('Custom error handler failed:', handlerError);
       }
+    }
+
+    // Show user notification if enabled and service is available
+    if (this.config.showUserMessages && this.notificationService) {
+      this.notificationService.showErrorNotification(error);
     }
 
     // Emit error to subscribers

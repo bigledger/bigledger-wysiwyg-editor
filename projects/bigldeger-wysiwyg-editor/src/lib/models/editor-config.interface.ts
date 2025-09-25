@@ -1,4 +1,5 @@
 import { ToolbarConfig } from './toolbar.interface';
+import { ImageUploadConfig } from './image.interface';
 
 /**
  * Main configuration interface for the WYSIWYG editor
@@ -82,27 +83,7 @@ export interface AutoSaveConfig {
   saveFunction?: (content: string) => void;
 }
 
-/**
- * Image upload configuration
- */
-export interface ImageUploadConfig {
-  /** Whether image upload is enabled */
-  enabled: boolean;
-  /** Maximum file size in bytes */
-  maxFileSize?: number;
-  /** Allowed image formats */
-  allowedFormats?: string[];
-  /** Upload URL endpoint */
-  uploadUrl?: string;
-  /** Custom upload function */
-  uploadFunction?: (file: File) => Promise<string>;
-  /** Whether to resize images */
-  resize?: boolean;
-  /** Maximum image width */
-  maxWidth?: number;
-  /** Maximum image height */
-  maxHeight?: number;
-}
+
 
 /**
  * Link configuration
