@@ -1,12 +1,14 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
+import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
 
 @Component({
   selector: 'app-event-handling',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule, WysiwygEditorComponent],
   template: `
     <div class="container">
       <div class="demo-header">
@@ -23,16 +25,12 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
         
         <div class="demo-result">
           <div class="editor-container">
-            <div class="mock-editor">
-              <div class="mock-toolbar">
-                <button class="mock-btn" [class.active]="hasSelection">B</button>
-                <button class="mock-btn">I</button>
-                <button class="mock-btn">🔗</button>
-              </div>
-              <div class="mock-content" contenteditable="true" (input)="onContentChange($event)">
-                <p>Start typing to see events...</p>
-              </div>
-            </div>
+            <wysiwyg-editor
+              [(ngModel)]="contentChangeContent"
+              (contentChange)="onContentChange($event)"
+              placeholder="Start typing to see content change events..."
+              [height]="'200px'">
+            </wysiwyg-editor>
             
             <div class="editor-stats">
               <div class="stat-item">
@@ -44,8 +42,12 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
                 <span class="stat-value">{{ wordCount }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">Lines:</span>
-                <span class="stat-value">{{ lineCount }}</span>
+                <span class="stat-label">Paragraphs:</span>
+                <span class="stat-value">{{ paragraphCount }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Changes:</span>
+                <span class="stat-value">{{ changeCount }}</span>
               </div>
             </div>
           </div>
@@ -58,19 +60,12 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
         
         <div class="demo-result">
           <div class="editor-container">
-            <div class="mock-editor">
-              <div class="mock-toolbar">
-                <button class="mock-btn">B</button>
-                <button class="mock-btn">I</button>
-                <button class="mock-btn">U</button>
-              </div>
-              <div class="mock-content" 
-                   contenteditable="true" 
-                   (mouseup)="onSelectionChange()"
-                   (keyup)="onSelectionChange()">
-                <p>Select some text to see selection events...</p>
-              </div>
-            </div>
+            <wysiwyg-editor
+              [(ngModel)]="selectionContent"
+              (selectionChange)="onSelectionChange($event)"
+              placeholder="Select some text to see selection events..."
+              [height]="'200px'">
+            </wysiwyg-editor>
             
             <div class="selection-info">
               <div class="info-item">
@@ -85,6 +80,14 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
                 <span class="info-label">Selection Length:</span>
                 <span class="info-value">{{ selectionLength }} characters</span>
               </div>
+              <div class="info-item">
+                <span class="info-label">Bold Active:</span>
+                <span class="info-value" [class.active]="isBoldActive">{{ isBoldActive ? 'Yes' : 'No' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Italic Active:</span>
+                <span class="info-value" [class.active]="isItalicActive">{{ isItalicActive ? 'Yes' : 'No' }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -96,18 +99,12 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
         
         <div class="demo-result">
           <div class="editor-container">
-            <div class="mock-editor">
-              <div class="mock-toolbar">
-                <button class="mock-btn">B</button>
-                <button class="mock-btn">I</button>
-                <button class="mock-btn">U</button>
-              </div>
-              <div class="mock-content" 
-                   contenteditable="true" 
-                   (input)="onAutoSaveContentChange($event)">
-                <p>Type something to see auto-save in action...</p>
-              </div>
-            </div>
+            <wysiwyg-editor
+              [(ngModel)]="autoSaveContent"
+              (contentChange)="onAutoSaveContentChange($event)"
+              placeholder="Type something to see auto-save in action..."
+              [height]="'200px'">
+            </wysiwyg-editor>
             
             <div class="save-status">
               <div class="status-indicator" [class]="saveStatusClass">
@@ -115,6 +112,81 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
               </div>
               <div class="last-saved" *ngIf="lastSaved">
                 Last saved: {{ lastSaved | date:'short' }}
+              </div>
+              <div class="save-count">
+                Auto-saves: {{ autoSaveCount }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Focus & Blur Events</h2>
+        <p>Track editor focus state and user interactions:</p>
+        
+        <div class="demo-result">
+          <div class="editor-container">
+            <wysiwyg-editor
+              [(ngModel)]="focusContent"
+              (focusEvent)="onEditorFocus($event)"
+              (blurEvent)="onEditorBlur($event)"
+              placeholder="Click here to focus, click outside to blur..."
+              [height]="'150px'">
+            </wysiwyg-editor>
+            
+            <div class="focus-info">
+              <div class="info-item">
+                <span class="info-label">Editor State:</span>
+                <span class="info-value" [class.active]="isFocused">{{ isFocused ? 'Focused' : 'Blurred' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Focus Count:</span>
+                <span class="info-value">{{ focusCount }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Blur Count:</span>
+                <span class="info-value">{{ blurCount }}</span>
+              </div>
+              <div class="info-item" *ngIf="lastFocusTime">
+                <span class="info-label">Last Focus:</span>
+                <span class="info-value">{{ lastFocusTime | date:'medium' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Event Log</h2>
+        <p>Real-time log of all editor events:</p>
+        
+        <div class="demo-result">
+          <div class="editor-container">
+            <wysiwyg-editor
+              [(ngModel)]="eventLogContent"
+              (contentChange)="logEvent('Content Changed', $event)"
+              (selectionChange)="logEvent('Selection Changed', $event)"
+              (focusEvent)="logEvent('Editor Focused', $event)"
+              (blurEvent)="logEvent('Editor Blurred', $event)"
+              placeholder="Interact with this editor to see events..."
+              [height]="'150px'">
+            </wysiwyg-editor>
+            
+            <div class="event-log">
+              <div class="log-header">
+                <h4>Event Log</h4>
+                <button class="clear-btn" (click)="clearEventLog()">Clear Log</button>
+              </div>
+              <div class="log-entries">
+                <div *ngFor="let event of eventLog; trackBy: trackByEvent" class="log-entry">
+                  <span class="log-time">{{ event.timestamp | date:'HH:mm:ss.SSS' }}</span>
+                  <span class="log-type">{{ event.type }}</span>
+                  <span class="log-data">{{ event.data }}</span>
+                </div>
+                <div *ngIf="eventLog.length === 0" class="no-events">
+                  No events yet. Start interacting with the editor above.
+                </div>
               </div>
             </div>
           </div>
@@ -210,52 +282,20 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
       gap: 1rem;
     }
 
-    .mock-editor {
+    wysiwyg-editor {
+      display: block;
       border: 1px solid #ddd;
       border-radius: 4px;
       overflow: hidden;
       transition: border-color 0.2s ease;
     }
 
-    .mock-editor:focus-within {
+    wysiwyg-editor:focus-within {
       border-color: #007bff;
       box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
     }
 
-    .mock-toolbar {
-      background: #f8f9fa;
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
-      display: flex;
-      gap: 4px;
-    }
-
-    .mock-btn {
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      background: white;
-      border-radius: 3px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .mock-btn:hover {
-      background: #e9ecef;
-    }
-
-    .mock-btn.active {
-      background: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
-
-    .mock-content {
-      min-height: 120px;
-      padding: 12px;
-      outline: none;
-    }
-
-    .editor-stats, .selection-info {
+    .editor-stats, .selection-info, .focus-info {
       display: flex;
       gap: 1rem;
       flex-wrap: wrap;
@@ -318,9 +358,88 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
       color: #856404;
     }
 
-    .last-saved {
+    .last-saved, .save-count {
       font-size: 0.875rem;
       color: #666;
+    }
+
+    .event-log {
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      max-height: 300px;
+      overflow: hidden;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8f9fa;
+    }
+
+    .log-header h4 {
+      margin: 0;
+      color: #333;
+      font-size: 1rem;
+    }
+
+    .clear-btn {
+      padding: 0.25rem 0.75rem;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+
+    .clear-btn:hover {
+      background: #c82333;
+    }
+
+    .log-entries {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 1rem;
+      padding: 0.5rem;
+      border-bottom: 1px solid #f1f3f4;
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: #666;
+      min-width: 80px;
+    }
+
+    .log-type {
+      color: #007bff;
+      font-weight: 500;
+      min-width: 120px;
+    }
+
+    .log-data {
+      color: #333;
+      word-break: break-all;
+    }
+
+    .no-events {
+      padding: 2rem;
+      text-align: center;
+      color: #666;
+      font-style: italic;
     }
 
     .next-steps {
@@ -383,20 +502,41 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
   `]
 })
 export class EventHandlingComponent implements OnDestroy {
+  // Editor content
+  contentChangeContent = '<p>Start typing to see <strong>content change events</strong> in real-time...</p>';
+  selectionContent = '<p>Select some text to see <em>selection events</em>. Try selecting <strong>bold text</strong> or <em>italic text</em>.</p>';
+  autoSaveContent = '<p>Type something to see <strong>auto-save</strong> in action. Changes are saved automatically after 2 seconds of inactivity.</p>';
+  focusContent = '<p>Click here to <strong>focus</strong>, click outside to <em>blur</em>...</p>';
+  eventLogContent = '<p>Interact with this editor to see <strong>all events</strong> logged below.</p>';
+
   // Content tracking
   contentLength = 0;
   wordCount = 0;
-  lineCount = 1;
+  paragraphCount = 1;
+  changeCount = 0;
 
   // Selection tracking
   hasSelection = false;
   selectedText = '';
   selectionLength = 0;
+  isBoldActive = false;
+  isItalicActive = false;
 
   // Auto-save
   saveStatus = 'All changes saved';
   saveStatusClass = 'saved';
   lastSaved: Date | null = null;
+  autoSaveCount = 0;
+
+  // Focus tracking
+  isFocused = false;
+  focusCount = 0;
+  blurCount = 0;
+  lastFocusTime: Date | null = null;
+
+  // Event log
+  eventLog: Array<{id: number, timestamp: Date, type: string, data: string}> = [];
+  private eventIdCounter = 0;
 
   private contentChange$ = new Subject<string>();
   private destroy$ = new Subject<void>();
@@ -409,27 +549,84 @@ export class EventHandlingComponent implements OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(content => this.autoSave(content));
+
+    // Initialize content stats
+    this.updateContentStats(this.contentChangeContent);
   }
 
-  onContentChange(event: any) {
-    const content = event.target.innerHTML;
-    this.contentLength = content.length;
-    this.wordCount = this.countWords(content);
-    this.lineCount = this.countLines(content);
+  onContentChange(content: string) {
+    this.updateContentStats(content);
+    this.changeCount++;
   }
 
-  onSelectionChange() {
-    const selection = window.getSelection();
-    this.hasSelection = selection ? !selection.isCollapsed : false;
-    this.selectedText = selection?.toString() || '';
+  onSelectionChange(selectionState: any) {
+    this.hasSelection = selectionState?.hasSelection || false;
+    this.selectedText = selectionState?.selectedText || '';
     this.selectionLength = this.selectedText.length;
+    this.isBoldActive = selectionState?.formats?.bold || false;
+    this.isItalicActive = selectionState?.formats?.italic || false;
   }
 
-  onAutoSaveContentChange(event: any) {
-    const content = event.target.innerHTML;
+  onAutoSaveContentChange(content: string) {
     this.saveStatus = 'Saving...';
     this.saveStatusClass = 'saving';
     this.contentChange$.next(content);
+  }
+
+  onEditorFocus(event: Event) {
+    this.isFocused = true;
+    this.focusCount++;
+    this.lastFocusTime = new Date();
+  }
+
+  onEditorBlur(event: Event) {
+    this.isFocused = false;
+    this.blurCount++;
+  }
+
+  logEvent(type: string, data: any) {
+    let dataString = '';
+    
+    if (typeof data === 'string') {
+      dataString = data.length > 50 ? data.substring(0, 50) + '...' : data;
+    } else if (data && typeof data === 'object') {
+      if (data.hasSelection) {
+        dataString = `Selection: "${data.selectedText || ''}" (${data.selectedText?.length || 0} chars)`;
+      } else if (data.type) {
+        dataString = `Event type: ${data.type}`;
+      } else {
+        dataString = JSON.stringify(data).substring(0, 100);
+      }
+    } else {
+      dataString = String(data);
+    }
+
+    this.eventLog.unshift({
+      id: ++this.eventIdCounter,
+      timestamp: new Date(),
+      type,
+      data: dataString
+    });
+
+    // Keep only last 20 events
+    if (this.eventLog.length > 20) {
+      this.eventLog = this.eventLog.slice(0, 20);
+    }
+  }
+
+  clearEventLog() {
+    this.eventLog = [];
+    this.eventIdCounter = 0;
+  }
+
+  trackByEvent(index: number, event: any): number {
+    return event.id;
+  }
+
+  private updateContentStats(content: string) {
+    this.contentLength = content.length;
+    this.wordCount = this.countWords(content);
+    this.paragraphCount = this.countParagraphs(content);
   }
 
   private countWords(html: string): number {
@@ -437,9 +634,9 @@ export class EventHandlingComponent implements OnDestroy {
     return text ? text.split(/\s+/).length : 0;
   }
 
-  private countLines(html: string): number {
-    const lines = html.split(/<\/p>|<br\s*\/?>/i);
-    return Math.max(1, lines.length - 1);
+  private countParagraphs(html: string): number {
+    const paragraphs = html.match(/<p[^>]*>/g);
+    return Math.max(1, paragraphs ? paragraphs.length : 1);
   }
 
   private autoSave(content: string) {
@@ -448,6 +645,7 @@ export class EventHandlingComponent implements OnDestroy {
       this.saveStatus = 'All changes saved';
       this.saveStatusClass = 'saved';
       this.lastSaved = new Date();
+      this.autoSaveCount++;
     }, 500);
   }
 

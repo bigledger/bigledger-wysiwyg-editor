@@ -1,11 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { WysiwygEditorComponent, ToolbarConfig } from 'angular-wysiwyg-editor';
 
 @Component({
   selector: 'app-toolbar-config',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule, WysiwygEditorComponent],
   template: `
     <div class="container">
       <div class="demo-header">
@@ -21,16 +23,12 @@ import { RouterLink } from '@angular/router';
         <p>A simple toolbar with only essential formatting tools</p>
         
         <div class="demo-result">
-          <div class="mock-editor">
-            <div class="mock-toolbar">
-              <button class="mock-btn active">B</button>
-              <button class="mock-btn">I</button>
-              <button class="mock-btn">🔗</button>
-            </div>
-            <div class="mock-content">
-              <p>Minimal toolbar editor...</p>
-            </div>
-          </div>
+          <wysiwyg-editor
+            [(ngModel)]="minimalContent"
+            [toolbarConfig]="minimalToolbarConfig"
+            placeholder="Type here with minimal toolbar..."
+            [height]="'200px'">
+          </wysiwyg-editor>
         </div>
       </div>
 
@@ -39,27 +37,12 @@ import { RouterLink } from '@angular/router';
         <p>A comprehensive toolbar with common formatting options</p>
         
         <div class="demo-result">
-          <div class="mock-editor">
-            <div class="mock-toolbar">
-              <button class="mock-btn">B</button>
-              <button class="mock-btn active">I</button>
-              <button class="mock-btn">U</button>
-              <div class="separator"></div>
-              <select class="mock-select">
-                <option>Paragraph</option>
-                <option>Heading 1</option>
-              </select>
-              <div class="separator"></div>
-              <button class="mock-btn">•</button>
-              <button class="mock-btn">1.</button>
-              <div class="separator"></div>
-              <button class="mock-btn">🔗</button>
-              <button class="mock-btn">📷</button>
-            </div>
-            <div class="mock-content">
-              <p>Standard toolbar editor...</p>
-            </div>
-          </div>
+          <wysiwyg-editor
+            [(ngModel)]="standardContent"
+            [toolbarConfig]="standardToolbarConfig"
+            placeholder="Type here with standard toolbar..."
+            [height]="'200px'">
+          </wysiwyg-editor>
         </div>
       </div>
 
@@ -68,39 +51,48 @@ import { RouterLink } from '@angular/router';
         <p>A complete toolbar with all available formatting tools</p>
         
         <div class="demo-result">
-          <div class="mock-editor">
-            <div class="mock-toolbar full">
-              <button class="mock-btn">↶</button>
-              <button class="mock-btn">↷</button>
-              <div class="separator"></div>
-              <button class="mock-btn">B</button>
-              <button class="mock-btn">I</button>
-              <button class="mock-btn">U</button>
-              <button class="mock-btn">S</button>
-              <div class="separator"></div>
-              <select class="mock-select small">
-                <option>Arial</option>
-              </select>
-              <select class="mock-select small">
-                <option>14px</option>
-              </select>
-              <div class="separator"></div>
-              <button class="mock-btn">A</button>
-              <button class="mock-btn">🎨</button>
-              <div class="separator"></div>
-              <button class="mock-btn">⬅</button>
-              <button class="mock-btn">⬌</button>
-              <button class="mock-btn">➡</button>
-              <div class="separator"></div>
-              <button class="mock-btn">•</button>
-              <button class="mock-btn">1.</button>
-              <div class="separator"></div>
-              <button class="mock-btn">🔗</button>
-              <button class="mock-btn">📷</button>
-              <button class="mock-btn">⊞</button>
+          <wysiwyg-editor
+            [(ngModel)]="fullFeaturedContent"
+            [toolbarConfig]="fullFeaturedToolbarConfig"
+            placeholder="Type here with full-featured toolbar..."
+            [height]="'200px'">
+          </wysiwyg-editor>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Custom Toolbar Configuration</h2>
+        <p>A custom toolbar with specific tools and groupings</p>
+        
+        <div class="demo-result">
+          <wysiwyg-editor
+            [(ngModel)]="customContent"
+            [toolbarConfig]="customToolbarConfig"
+            placeholder="Type here with custom toolbar..."
+            [height]="'200px'">
+          </wysiwyg-editor>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Toolbar Configuration Code</h2>
+        <p>Here's how to configure different toolbars:</p>
+        
+        <div class="demo-result">
+          <div class="config-examples">
+            <div class="config-example">
+              <h4>Minimal Toolbar</h4>
+              <pre><code>{{minimalConfigCode}}</code></pre>
             </div>
-            <div class="mock-content">
-              <p>Full-featured toolbar editor...</p>
+            
+            <div class="config-example">
+              <h4>Standard Toolbar</h4>
+              <pre><code>{{standardConfigCode}}</code></pre>
+            </div>
+            
+            <div class="config-example">
+              <h4>Custom Toolbar</h4>
+              <pre><code>{{customConfigCode}}</code></pre>
             </div>
           </div>
         </div>
@@ -189,79 +181,45 @@ import { RouterLink } from '@angular/router';
       background: #f8f9fa;
     }
 
-    .mock-editor {
+    wysiwyg-editor {
+      display: block;
       border: 1px solid #ddd;
       border-radius: 4px;
       overflow: hidden;
     }
 
-    .mock-toolbar {
+    .config-examples {
+      display: grid;
+      gap: 2rem;
+    }
+
+    .config-example {
       background: #f8f9fa;
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
-      display: flex;
-      gap: 4px;
-      align-items: center;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 1.5rem;
     }
 
-    .mock-toolbar.full {
-      padding: 10px;
-      gap: 6px;
-      flex-wrap: wrap;
+    .config-example h4 {
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
     }
 
-    .mock-btn {
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      background: white;
-      border-radius: 3px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 12px;
-      min-width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .config-example pre {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 0;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.875rem;
+      line-height: 1.5;
     }
 
-    .mock-btn:hover {
-      background: #e9ecef;
-    }
-
-    .mock-btn.active {
-      background: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
-
-    .mock-select {
-      padding: 4px 8px;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      background: white;
-      font-size: 12px;
-      min-width: 80px;
-    }
-
-    .mock-select.small {
-      min-width: 60px;
-      font-size: 11px;
-    }
-
-    .separator {
-      width: 1px;
-      height: 20px;
-      background: #ddd;
-      margin: 0 4px;
-    }
-
-    .mock-content {
-      min-height: 120px;
-      padding: 12px;
-      outline: none;
-      color: #666;
-      font-style: italic;
+    .config-example code {
+      color: inherit;
     }
 
     .next-steps {
@@ -324,4 +282,161 @@ import { RouterLink } from '@angular/router';
   `]
 })
 export class ToolbarConfigComponent {
+  // Content for different editors
+  minimalContent = '<p>This editor has a <strong>minimal toolbar</strong> with only essential formatting tools.</p>';
+  standardContent = '<p>This editor has a <em>standard toolbar</em> with common formatting options like <strong>bold</strong>, <em>italic</em>, lists, and links.</p>';
+  fullFeaturedContent = '<p>This editor has a <strong>full-featured toolbar</strong> with all available formatting tools including font size, colors, alignment, and more.</p>';
+  customContent = '<p>This editor has a <strong>custom toolbar</strong> configured for specific use cases with selected tools.</p>';
+
+  // Minimal toolbar configuration
+  minimalToolbarConfig: ToolbarConfig = {
+    tools: [
+      { type: 'button' as const, command: 'bold', icon: 'bold', label: 'Bold' },
+      { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
+      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' }
+    ]
+  };
+
+  // Standard toolbar configuration
+  standardToolbarConfig: ToolbarConfig = {
+    tools: [
+      { type: 'button' as const, command: 'bold', icon: 'bold', label: 'Bold' },
+      { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
+      { type: 'button' as const, command: 'underline', icon: 'underline', label: 'Underline' },
+      { 
+        type: 'dropdown' as const, 
+        command: 'fontSize', 
+        icon: 'fontSize', 
+        label: 'Font Size',
+        options: [
+          { value: '12px', label: '12px' },
+          { value: '14px', label: '14px' },
+          { value: '16px', label: '16px' },
+          { value: '18px', label: '18px' },
+          { value: '20px', label: '20px' }
+        ]
+      },
+      { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
+      { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
+      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+      { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' }
+    ]
+  };
+
+  // Full-featured toolbar configuration
+  fullFeaturedToolbarConfig: ToolbarConfig = {
+    tools: [
+      { type: 'button' as const, command: 'undo', icon: 'undo', label: 'Undo' },
+      { type: 'button' as const, command: 'redo', icon: 'redo', label: 'Redo' },
+      { type: 'button' as const, command: 'bold', icon: 'bold', label: 'Bold' },
+      { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
+      { type: 'button' as const, command: 'underline', icon: 'underline', label: 'Underline' },
+      { type: 'button' as const, command: 'strikethrough', icon: 'strikethrough', label: 'Strikethrough' },
+      { 
+        type: 'dropdown' as const, 
+        command: 'fontSize', 
+        icon: 'fontSize', 
+        label: 'Font Size',
+        options: [
+          { value: '10px', label: '10px' },
+          { value: '12px', label: '12px' },
+          { value: '14px', label: '14px' },
+          { value: '16px', label: '16px' },
+          { value: '18px', label: '18px' },
+          { value: '20px', label: '20px' },
+          { value: '24px', label: '24px' },
+          { value: '28px', label: '28px' }
+        ]
+      },
+      { type: 'button' as const, command: 'justifyLeft', icon: 'justifyLeft', label: 'Align Left' },
+      { type: 'button' as const, command: 'justifyCenter', icon: 'justifyCenter', label: 'Align Center' },
+      { type: 'button' as const, command: 'justifyRight', icon: 'justifyRight', label: 'Align Right' },
+      { type: 'button' as const, command: 'justifyFull', icon: 'justifyFull', label: 'Justify' },
+      { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
+      { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
+      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+      { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' }
+    ]
+  };
+
+  // Custom toolbar configuration
+  customToolbarConfig: ToolbarConfig = {
+    tools: [
+      { type: 'button' as const, command: 'bold', icon: 'bold', label: 'Bold' },
+      { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
+      { 
+        type: 'dropdown' as const, 
+        command: 'fontSize', 
+        icon: 'fontSize', 
+        label: 'Font Size',
+        options: [
+          { value: '14px', label: 'Small' },
+          { value: '16px', label: 'Normal' },
+          { value: '18px', label: 'Large' },
+          { value: '24px', label: 'Extra Large' }
+        ]
+      },
+      { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
+      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+      { type: 'button' as const, command: 'undo', icon: 'undo', label: 'Undo' },
+      { type: 'button' as const, command: 'redo', icon: 'redo', label: 'Redo' }
+    ]
+  };
+
+  // Code examples for display
+  minimalConfigCode = `const minimalToolbarConfig = {
+  tools: [
+    { type: 'button', command: 'bold', icon: 'bold', label: 'Bold' },
+    { type: 'button', command: 'italic', icon: 'italic', label: 'Italic' },
+    { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link' }
+  ]
+};`;
+
+  standardConfigCode = `const standardToolbarConfig = {
+  tools: [
+    { type: 'button', command: 'bold', icon: 'bold', label: 'Bold' },
+    { type: 'button', command: 'italic', icon: 'italic', label: 'Italic' },
+    { type: 'button', command: 'underline', icon: 'underline', label: 'Underline' },
+    { 
+      type: 'dropdown', 
+      command: 'fontSize', 
+      icon: 'fontSize', 
+      label: 'Font Size',
+      options: [
+        { value: '12px', label: '12px' },
+        { value: '14px', label: '14px' },
+        { value: '16px', label: '16px' },
+        { value: '18px', label: '18px' },
+        { value: '20px', label: '20px' }
+      ]
+    },
+    { type: 'button', command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
+    { type: 'button', command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
+    { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+    { type: 'dialog', command: 'insertImage', icon: 'insertImage', label: 'Insert Image' }
+  ]
+};`;
+
+  customConfigCode = `const customToolbarConfig = {
+  tools: [
+    { type: 'button', command: 'bold', icon: 'bold', label: 'Bold' },
+    { type: 'button', command: 'italic', icon: 'italic', label: 'Italic' },
+    { 
+      type: 'dropdown', 
+      command: 'fontSize', 
+      icon: 'fontSize', 
+      label: 'Font Size',
+      options: [
+        { value: '14px', label: 'Small' },
+        { value: '16px', label: 'Normal' },
+        { value: '18px', label: 'Large' },
+        { value: '24px', label: 'Extra Large' }
+      ]
+    },
+    { type: 'button', command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
+    { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+    { type: 'button', command: 'undo', icon: 'undo', label: 'Undo' },
+    { type: 'button', command: 'redo', icon: 'redo', label: 'Redo' }
+  ]
+};`;
 }

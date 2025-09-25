@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, interval, takeUntil } from 'rxjs';
+import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
 
 @Component({
   selector: 'app-advanced',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, WysiwygEditorComponent],
   template: `
     <div class="container">
       <div class="demo-header">
@@ -23,29 +24,41 @@ import { Subject, interval, takeUntil } from 'rxjs';
         <p>Monitor editor performance and optimize for better user experience:</p>
         
         <div class="demo-result">
-          <div class="performance-dashboard">
-            <div class="metric-card">
-              <h4>Render Performance</h4>
-              <div class="metric-value">{{ renderTime.toFixed(2) }}ms</div>
-              <div class="metric-label">Average render time</div>
+          <div class="performance-demo">
+            <div class="performance-editor">
+              <h4>Performance Monitored Editor</h4>
+              <wysiwyg-editor
+                [(ngModel)]="performanceContent"
+                (contentChange)="onPerformanceContentChange($event)"
+                placeholder="Type here to see performance metrics update..."
+                [height]="'200px'">
+              </wysiwyg-editor>
             </div>
             
-            <div class="metric-card">
-              <h4>Memory Usage</h4>
-              <div class="metric-value">{{ memoryUsage.toFixed(1) }}MB</div>
-              <div class="metric-label">Current memory usage</div>
-            </div>
-            
-            <div class="metric-card">
-              <h4>Operations/sec</h4>
-              <div class="metric-value">{{ operationsPerSecond }}</div>
-              <div class="metric-label">Editor operations</div>
-            </div>
-            
-            <div class="metric-card">
-              <h4>Bundle Size</h4>
-              <div class="metric-value">{{ bundleSize }}KB</div>
-              <div class="metric-label">Optimized bundle</div>
+            <div class="performance-dashboard">
+              <div class="metric-card">
+                <h4>Render Performance</h4>
+                <div class="metric-value">{{ renderTime.toFixed(2) }}ms</div>
+                <div class="metric-label">Last render time</div>
+              </div>
+              
+              <div class="metric-card">
+                <h4>Content Length</h4>
+                <div class="metric-value">{{ contentLength }}</div>
+                <div class="metric-label">Characters</div>
+              </div>
+              
+              <div class="metric-card">
+                <h4>Operations/sec</h4>
+                <div class="metric-value">{{ operationsPerSecond }}</div>
+                <div class="metric-label">Editor operations</div>
+              </div>
+              
+              <div class="metric-card">
+                <h4>Memory Usage</h4>
+                <div class="metric-value">{{ memoryUsage.toFixed(1) }}MB</div>
+                <div class="metric-label">Estimated usage</div>
+              </div>
             </div>
           </div>
         </div>
@@ -58,26 +71,30 @@ import { Subject, interval, takeUntil } from 'rxjs';
         <div class="demo-result">
           <div class="security-demo">
             <div class="security-test">
-              <h4>Security Test</h4>
-              <p>Try pasting potentially dangerous HTML:</p>
+              <h4>Security Test Input</h4>
+              <p>Paste potentially dangerous HTML and see how the editor handles it:</p>
               <textarea 
                 [(ngModel)]="dangerousHtml" 
-                placeholder="Paste HTML with scripts, iframes, etc."
+                placeholder="Try: <script>alert('XSS')</script><p>Safe content</p>"
                 class="security-input">
               </textarea>
-              <button (click)="testSecurity()" class="test-btn">Test Security</button>
+              <button (click)="testSecurity()" class="test-btn">Apply to Editor</button>
+              
+              <div class="security-presets">
+                <h5>Quick Test Presets:</h5>
+                <button (click)="loadSecurityPreset('script')" class="preset-btn">Script Tag</button>
+                <button (click)="loadSecurityPreset('iframe')" class="preset-btn">Iframe</button>
+                <button (click)="loadSecurityPreset('events')" class="preset-btn">Event Handlers</button>
+              </div>
             </div>
             
-            <div class="security-results">
-              <div class="result-section">
-                <h5>Original HTML:</h5>
-                <pre class="code-block dangerous">{{ dangerousHtml || 'No input' }}</pre>
-              </div>
-              
-              <div class="result-section">
-                <h5>Sanitized HTML:</h5>
-                <pre class="code-block safe">{{ sanitizedHtml || 'No output' }}</pre>
-              </div>
+            <div class="security-editor">
+              <h4>Secured Editor</h4>
+              <wysiwyg-editor
+                [(ngModel)]="securityContent"
+                placeholder="Content will be automatically sanitized..."
+                [height]="'150px'">
+              </wysiwyg-editor>
               
               <div class="security-status" [class]="securityStatusClass">
                 <strong>{{ securityStatus }}</strong>
@@ -131,31 +148,104 @@ import { Subject, interval, takeUntil } from 'rxjs';
         
         <div class="demo-result">
           <div class="plugin-demo">
-            <div class="plugin-manager">
-              <h4>Available Plugins</h4>
-              <div class="plugin-list">
-                <div *ngFor="let plugin of availablePlugins" class="plugin-item">
-                  <div class="plugin-info">
-                    <span class="plugin-name">{{ plugin.name }}</span>
-                    <span class="plugin-version">v{{ plugin.version }}</span>
-                  </div>
-                  <div class="plugin-controls">
-                    <button 
-                      (click)="togglePlugin(plugin)"
-                      [class.active]="plugin.enabled"
-                      class="plugin-toggle">
-                      {{ plugin.enabled ? 'Disable' : 'Enable' }}
-                    </button>
+            <div class="plugin-editor-section">
+              <h4>Plugin-Enhanced Editor</h4>
+              <wysiwyg-editor
+                [(ngModel)]="pluginContent"
+                (contentChange)="onPluginContentChange($event)"
+                placeholder="Type here to see plugins in action..."
+                [height]="'200px'">
+              </wysiwyg-editor>
+            </div>
+            
+            <div class="plugin-controls-section">
+              <div class="plugin-manager">
+                <h4>Available Plugins</h4>
+                <div class="plugin-list">
+                  <div *ngFor="let plugin of availablePlugins" class="plugin-item">
+                    <div class="plugin-info">
+                      <span class="plugin-name">{{ plugin.name }}</span>
+                      <span class="plugin-version">v{{ plugin.version }}</span>
+                    </div>
+                    <div class="plugin-controls">
+                      <button 
+                        (click)="togglePlugin(plugin)"
+                        [class.active]="plugin.enabled"
+                        class="plugin-toggle">
+                        {{ plugin.enabled ? 'Disable' : 'Enable' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
+              
+              <div class="plugin-output">
+                <h4>Plugin Output</h4>
+                <div class="output-item" *ngFor="let output of pluginOutputs">
+                  <span class="output-label">{{ output.label }}:</span>
+                  <span class="output-value">{{ output.value }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Lazy Loading & Optimization</h2>
+        <p>Optimize editor loading and resource usage:</p>
+        
+        <div class="demo-result">
+          <div class="optimization-demo">
+            <div class="optimization-controls">
+              <h4>Optimization Settings</h4>
+              <div class="control-group">
+                <label>
+                  <input type="checkbox" [(ngModel)]="lazyLoadImages" (change)="updateOptimizations()">
+                  Lazy Load Images
+                </label>
+              </div>
+              <div class="control-group">
+                <label>
+                  <input type="checkbox" [(ngModel)]="enableVirtualScrolling" (change)="updateOptimizations()">
+                  Virtual Scrolling
+                </label>
+              </div>
+              <div class="control-group">
+                <label>
+                  <input type="checkbox" [(ngModel)]="compressContent" (change)="updateOptimizations()">
+                  Content Compression
+                </label>
+              </div>
+              <div class="control-group">
+                <label>
+                  <input type="checkbox" [(ngModel)]="enableCaching" (change)="updateOptimizations()">
+                  Content Caching
+                </label>
+              </div>
             </div>
             
-            <div class="plugin-output">
-              <h4>Plugin Output</h4>
-              <div class="output-item" *ngFor="let output of pluginOutputs">
-                <span class="output-label">{{ output.label }}:</span>
-                <span class="output-value">{{ output.value }}</span>
+            <div class="optimization-editor">
+              <h4>Optimized Editor</h4>
+              <wysiwyg-editor
+                [(ngModel)]="optimizedContent"
+                placeholder="This editor uses optimization techniques..."
+                [height]="'180px'">
+              </wysiwyg-editor>
+              
+              <div class="optimization-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Load Time:</span>
+                  <span class="stat-value">{{ loadTime }}ms</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Bundle Size:</span>
+                  <span class="stat-value">{{ bundleSize }}KB</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Memory:</span>
+                  <span class="stat-value">{{ optimizedMemory }}MB</span>
+                </div>
               </div>
             </div>
           </div>
@@ -245,6 +335,23 @@ import { Subject, interval, takeUntil } from 'rxjs';
       background: #f8f9fa;
     }
 
+    .performance-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .performance-editor {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 6px;
+    }
+
+    .performance-editor h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+    }
+
     .performance-dashboard {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -283,6 +390,42 @@ import { Subject, interval, takeUntil } from 'rxjs';
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 2rem;
+    }
+
+    .security-editor {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 6px;
+    }
+
+    .security-editor h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+    }
+
+    .security-presets {
+      margin-top: 1rem;
+    }
+
+    .security-presets h5 {
+      margin: 0 0 0.5rem 0;
+      color: #333;
+      font-size: 0.875rem;
+    }
+
+    .preset-btn {
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      background: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    .preset-btn:hover {
+      background: #e9ecef;
     }
 
     .security-test {
@@ -463,6 +606,23 @@ import { Subject, interval, takeUntil } from 'rxjs';
     }
 
     .plugin-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .plugin-editor-section {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 6px;
+    }
+
+    .plugin-editor-section h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+    }
+
+    .plugin-controls-section {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 2rem;
@@ -556,6 +716,78 @@ import { Subject, interval, takeUntil } from 'rxjs';
       color: #666;
     }
 
+    .optimization-demo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    .optimization-controls {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 6px;
+    }
+
+    .optimization-controls h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+    }
+
+    .control-group {
+      margin-bottom: 1rem;
+    }
+
+    .control-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      color: #333;
+    }
+
+    .control-group input[type="checkbox"] {
+      margin: 0;
+    }
+
+    .optimization-editor {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 6px;
+    }
+
+    .optimization-editor h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+    }
+
+    .optimization-stats {
+      margin-top: 1rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+      min-width: 80px;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-weight: bold;
+      color: #333;
+    }
+
     .next-steps {
       background: #f8f9fa;
       padding: 2rem;
@@ -629,37 +861,52 @@ import { Subject, interval, takeUntil } from 'rxjs';
 export class AdvancedComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
+  // Editor content
+  performanceContent = '<p>This editor monitors <strong>performance metrics</strong> in real-time. Type to see render times and operations per second.</p>';
+  securityContent = '<p>This editor automatically <strong>sanitizes</strong> dangerous content to prevent XSS attacks.</p>';
+  pluginContent = '<p>This editor demonstrates <strong>plugin architecture</strong>. Enable plugins to see additional functionality.</p>';
+  optimizedContent = '<p>This editor uses <strong>optimization techniques</strong> for better performance and resource usage.</p>';
+
   // Performance metrics
   renderTime = 15.2;
   memoryUsage = 42.5;
   memoryUsagePercent = 42.5;
   operationsPerSecond = 58;
-  bundleSize = 75;
+  contentLength = 0;
+  private operationCount = 0;
+  private lastOperationTime = Date.now();
 
   // Security demo
   dangerousHtml = '';
-  sanitizedHtml = '';
-  securityStatus = 'No input to test';
+  securityStatus = 'Content is safe';
   securityStatusClass = 'safe';
   securityIssues: string[] = [];
 
   // Plugin demo
   availablePlugins = [
-    { name: 'Word Count', version: '1.0.0', enabled: true },
-    { name: 'Auto Save', version: '1.2.1', enabled: true },
-    { name: 'Spell Check', version: '2.0.0', enabled: false },
-    { name: 'Grammar Check', version: '1.5.0', enabled: false },
-    { name: 'Export PDF', version: '1.1.0', enabled: false }
+    { name: 'Word Count', version: '1.0.0', enabled: true, description: 'Count words and characters' },
+    { name: 'Auto Save', version: '1.2.1', enabled: true, description: 'Automatically save content' },
+    { name: 'Spell Check', version: '2.0.0', enabled: false, description: 'Check spelling errors' },
+    { name: 'Grammar Check', version: '1.5.0', enabled: false, description: 'Check grammar issues' },
+    { name: 'Export PDF', version: '1.1.0', enabled: false, description: 'Export content as PDF' },
+    { name: 'Read Time', version: '1.0.0', enabled: false, description: 'Estimate reading time' }
   ];
 
-  pluginOutputs = [
-    { label: 'Word Count', value: '247 words' },
-    { label: 'Character Count', value: '1,423 characters' },
-    { label: 'Last Saved', value: '2 minutes ago' }
-  ];
+  pluginOutputs: Array<{label: string, value: string}> = [];
+
+  // Optimization settings
+  lazyLoadImages = true;
+  enableVirtualScrolling = false;
+  compressContent = true;
+  enableCaching = true;
+  loadTime = 45;
+  bundleSize = 75;
+  optimizedMemory = 28.5;
 
   ngOnInit() {
     this.startPerformanceMonitoring();
+    this.updatePluginOutputs();
+    this.contentLength = this.performanceContent.length;
   }
 
   ngOnDestroy() {
@@ -668,7 +915,7 @@ export class AdvancedComponent implements OnInit, OnDestroy {
   }
 
   private startPerformanceMonitoring() {
-    interval(2000)
+    interval(1000)
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         this.updatePerformanceMetrics();
@@ -676,23 +923,41 @@ export class AdvancedComponent implements OnInit, OnDestroy {
   }
 
   private updatePerformanceMetrics() {
-    this.renderTime = Math.random() * 20 + 10;
+    // Simulate realistic performance metrics
+    this.renderTime = Math.random() * 15 + 8;
     
     if ((performance as any).memory) {
       this.memoryUsage = (performance as any).memory.usedJSHeapSize / 1024 / 1024;
     } else {
-      this.memoryUsage = Math.random() * 50 + 20;
+      this.memoryUsage = Math.random() * 30 + 20;
     }
     this.memoryUsagePercent = Math.min((this.memoryUsage / 100) * 100, 100);
     
-    this.operationsPerSecond = Math.floor(Math.random() * 20) + 40;
+    // Calculate operations per second based on recent activity
+    const now = Date.now();
+    const timeDiff = now - this.lastOperationTime;
+    if (timeDiff > 1000) {
+      this.operationsPerSecond = Math.floor((this.operationCount * 1000) / timeDiff);
+      this.operationCount = 0;
+      this.lastOperationTime = now;
+    }
+  }
+
+  onPerformanceContentChange(content: string) {
+    const startTime = performance.now();
+    
+    this.performanceContent = content;
+    this.contentLength = content.length;
+    this.operationCount++;
+    
+    const endTime = performance.now();
+    this.renderTime = endTime - startTime;
   }
 
   testSecurity() {
     if (!this.dangerousHtml.trim()) {
       this.securityStatus = 'No input to test';
       this.securityStatusClass = 'safe';
-      this.sanitizedHtml = '';
       this.securityIssues = [];
       return;
     }
@@ -706,7 +971,9 @@ export class AdvancedComponent implements OnInit, OnDestroy {
       { pattern: /javascript:/gi, issue: 'JavaScript URLs removed' },
       { pattern: /on\w+\s*=/gi, issue: 'Event handlers removed' },
       { pattern: /<object\b[^>]*>/gi, issue: 'Object tags removed' },
-      { pattern: /<embed\b[^>]*>/gi, issue: 'Embed tags removed' }
+      { pattern: /<embed\b[^>]*>/gi, issue: 'Embed tags removed' },
+      { pattern: /<form\b[^>]*>/gi, issue: 'Form tags removed' },
+      { pattern: /<input\b[^>]*>/gi, issue: 'Input tags removed' }
     ];
 
     dangerousPatterns.forEach(({ pattern, issue }) => {
@@ -716,7 +983,8 @@ export class AdvancedComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.sanitizedHtml = sanitized;
+    // Apply sanitized content to editor
+    this.securityContent = sanitized || '<p>Content was completely removed due to security issues.</p>';
 
     if (this.securityIssues.length > 0) {
       this.securityStatus = `${this.securityIssues.length} security issue(s) found and resolved`;
@@ -725,6 +993,90 @@ export class AdvancedComponent implements OnInit, OnDestroy {
       this.securityStatus = 'Content is safe';
       this.securityStatusClass = 'safe';
     }
+  }
+
+  loadSecurityPreset(type: string) {
+    switch (type) {
+      case 'script':
+        this.dangerousHtml = '<p>Safe content</p><script>alert("XSS Attack!");</script><p>More safe content</p>';
+        break;
+      case 'iframe':
+        this.dangerousHtml = '<p>Safe content</p><iframe src="javascript:alert(\'XSS\')"></iframe><p>More content</p>';
+        break;
+      case 'events':
+        this.dangerousHtml = '<p>Safe content</p><img src="x" onerror="alert(\'XSS\')" /><div onclick="alert(\'Click XSS\')">Click me</div>';
+        break;
+    }
+    this.testSecurity();
+  }
+
+  onPluginContentChange(content: string) {
+    this.pluginContent = content;
+    this.updatePluginOutputs();
+  }
+
+  togglePlugin(plugin: any) {
+    plugin.enabled = !plugin.enabled;
+    this.updatePluginOutputs();
+  }
+
+  private updatePluginOutputs() {
+    this.pluginOutputs = [];
+    const content = this.pluginContent;
+    const wordCount = this.countWords(content);
+    const charCount = content.length;
+    
+    this.availablePlugins.forEach(plugin => {
+      if (plugin.enabled) {
+        switch (plugin.name) {
+          case 'Word Count':
+            this.pluginOutputs.push({ label: 'Words', value: `${wordCount}` });
+            this.pluginOutputs.push({ label: 'Characters', value: `${charCount}` });
+            this.pluginOutputs.push({ label: 'Characters (no spaces)', value: `${content.replace(/\s/g, '').length}` });
+            break;
+          case 'Auto Save':
+            this.pluginOutputs.push({ label: 'Auto Save', value: 'Enabled' });
+            this.pluginOutputs.push({ label: 'Last Saved', value: `${Math.floor(Math.random() * 5) + 1} min ago` });
+            this.pluginOutputs.push({ label: 'Save Interval', value: '30 seconds' });
+            break;
+          case 'Spell Check':
+            const spellErrors = Math.floor(wordCount / 50);
+            this.pluginOutputs.push({ label: 'Spelling Errors', value: `${spellErrors} found` });
+            break;
+          case 'Grammar Check':
+            const grammarIssues = Math.floor(wordCount / 100);
+            this.pluginOutputs.push({ label: 'Grammar Issues', value: `${grammarIssues} found` });
+            break;
+          case 'Export PDF':
+            this.pluginOutputs.push({ label: 'Export Status', value: 'Ready' });
+            this.pluginOutputs.push({ label: 'Estimated Pages', value: `${Math.ceil(wordCount / 250)}` });
+            break;
+          case 'Read Time':
+            const readTime = Math.ceil(wordCount / 200);
+            this.pluginOutputs.push({ label: 'Reading Time', value: `${readTime} min` });
+            break;
+        }
+      }
+    });
+  }
+
+  private countWords(text: string): number {
+    const plainText = text.replace(/<[^>]*>/g, '').trim();
+    return plainText ? plainText.split(/\s+/).length : 0;
+  }
+
+  updateOptimizations() {
+    // Simulate optimization effects
+    let optimizationFactor = 1;
+    
+    if (this.lazyLoadImages) optimizationFactor *= 0.9;
+    if (this.enableVirtualScrolling) optimizationFactor *= 0.85;
+    if (this.compressContent) optimizationFactor *= 0.8;
+    if (this.enableCaching) optimizationFactor *= 0.75;
+    
+    this.loadTime = Math.round(60 * optimizationFactor);
+    this.bundleSize = Math.round(100 * optimizationFactor);
+    this.optimizedMemory = Math.round(40 * optimizationFactor * 10) / 10;
   }
 
   simulateMemoryLoad() {
@@ -743,37 +1095,5 @@ export class AdvancedComponent implements OnInit, OnDestroy {
     }
     this.memoryUsage = Math.max(this.memoryUsage - Math.random() * 20 - 10, 5);
     this.memoryUsagePercent = Math.min((this.memoryUsage / 100) * 100, 100);
-  }
-
-  togglePlugin(plugin: any) {
-    plugin.enabled = !plugin.enabled;
-    this.updatePluginOutputs();
-  }
-
-  private updatePluginOutputs() {
-    this.pluginOutputs = [];
-    
-    this.availablePlugins.forEach(plugin => {
-      if (plugin.enabled) {
-        switch (plugin.name) {
-          case 'Word Count':
-            this.pluginOutputs.push({ label: 'Word Count', value: `${Math.floor(Math.random() * 500) + 100} words` });
-            this.pluginOutputs.push({ label: 'Character Count', value: `${Math.floor(Math.random() * 3000) + 500} characters` });
-            break;
-          case 'Auto Save':
-            this.pluginOutputs.push({ label: 'Last Saved', value: `${Math.floor(Math.random() * 10) + 1} minutes ago` });
-            break;
-          case 'Spell Check':
-            this.pluginOutputs.push({ label: 'Spelling Errors', value: `${Math.floor(Math.random() * 5)} found` });
-            break;
-          case 'Grammar Check':
-            this.pluginOutputs.push({ label: 'Grammar Issues', value: `${Math.floor(Math.random() * 3)} found` });
-            break;
-          case 'Export PDF':
-            this.pluginOutputs.push({ label: 'Export Status', value: 'Ready' });
-            break;
-        }
-      }
-    });
   }
 }

@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
 
 @Component({
   selector: 'app-forms-integration',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, WysiwygEditorComponent],
   template: `
     <div class="container">
       <div class="demo-header">
@@ -39,15 +40,15 @@ import { RouterLink } from '@angular/router';
             
             <div class="form-group">
               <label for="content">Content:</label>
-              <div class="mock-editor">
-                <div class="mock-toolbar">
-                  <button type="button" class="mock-btn">B</button>
-                  <button type="button" class="mock-btn">I</button>
-                  <button type="button" class="mock-btn">U</button>
-                </div>
-                <div class="mock-content" contenteditable="true">
-                  <p>Template-driven form content...</p>
-                </div>
+              <wysiwyg-editor
+                name="content"
+                [(ngModel)]="templateArticle.content"
+                placeholder="Enter your article content..."
+                [height]="'200px'"
+                required>
+              </wysiwyg-editor>
+              <div *ngIf="templateForm.submitted && !templateForm.controls['content']?.valid" class="error">
+                Content is required
               </div>
             </div>
             
@@ -60,6 +61,42 @@ import { RouterLink } from '@angular/router';
               </div>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Form Validation Status</h2>
+        <p>Real-time form validation status and data preview:</p>
+        
+        <div class="demo-result">
+          <div class="validation-status">
+            <h4>Template Form Status:</h4>
+            <div class="status-grid">
+              <div class="status-item">
+                <strong>Title Valid:</strong> 
+                <span class="status" [class.valid]="templateForm.controls['title']?.valid" [class.invalid]="templateForm.controls['title']?.invalid">
+                  {{ templateForm.controls['title']?.valid ? 'Yes' : 'No' }}
+                </span>
+              </div>
+              <div class="status-item">
+                <strong>Content Valid:</strong> 
+                <span class="status" [class.valid]="templateForm.controls['content']?.valid" [class.invalid]="templateForm.controls['content']?.invalid">
+                  {{ templateForm.controls['content']?.valid ? 'Yes' : 'No' }}
+                </span>
+              </div>
+              <div class="status-item">
+                <strong>Form Valid:</strong> 
+                <span class="status" [class.valid]="templateForm.valid" [class.invalid]="templateForm.invalid">
+                  {{ templateForm.valid ? 'Yes' : 'No' }}
+                </span>
+              </div>
+            </div>
+            
+            <h4>Current Data:</h4>
+            <div class="data-preview">
+              <pre>{{ templateArticle | json }}</pre>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -85,18 +122,14 @@ import { RouterLink } from '@angular/router';
             
             <div class="form-group">
               <label for="reactiveContent">Content:</label>
-              <div class="mock-editor">
-                <div class="mock-toolbar">
-                  <button type="button" class="mock-btn">B</button>
-                  <button type="button" class="mock-btn active">I</button>
-                  <button type="button" class="mock-btn">U</button>
-                </div>
-                <div class="mock-content" contenteditable="true">
-                  <p>Reactive form content...</p>
-                </div>
-              </div>
+              <wysiwyg-editor
+                formControlName="content"
+                placeholder="Enter your article content..."
+                [height]="'200px'">
+              </wysiwyg-editor>
               <div *ngIf="reactiveForm.get('content')?.invalid && reactiveForm.get('content')?.touched" class="error">
-                Content is required
+                <div *ngIf="reactiveForm.get('content')?.errors?.['required']">Content is required</div>
+                <div *ngIf="reactiveForm.get('content')?.errors?.['minlength']">Content must be at least 10 characters</div>
               </div>
             </div>
             
@@ -119,6 +152,48 @@ import { RouterLink } from '@angular/router';
               </div>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Reactive Form Status</h2>
+        <p>Real-time reactive form validation and data:</p>
+        
+        <div class="demo-result">
+          <div class="validation-status">
+            <h4>Reactive Form Status:</h4>
+            <div class="status-grid">
+              <div class="status-item">
+                <strong>Title Valid:</strong> 
+                <span class="status" [class.valid]="reactiveForm.get('title')?.valid" [class.invalid]="reactiveForm.get('title')?.invalid">
+                  {{ reactiveForm.get('title')?.valid ? 'Yes' : 'No' }}
+                </span>
+              </div>
+              <div class="status-item">
+                <strong>Content Valid:</strong> 
+                <span class="status" [class.valid]="reactiveForm.get('content')?.valid" [class.invalid]="reactiveForm.get('content')?.invalid">
+                  {{ reactiveForm.get('content')?.valid ? 'Yes' : 'No' }}
+                </span>
+              </div>
+              <div class="status-item">
+                <strong>Form Valid:</strong> 
+                <span class="status" [class.valid]="reactiveForm.valid" [class.invalid]="reactiveForm.invalid">
+                  {{ reactiveForm.valid ? 'Yes' : 'No' }}
+                </span>
+              </div>
+              <div class="status-item">
+                <strong>Form Status:</strong> 
+                <span class="status" [class.valid]="reactiveForm.status === 'VALID'" [class.invalid]="reactiveForm.status !== 'VALID'">
+                  {{ reactiveForm.status }}
+                </span>
+              </div>
+            </div>
+            
+            <h4>Current Form Value:</h4>
+            <div class="data-preview">
+              <pre>{{ reactiveForm.value | json }}</pre>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -232,43 +307,79 @@ import { RouterLink } from '@angular/router';
       border-color: #dc3545;
     }
 
-    .mock-editor {
+    wysiwyg-editor {
+      display: block;
       border: 1px solid #ddd;
       border-radius: 4px;
       overflow: hidden;
     }
 
-    .mock-toolbar {
+    .form-group wysiwyg-editor {
+      margin-top: 0.5rem;
+    }
+
+    .validation-status {
       background: #f8f9fa;
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
+      padding: 1.5rem;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+    }
+
+    .validation-status h4 {
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .status-item {
       display: flex;
-      gap: 4px;
-    }
-
-    .mock-btn {
-      padding: 6px 10px;
-      border: 1px solid #ccc;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
       background: white;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+    }
+
+    .status {
+      padding: 0.25rem 0.5rem;
       border-radius: 3px;
-      cursor: pointer;
-      font-weight: bold;
+      font-weight: 500;
+      font-size: 0.875rem;
     }
 
-    .mock-btn:hover {
-      background: #e9ecef;
+    .status.valid {
+      background: #d4edda;
+      color: #155724;
     }
 
-    .mock-btn.active {
-      background: #007bff;
-      color: white;
-      border-color: #007bff;
+    .status.invalid {
+      background: #f8d7da;
+      color: #721c24;
     }
 
-    .mock-content {
-      min-height: 120px;
-      padding: 12px;
-      outline: none;
+    .data-preview {
+      background: white;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .data-preview pre {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #333;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     .error {
@@ -370,8 +481,8 @@ import { RouterLink } from '@angular/router';
 export class FormsIntegrationComponent {
   // Template-driven form data
   templateArticle = {
-    title: '',
-    content: ''
+    title: 'Sample Article',
+    content: '<p>This is a <strong>template-driven form</strong> example with the WYSIWYG editor. You can <em>format text</em> and see how it integrates with Angular forms.</p>'
   };
 
   // Reactive form
@@ -379,23 +490,28 @@ export class FormsIntegrationComponent {
 
   constructor(private fb: FormBuilder) {
     this.reactiveForm = this.fb.group({
-      title: ['', [Validators.required, Validators.minLength(3)]],
-      content: ['', [Validators.required, Validators.minLength(10)]],
-      tags: ['']
+      title: ['Advanced Article', [Validators.required, Validators.minLength(3)]],
+      content: ['<p>This is a <strong>reactive form</strong> example. It provides better <em>validation control</em> and form state management.</p>', [Validators.required, Validators.minLength(10)]],
+      tags: ['angular, wysiwyg, forms']
     });
   }
 
   onTemplateSubmit(form: any) {
     if (form.valid) {
       console.log('Template form submitted:', this.templateArticle);
+      alert('Template form submitted successfully! Check the console for data.');
+    } else {
+      alert('Please fix the form errors before submitting.');
     }
   }
 
   onReactiveSubmit() {
     if (this.reactiveForm.valid) {
       console.log('Reactive form submitted:', this.reactiveForm.value);
+      alert('Reactive form submitted successfully! Check the console for data.');
     } else {
       this.markFormGroupTouched(this.reactiveForm);
+      alert('Please fix the form errors before submitting.');
     }
   }
 

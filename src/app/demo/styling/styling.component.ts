@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
 
 @Component({
   selector: 'app-styling',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, WysiwygEditorComponent],
   template: `
     <div class="container">
       <div class="demo-header">
@@ -22,17 +23,17 @@ import { RouterLink } from '@angular/router';
         <p>Use CSS variables to customize the editor appearance:</p>
         
         <div class="demo-result">
-          <div class="mock-editor custom-border">
-            <div class="mock-toolbar gradient">
-              <button class="mock-btn">B</button>
-              <button class="mock-btn">I</button>
-              <button class="mock-btn">U</button>
-              <button class="mock-btn">🔗</button>
-              <button class="mock-btn">📷</button>
-            </div>
-            <div class="mock-content">
-              <p>Editor with custom CSS variables</p>
-            </div>
+          <div class="custom-styled-editor">
+            <wysiwyg-editor
+              [(ngModel)]="customStyledContent"
+              placeholder="Editor with custom CSS variables..."
+              [height]="'200px'">
+            </wysiwyg-editor>
+          </div>
+          
+          <div class="css-code-example">
+            <h4>CSS Variables Used:</h4>
+            <pre><code>{{customCssCode}}</code></pre>
           </div>
         </div>
       </div>
@@ -42,17 +43,17 @@ import { RouterLink } from '@angular/router';
         <p>Create a dark theme using CSS variables:</p>
         
         <div class="demo-result">
-          <div class="mock-editor dark-theme">
-            <div class="mock-toolbar dark">
-              <button class="mock-btn dark">B</button>
-              <button class="mock-btn dark">I</button>
-              <button class="mock-btn dark">U</button>
-              <button class="mock-btn dark">🔗</button>
-              <button class="mock-btn dark">📷</button>
-            </div>
-            <div class="mock-content">
-              <p>Dark theme editor</p>
-            </div>
+          <div class="dark-themed-editor">
+            <wysiwyg-editor
+              [(ngModel)]="darkThemeContent"
+              placeholder="Dark theme editor..."
+              [height]="'200px'">
+            </wysiwyg-editor>
+          </div>
+          
+          <div class="css-code-example">
+            <h4>Dark Theme CSS:</h4>
+            <pre><code>{{darkThemeCssCode}}</code></pre>
           </div>
         </div>
       </div>
@@ -77,14 +78,83 @@ import { RouterLink } from '@angular/router';
               </div>
             </div>
             
-            <div class="mock-editor" [ngClass]="getThemeClass()">
-              <div class="mock-toolbar" [ngClass]="getToolbarClass()">
-                <button class="mock-btn" [ngClass]="getButtonClass()">B</button>
-                <button class="mock-btn" [ngClass]="getButtonClass()">I</button>
-                <button class="mock-btn" [ngClass]="getButtonClass()">U</button>
+            <div class="themed-editor-container" [ngClass]="getThemeClass()">
+              <wysiwyg-editor
+                [(ngModel)]="themeSwitcherContent"
+                placeholder="Switch themes using the buttons above..."
+                [height]="'200px'">
+              </wysiwyg-editor>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Responsive Styling</h2>
+        <p>Create responsive editors that adapt to different screen sizes:</p>
+        
+        <div class="demo-result">
+          <div class="responsive-editor-demo">
+            <div class="size-controls">
+              <h4>Preview Size:</h4>
+              <div class="size-options">
+                <button 
+                  *ngFor="let size of responsiveSizes" 
+                  (click)="currentSize = size.name"
+                  [class.active]="currentSize === size.name"
+                  class="size-btn">
+                  {{ size.label }}
+                </button>
               </div>
-              <div class="mock-content">
-                <p>Switch themes using the buttons above</p>
+            </div>
+            
+            <div class="responsive-container" [ngClass]="'size-' + currentSize">
+              <wysiwyg-editor
+                [(ngModel)]="responsiveContent"
+                placeholder="Responsive editor that adapts to container size..."
+                [height]="'180px'">
+              </wysiwyg-editor>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h2>Custom Styling Examples</h2>
+        <p>Various styling approaches for different use cases:</p>
+        
+        <div class="demo-result">
+          <div class="styling-examples">
+            <div class="example-item">
+              <h4>Minimal Style</h4>
+              <div class="minimal-editor">
+                <wysiwyg-editor
+                  [(ngModel)]="minimalContent"
+                  placeholder="Clean, minimal styling..."
+                  [height]="'120px'">
+                </wysiwyg-editor>
+              </div>
+            </div>
+            
+            <div class="example-item">
+              <h4>Rounded Style</h4>
+              <div class="rounded-editor">
+                <wysiwyg-editor
+                  [(ngModel)]="roundedContent"
+                  placeholder="Rounded corners and soft shadows..."
+                  [height]="'120px'">
+                </wysiwyg-editor>
+              </div>
+            </div>
+            
+            <div class="example-item">
+              <h4>Colorful Style</h4>
+              <div class="colorful-editor">
+                <wysiwyg-editor
+                  [(ngModel)]="colorfulContent"
+                  placeholder="Vibrant colors and gradients..."
+                  [height]="'120px'">
+                </wysiwyg-editor>
               </div>
             </div>
           </div>
@@ -174,80 +244,57 @@ import { RouterLink } from '@angular/router';
       background: #f8f9fa;
     }
 
-    .mock-editor {
+    /* Custom Styled Editor */
+    .custom-styled-editor wysiwyg-editor {
+      border: 3px solid #007bff;
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .custom-styled-editor wysiwyg-editor:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(0, 123, 255, 0.2);
+    }
+
+    /* Dark Themed Editor */
+    .dark-themed-editor {
+      background: #1a202c;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+
+    .dark-themed-editor wysiwyg-editor {
+      border: 2px solid #4a5568;
+      border-radius: 8px;
+      background: #2d3748;
+      color: white;
+    }
+
+    /* Themed Editor Container */
+    .themed-editor-container wysiwyg-editor {
       border: 1px solid #ddd;
       border-radius: 4px;
-      overflow: hidden;
-      transition: all 0.2s ease;
+      transition: all 0.3s ease;
     }
 
-    .mock-editor.custom-border {
+    .themed-editor-container.dark-theme {
+      background: #1a202c;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+
+    .themed-editor-container.dark-theme wysiwyg-editor {
+      border-color: #4a5568;
+      background: #2d3748;
+      color: white;
+    }
+
+    .themed-editor-container.custom-border wysiwyg-editor {
       border: 2px solid #007bff;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .mock-editor.dark-theme {
-      background: #2d3748;
-      border-color: #4a5568;
-    }
-
-    .mock-editor.dark-theme .mock-content {
-      background: #2d3748;
-      color: white;
-    }
-
-    .mock-toolbar {
-      background: #f8f9fa;
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
-      display: flex;
-      gap: 4px;
-    }
-
-    .mock-toolbar.gradient {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-bottom-color: #5a67d8;
-    }
-
-    .mock-toolbar.dark {
-      background: #1a202c;
-      border-bottom-color: #2d3748;
-    }
-
-    .mock-btn {
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      background: white;
-      border-radius: 3px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 12px;
-      transition: all 0.2s ease;
-    }
-
-    .mock-toolbar.gradient .mock-btn {
-      background: rgba(255, 255, 255, 0.9);
-      border-color: rgba(255, 255, 255, 0.3);
-      color: #333;
-    }
-
-    .mock-btn.dark {
-      background: #4a5568;
-      border-color: #718096;
-      color: white;
-    }
-
-    .mock-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .mock-content {
-      min-height: 120px;
-      padding: 12px;
-      outline: none;
-      background: white;
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
     }
 
     .theme-switcher-demo {
@@ -296,6 +343,135 @@ import { RouterLink } from '@angular/router';
       height: 24px;
       border-radius: 4px;
       border: 1px solid #e2e8f0;
+    }
+
+    .css-code-example {
+      margin-top: 1.5rem;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .css-code-example h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+      font-size: 1rem;
+    }
+
+    .css-code-example pre {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 0;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    .css-code-example code {
+      color: inherit;
+    }
+
+    /* Responsive Editor Demo */
+    .responsive-editor-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .size-controls h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+    }
+
+    .size-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .size-btn {
+      padding: 0.5rem 1rem;
+      border: 2px solid #e2e8f0;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.875rem;
+    }
+
+    .size-btn.active {
+      border-color: #007bff;
+      background: #f0f8ff;
+      color: #007bff;
+    }
+
+    .size-btn:hover {
+      border-color: #007bff;
+    }
+
+    .responsive-container {
+      transition: all 0.3s ease;
+      margin: 0 auto;
+    }
+
+    .responsive-container.size-mobile {
+      max-width: 375px;
+    }
+
+    .responsive-container.size-tablet {
+      max-width: 768px;
+    }
+
+    .responsive-container.size-desktop {
+      max-width: 100%;
+    }
+
+    /* Custom Styling Examples */
+    .styling-examples {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .example-item {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .example-item h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+      font-size: 1rem;
+    }
+
+    /* Minimal Editor */
+    .minimal-editor wysiwyg-editor {
+      border: 1px solid #e2e8f0;
+      border-radius: 2px;
+      box-shadow: none;
+    }
+
+    /* Rounded Editor */
+    .rounded-editor wysiwyg-editor {
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    /* Colorful Editor */
+    .colorful-editor wysiwyg-editor {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: linear-gradient(white, white) padding-box,
+                  linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4) border-box;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
 
     .next-steps {
@@ -357,7 +533,18 @@ import { RouterLink } from '@angular/router';
   `]
 })
 export class StylingComponent {
+  // Editor content
+  customStyledContent = '<p>This editor demonstrates <strong>custom CSS variables</strong> with enhanced borders, shadows, and hover effects.</p>';
+  darkThemeContent = '<p>This is a <strong>dark themed editor</strong> perfect for <em>night mode</em> applications and modern interfaces.</p>';
+  themeSwitcherContent = '<p>Switch between different <strong>themes</strong> using the buttons above. Each theme changes the entire editor appearance.</p>';
+  responsiveContent = '<p>This editor adapts to different <strong>screen sizes</strong>. Try switching between mobile, tablet, and desktop views.</p>';
+  minimalContent = '<p>Clean and minimal styling.</p>';
+  roundedContent = '<p>Soft rounded corners.</p>';
+  colorfulContent = '<p>Vibrant and colorful design.</p>';
+
+  // Theme management
   currentTheme = 'light';
+  currentSize = 'desktop';
 
   themes = [
     {
@@ -376,6 +563,38 @@ export class StylingComponent {
       preview: { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }
     }
   ];
+
+  responsiveSizes = [
+    { name: 'mobile', label: 'Mobile (375px)' },
+    { name: 'tablet', label: 'Tablet (768px)' },
+    { name: 'desktop', label: 'Desktop (100%)' }
+  ];
+
+  // CSS code examples
+  customCssCode = `.custom-styled-editor wysiwyg-editor {
+  border: 3px solid #007bff;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+  transition: all 0.3s ease;
+}
+
+.custom-styled-editor wysiwyg-editor:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(0, 123, 255, 0.2);
+}`;
+
+  darkThemeCssCode = `.dark-themed-editor {
+  background: #1a202c;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.dark-themed-editor wysiwyg-editor {
+  border: 2px solid #4a5568;
+  border-radius: 8px;
+  background: #2d3748;
+  color: white;
+}`;
 
   getThemeClass(): string {
     switch (this.currentTheme) {

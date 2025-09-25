@@ -1,11 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
 
 @Component({
   selector: 'app-basic-usage',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule, WysiwygEditorComponent],
   template: `
     <div class="container">
       <div class="demo-header">
@@ -31,18 +33,10 @@ import { RouterLink } from '@angular/router';
         </div>
 
         <div class="demo-result">
-          <div class="mock-editor">
-            <div class="mock-toolbar">
-              <button class="mock-btn">B</button>
-              <button class="mock-btn">I</button>
-              <button class="mock-btn">U</button>
-              <button class="mock-btn">🔗</button>
-              <button class="mock-btn">📷</button>
-            </div>
-            <div class="mock-content">
-              <p>Hello World!</p>
-            </div>
-          </div>
+          <wysiwyg-editor 
+            [(ngModel)]="content"
+            placeholder="Start typing...">
+          </wysiwyg-editor>
         </div>
       </div>
 
@@ -62,18 +56,11 @@ import { RouterLink } from '@angular/router';
         </div>
 
         <div class="demo-result">
-          <div class="mock-editor tall">
-            <div class="mock-toolbar">
-              <button class="mock-btn">B</button>
-              <button class="mock-btn">I</button>
-              <button class="mock-btn">U</button>
-              <button class="mock-btn">🔗</button>
-              <button class="mock-btn">📷</button>
-            </div>
-            <div class="mock-content">
-              <p>Custom height editor content...</p>
-            </div>
-          </div>
+          <wysiwyg-editor 
+            [(ngModel)]="customHeightContent"
+            [height]="'400px'"
+            placeholder="Type your content here...">
+          </wysiwyg-editor>
         </div>
       </div>
 
@@ -92,12 +79,10 @@ import { RouterLink } from '@angular/router';
         </div>
 
         <div class="demo-result">
-          <div class="mock-editor readonly">
-            <div class="mock-content">
-              <p><strong>This content cannot be edited.</strong></p>
-              <p>This is a demonstration of the read-only mode where users can view the formatted content but cannot make any changes.</p>
-            </div>
-          </div>
+          <wysiwyg-editor 
+            [(ngModel)]="readOnlyContent"
+            [readonly]="true">
+          </wysiwyg-editor>
         </div>
       </div>
 
@@ -209,50 +194,11 @@ import { RouterLink } from '@angular/router';
       background: #f8f9fa;
     }
 
-    .mock-editor {
+    wysiwyg-editor {
+      display: block;
       border: 1px solid #ddd;
       border-radius: 4px;
       overflow: hidden;
-    }
-
-    .mock-editor.tall .mock-content {
-      min-height: 200px;
-    }
-
-    .mock-editor.readonly {
-      opacity: 0.8;
-    }
-
-    .mock-editor.readonly .mock-content {
-      background: #f8f9fa;
-      cursor: not-allowed;
-    }
-
-    .mock-toolbar {
-      background: #f8f9fa;
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
-      display: flex;
-      gap: 4px;
-    }
-
-    .mock-btn {
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      background: white;
-      border-radius: 3px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .mock-btn:hover {
-      background: #e9ecef;
-    }
-
-    .mock-content {
-      min-height: 120px;
-      padding: 12px;
-      outline: none;
     }
 
     .next-steps {
@@ -310,4 +256,7 @@ import { RouterLink } from '@angular/router';
   `]
 })
 export class BasicUsageComponent {
+  content = '<p>Hello World!</p>';
+  customHeightContent = '<p>Custom height editor content...</p>';
+  readOnlyContent = '<p><strong>This content cannot be edited.</strong></p><p>This is a demonstration of the read-only mode where users can view the formatted content but cannot make any changes.</p>';
 }
