@@ -27,13 +27,25 @@ export class CommandService {
   executeCommand(command: EditorCommand, value?: string): boolean {
     try {
       // Save current selection
-      this.selectionService.saveSelection();
+      const savedSelection = this.selectionService.saveSelection();
 
-      // Restore selection before executing command
-      // Note: We don't restore here as we want to work with current selection
+      // Handle fontSize command with pixel values
+      let commandValue = value;
+      if (command.name === 'fontSize' && value) {
+        // Convert pixel values to relative sizes (1-7)
+        commandValue = this.convertPixelToFontSize(value);
+      }
 
       // Execute the command
-      const success = document.execCommand(command.name, command.options?.showUI || false, value);
+      const success = document.execCommand(command.name, command.options?.showUI || false, commandValue);
+
+      // Restore selection after command execution
+      this.selectionService.restoreSelection(savedSelection);
+
+      // For fontSize, always use fallback since document.execCommand is unreliable
+      if (command.name === 'fontSize' && value) {
+        return this.executeFallbackCommand(command, value);
+      }
 
       if (!success) {
         return this.executeFallbackCommand(command, value);
@@ -44,6 +56,22 @@ export class CommandService {
       this.errorHandlerService.handleCommandError(command.name, { command: command.name, value }, false);
       return false;
     }
+  }
+
+  /**
+   * Convert pixel font size to relative size (1-7) for document.execCommand
+   */
+  private convertPixelToFontSize(pixelValue: string): string {
+    const pixel = parseInt(pixelValue.replace('px', ''), 10);
+    
+    // Map pixel sizes to relative sizes (1-7)
+    if (pixel <= 10) return '1';
+    if (pixel <= 12) return '2';
+    if (pixel <= 14) return '3';
+    if (pixel <= 16) return '4';
+    if (pixel <= 18) return '5';
+    if (pixel <= 24) return '6';
+    return '7';
   }
 
   /**

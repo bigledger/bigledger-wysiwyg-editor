@@ -79,12 +79,10 @@
       opacity: 0.7;
     }
   }
-}
-
 .wysiwyg-toolbar__dropdown {
-  position: relative;
+  position: static;
   display: inline-block;
-
+}
   &--disabled {
     opacity: 0.5;
     pointer-events: none;
@@ -126,8 +124,9 @@
 
 .wysiwyg-toolbar__dropdown-menu {
   @include wysiwyg-dropdown-menu;
-  top: 100%;
-  left: 0;
+  position: fixed;
+  top: auto;
+  left: auto;
   min-width: 120px;
   max-height: 200px;
   overflow-y: auto;

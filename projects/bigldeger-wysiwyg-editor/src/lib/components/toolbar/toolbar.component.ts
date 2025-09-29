@@ -77,6 +77,7 @@ import { AccessibilityService } from '../../services/accessibility.service';
               [attr.aria-expanded]="isDropdownOpen(tool)"
               [attr.aria-haspopup]="'menu'"
               [attr.aria-controls]="getDropdownMenuId(tool)"
+              [id]="getDropdownTriggerId(tool)"
               [attr.tabindex]="i === 0 ? '0' : '-1'"
               (click)="toggleDropdown(tool)"
               (keydown)="handleDropdownKeydown($event, tool)"
@@ -190,6 +191,8 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   private destroy$ = new Subject<void>();
   private openDropdowns = new Set<string>();
   toolbarId: string;
+  private boundDocumentClickHandler!: (event: MouseEvent) => void;
+  private boundGlobalKeydownHandler!: (event: KeyboardEvent) => void;
 
   constructor(private accessibilityService: AccessibilityService) {
     this.toolbarId = this.accessibilityService.generateId('wysiwyg-toolbar');
@@ -197,10 +200,12 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnInit(): void {
     // Close dropdowns when clicking outside
-    document.addEventListener('click', this.closeAllDropdowns.bind(this));
+    this.boundDocumentClickHandler = this.handleDocumentClick.bind(this);
+    document.addEventListener('click', this.boundDocumentClickHandler);
     
     // Set up keyboard navigation
-    document.addEventListener('keydown', this.handleGlobalKeydown.bind(this));
+    this.boundGlobalKeydownHandler = this.handleGlobalKeydown.bind(this);
+    document.addEventListener('keydown', this.boundGlobalKeydownHandler);
   }
 
   ngAfterViewInit(): void {
@@ -213,8 +218,8 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    document.removeEventListener('click', this.closeAllDropdowns.bind(this));
-    document.removeEventListener('keydown', this.handleGlobalKeydown.bind(this));
+    document.removeEventListener('click', this.boundDocumentClickHandler);
+    document.removeEventListener('keydown', this.boundGlobalKeydownHandler);
   }
 
   /**
@@ -280,6 +285,9 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       // Close other dropdowns first
       this.openDropdowns.clear();
       this.openDropdowns.add(tool.command);
+      
+      // Position the dropdown menu after it opens
+      setTimeout(() => this.positionDropdownMenu(tool), 0);
     }
   }
 
@@ -288,6 +296,58 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   private closeAllDropdowns(): void {
     this.openDropdowns.clear();
+  }
+
+  /**
+   * Position dropdown menu relative to its trigger button
+   */
+  private positionDropdownMenu(tool: ToolbarTool): void {
+    const trigger = document.getElementById(this.getDropdownTriggerId(tool));
+    const menu = document.getElementById(this.getDropdownMenuId(tool));
+    
+    if (!trigger || !menu) {
+      return;
+    }
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const menuHeight = menu.offsetHeight;
+    const menuWidth = menu.offsetWidth;
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Calculate vertical position - prefer below, but go above if not enough space
+    let top = triggerRect.bottom + 2;
+    if (top + menuHeight > viewportHeight - 10) {
+      top = triggerRect.top - menuHeight - 2;
+    }
+    
+    // Calculate horizontal position - prefer left-aligned, but adjust if near edge
+    let left = triggerRect.left;
+    if (left + menuWidth > viewportWidth - 10) {
+      left = viewportWidth - menuWidth - 10;
+    }
+    if (left < 10) {
+      left = 10;
+    }
+    
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+  }
+
+  /**
+   * Handle clicks on document to close dropdowns only when clicking outside toolbar
+   */
+  private handleDocumentClick(event: MouseEvent): void {
+    const target = event.target as Node | null;
+    const container = this.toolbarContainer?.nativeElement;
+    if (!target || !container) {
+      this.closeAllDropdowns();
+      return;
+    }
+    const isInside = container.contains(target);
+    if (!isInside) {
+      this.closeAllDropdowns();
+    }
   }
 
   /**
