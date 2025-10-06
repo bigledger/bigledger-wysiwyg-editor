@@ -36,16 +36,16 @@ export class CommandService {
         commandValue = this.convertPixelToFontSize(value);
       }
 
+      // For fontSize and color commands, always use fallback since document.execCommand is unreliable
+      if (command.name === 'fontSize' || command.name === 'foreColor' || command.name === 'backColor') {
+        return this.executeFallbackCommand(command, value);
+      }
+
       // Execute the command
       const success = document.execCommand(command.name, command.options?.showUI || false, commandValue);
 
       // Restore selection after command execution
       this.selectionService.restoreSelection(savedSelection);
-
-      // For fontSize, always use fallback since document.execCommand is unreliable
-      if (command.name === 'fontSize' && value) {
-        return this.executeFallbackCommand(command, value);
-      }
 
       if (!success) {
         return this.executeFallbackCommand(command, value);

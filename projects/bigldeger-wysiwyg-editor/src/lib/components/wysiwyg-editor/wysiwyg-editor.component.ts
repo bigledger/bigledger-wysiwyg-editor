@@ -8,6 +8,7 @@ import { ToolbarComponent } from '../toolbar/toolbar.component';
 import { EditorContentComponent } from '../editor-content/editor-content.component';
 import { LinkData } from '../dialogs/link-dialog/link-dialog.component';
 import { ImageData } from '../../models/image.interface';
+import { ColorData } from '../dialogs/color-picker-dialog/color-picker-dialog.component';
 import { LazyLoaderService } from '../../services/lazy-loader.service';
 import { DebounceService } from '../../services/debounce.service';
 import { PerformanceMonitorService } from '../../services/performance-monitor.service';
@@ -78,14 +79,17 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   // Dialog visibility state
   linkDialogVisible = false;
   imageDialogVisible = false;
+  colorPickerDialogVisible = false;
   
   // Dialog state
   private linkDialogRef: ComponentRef<any> | null = null;
   private imageDialogRef: ComponentRef<any> | null = null;
+  private colorPickerDialogRef: ComponentRef<any> | null = null;
   private currentLinkData: LinkData | null = null;
   private isEditingLink = false;
   private currentImageData: ImageData | null = null;
   private isEditingImage = false;
+  private currentColorType: 'text' | 'background' = 'text';
 
   private destroy$ = new Subject<void>();
   private onChange = (value: string) => {};
@@ -144,6 +148,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     // Clean up dialog references
     this.closeLinkDialog();
     this.closeImageDialog();
+    this.closeColorPickerDialog();
     
     // Stop performance monitoring and log summary
     this.performanceMonitor.stopMonitoring();
@@ -166,6 +171,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         break;
       case 'insertImage':
         this.showImageDialog();
+        break;
+      case 'fontColor':
+        this.showColorPickerDialog('text');
+        break;
+      case 'backgroundColor':
+        this.showColorPickerDialog('background');
         break;
       default:
         this.executeCommand(command);
@@ -428,6 +439,91 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.imageDialogVisible = false;
     this.currentImageData = null;
     this.isEditingImage = false;
+  }
+
+  /**
+   * Show color picker dialog (lazy loaded)
+   */
+  private async showColorPickerDialog(type: 'text' | 'background'): Promise<void> {
+    if (this.colorPickerDialogRef) {
+      return; // Dialog already open
+    }
+
+    try {
+      // CRITICAL: Save selection BEFORE opening dialog to prevent selection loss
+      const savedSelection = this.selectionService.saveSelection();
+      
+      // Set dialog visibility state
+      this.colorPickerDialogVisible = true;
+      this.currentColorType = type;
+      
+      // Benchmark dialog loading
+      this.performanceMonitor.startBenchmark('colorPickerDialogLoad');
+      
+      // Lazy load the color picker dialog component
+      this.colorPickerDialogRef = await this.lazyLoaderService.loadDialogComponent('color', this.dialogContainer);
+      
+      this.performanceMonitor.endBenchmark('colorPickerDialogLoad');
+      
+      if (this.colorPickerDialogRef) {
+        // Get current color based on type from selection state
+        const currentColor = type === 'text' 
+          ? (this.currentSelection?.formats.fontColor || '#000000')
+          : (this.currentSelection?.formats.backgroundColor || '#ffffff');
+
+        // Set component inputs
+        this.colorPickerDialogRef.instance.initialColor = currentColor;
+        this.colorPickerDialogRef.instance.type = type;
+        this.colorPickerDialogRef.instance.savedSelection = savedSelection; // Pass saved selection to dialog
+
+        // Subscribe to component outputs
+        this.colorPickerDialogRef.instance.colorSelected.subscribe((colorData: ColorData) => {
+          this.onColorSelected(colorData, savedSelection);
+        });
+
+        this.colorPickerDialogRef.instance.cancel.subscribe(() => {
+          this.onColorPickerDialogClosed();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load color picker dialog:', error);
+      this.colorPickerDialogVisible = false;
+    }
+  }
+
+  /**
+   * Handle color selection
+   */
+  onColorSelected(colorData: ColorData, savedSelection: SelectionState): void {
+    // Restore the selection BEFORE executing the command
+    this.selectionService.restoreSelection(savedSelection);
+    
+    const commandName = colorData.type === 'text' ? 'foreColor' : 'backColor';
+    const command: EditorCommand = { name: commandName };
+    
+    this.commandService.executeCommand(command, colorData.color);
+    
+    this.closeColorPickerDialog();
+    this.updateSelectionState();
+    this.emitContentChange();
+  }
+
+  /**
+   * Handle color picker dialog closed event
+   */
+  onColorPickerDialogClosed(): void {
+    this.closeColorPickerDialog();
+  }
+
+  /**
+   * Close color picker dialog and clean up
+   */
+  private closeColorPickerDialog(): void {
+    if (this.colorPickerDialogRef) {
+      this.colorPickerDialogRef.destroy();
+      this.colorPickerDialogRef = null;
+    }
+    this.colorPickerDialogVisible = false;
   }
 
   /**

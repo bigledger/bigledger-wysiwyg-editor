@@ -1,0 +1,119 @@
+<div class="color-picker-overlay" (click)="onCancel()">
+  <div class="color-picker-dialog" (click)="$event.stopPropagation()">
+    <div class="color-picker-header">
+      <h3>{{ type === 'text' ? 'Text Color' : 'Background Color' }}</h3>
+      <button 
+        type="button" 
+        class="close-button" 
+        (click)="onCancel()"
+        aria-label="Close color picker">
+        ✕
+      </button>
+    </div>
+
+    <div class="color-picker-body">
+      <!-- Color Preview -->
+      <div class="color-preview">
+        <div class="preview-label">Selected Color:</div>
+        <div class="preview-box">
+          <div 
+            class="preview-swatch" 
+            [style.background-color]="selectedColor">
+          </div>
+          <span class="preview-value">{{ selectedColor }}</span>
+        </div>
+      </div>
+
+      <!-- Recent Colors -->
+      <div class="color-section" *ngIf="recentColors.length > 0">
+        <div class="section-label">Recent Colors</div>
+        <div class="color-grid recent-colors">
+          <button
+            *ngFor="let color of recentColors"
+            type="button"
+            class="color-swatch"
+            [class.selected]="isColorSelected(color)"
+            [style.background-color]="color"
+            [style.border]="color === '#FFFFFF' ? '1px solid #E0E0E0' : 'none'"
+            [attr.aria-label]="'Select color ' + color"
+            [title]="color"
+            (click)="selectColor(color)">
+            <span class="check-mark" *ngIf="isColorSelected(color)">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Color Palette -->
+      <div class="color-section">
+        <div class="section-label">Color Palette</div>
+        <div class="color-palette">
+          <div class="palette-row" *ngFor="let row of colorPalette">
+            <button
+              *ngFor="let color of row"
+              type="button"
+              class="color-swatch"
+              [class.selected]="isColorSelected(color)"
+              [ngStyle]="getColorStyle(color)"
+              [attr.aria-label]="'Select color ' + color"
+              [title]="color"
+              (click)="selectColor(color)">
+              <span class="check-mark" *ngIf="isColorSelected(color)">✓</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Color Input -->
+      <div class="color-section">
+        <div class="section-label">
+          <span>Custom Color</span>
+          <button 
+            type="button" 
+            class="toggle-custom-button"
+            (click)="toggleCustomInput()">
+            {{ showCustomInput ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+        <div class="custom-color-input" *ngIf="showCustomInput">
+          <input
+            type="color"
+            [(ngModel)]="customColor"
+            (ngModelChange)="onCustomColorChange($event)"
+            class="color-input"
+            aria-label="Custom color picker">
+          <input
+            type="text"
+            [(ngModel)]="customColor"
+            (ngModelChange)="onCustomColorChange($event)"
+            class="color-text-input"
+            placeholder="#000000"
+            pattern="^#[0-9A-Fa-f]{6}$"
+            aria-label="Custom color hex value">
+        </div>
+      </div>
+    </div>
+
+    <div class="color-picker-footer">
+      <button 
+        type="button" 
+        class="btn btn-secondary"
+        (click)="removeColor()">
+        {{ type === 'text' ? 'Reset to Default' : 'Remove Color' }}
+      </button>
+      <div class="button-group">
+        <button 
+          type="button" 
+          class="btn btn-cancel"
+          (click)="onCancel()">
+          Cancel
+        </button>
+        <button 
+          type="button" 
+          class="btn btn-primary"
+          (click)="applyColor()">
+          Apply
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

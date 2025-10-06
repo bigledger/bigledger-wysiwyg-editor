@@ -284,8 +284,8 @@ import { WysiwygEditorComponent, ToolbarConfig } from 'angular-wysiwyg-editor';
 export class ToolbarConfigComponent {
   // Content for different editors
   minimalContent = '<p>This editor has a <strong>minimal toolbar</strong> with only essential formatting tools.</p>';
-  standardContent = '<p>This editor has a <em>standard toolbar</em> with common formatting options like <strong>bold</strong>, <em>italic</em>, lists, and links.</p>';
-  fullFeaturedContent = '<p>This editor has a <strong>full-featured toolbar</strong> with all available formatting tools including font size, colors, alignment, and more.</p>';
+  standardContent = '<p>This editor has a <em>standard toolbar</em> with common formatting options like <strong>bold</strong>, <em>italic</em>, <span style="color: #2196F3;">text color</span>, lists, and links.</p>';
+  fullFeaturedContent = '<p>This editor has a <strong>full-featured toolbar</strong> with all available formatting tools including font size, <span style="color: #4CAF50;">text colors</span>, <span style="background-color: #FFEB3B;">background colors</span>, alignment, and more.</p>';
   customContent = '<p>This editor has a <strong>custom toolbar</strong> configured for specific use cases with selected tools.</p>';
 
   // Minimal toolbar configuration
@@ -316,6 +316,7 @@ export class ToolbarConfigComponent {
           { value: '20px', label: '20px' }
         ]
       },
+      { type: 'dialog' as const, command: 'fontColor', icon: 'fontColor', label: 'Text Color' },
       { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
       { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
       { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
@@ -348,6 +349,8 @@ export class ToolbarConfigComponent {
           { value: '28px', label: '28px' }
         ]
       },
+      { type: 'dialog' as const, command: 'fontColor', icon: 'fontColor', label: 'Text Color' },
+      { type: 'dialog' as const, command: 'backgroundColor', icon: 'backgroundColor', label: 'Background Color' },
       { type: 'button' as const, command: 'justifyLeft', icon: 'justifyLeft', label: 'Align Left' },
       { type: 'button' as const, command: 'justifyCenter', icon: 'justifyCenter', label: 'Align Center' },
       { type: 'button' as const, command: 'justifyRight', icon: 'justifyRight', label: 'Align Right' },
