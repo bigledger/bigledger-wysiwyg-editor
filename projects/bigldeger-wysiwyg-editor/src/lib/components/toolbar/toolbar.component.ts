@@ -377,8 +377,14 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    // Map fontFamily command to fontName for document.execCommand compatibility
+    let commandName = tool.command;
+    if (tool.command === 'fontFamily') {
+      commandName = 'fontName';
+    }
+
     const command: EditorCommand = {
-      name: tool.command,
+      name: commandName,
       value: option.value,
       options: {
         showUI: false,
@@ -405,6 +411,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       'underline': '<u>U</u>',
       'strikethrough': '<s>S</s>',
       'fontSize': 'A',
+      'fontFamily': 'Aa',
       'fontColor': '🎨',
       'backgroundColor': '🖍️',
       'justifyLeft': '⬅️',
@@ -500,6 +507,8 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
     switch (tool.command) {
       case 'fontSize':
         return formats.fontSize === option.value;
+      case 'fontFamily':
+        return formats.fontFamily === option.value;
       case 'fontColor':
         return formats.fontColor === option.value;
       case 'backgroundColor':

@@ -264,6 +264,12 @@ export class DemoHomeComponent {
       description: 'Performance optimization, content sanitization, and programmatic control.',
       icon: 'icon-advanced',
       route: '/advanced'
+    },
+    {
+      title: 'Font Family Test',
+      description: 'Test the new font family dropdown feature with various font options.',
+      icon: 'icon-font',
+      route: '/font-family-test'
     }
   ];
 

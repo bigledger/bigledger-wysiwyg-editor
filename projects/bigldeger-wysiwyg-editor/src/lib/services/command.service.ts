@@ -36,8 +36,8 @@ export class CommandService {
         commandValue = this.convertPixelToFontSize(value);
       }
 
-      // For fontSize and color commands, always use fallback since document.execCommand is unreliable
-      if (command.name === 'fontSize' || command.name === 'foreColor' || command.name === 'backColor') {
+      // For fontSize, fontFamily and color commands, always use fallback since document.execCommand is unreliable
+      if (command.name === 'fontSize' || command.name === 'fontName' || command.name === 'fontFamily' || command.name === 'foreColor' || command.name === 'backColor') {
         return this.executeFallbackCommand(command, value);
       }
 
@@ -97,6 +97,9 @@ export class CommandService {
           return this.wrapSelectionWithTag('s');
         case 'fontSize':
           return this.wrapSelectionWithStyle('font-size', value || '14px');
+        case 'fontName':
+        case 'fontFamily':
+          return this.wrapSelectionWithStyle('font-family', value || 'Arial, sans-serif');
         case 'foreColor':
           return this.wrapSelectionWithStyle('color', value || '#000000');
         case 'backColor':
@@ -146,6 +149,16 @@ export class CommandService {
     }
 
     const range = selection.getRangeAt(0);
+    
+    // If selection is collapsed (just cursor), insert a placeholder and select it
+    if (range.collapsed) {
+      const placeholder = document.createTextNode('\u00A0'); // Non-breaking space
+      range.insertNode(placeholder);
+      range.selectNode(placeholder);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    
     const selectedContent = range.extractContents();
     
     const wrapper = document.createElement('span');

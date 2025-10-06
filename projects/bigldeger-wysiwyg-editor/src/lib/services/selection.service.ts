@@ -108,6 +108,7 @@ export class SelectionService {
         underline: this.queryCommandState('underline'),
         strikethrough: this.queryCommandState('strikethrough'),
         fontSize: this.queryCommandValue('fontSize') || '14px',
+        fontFamily: this.getCurrentFontFamily(),
         fontColor: this.queryCommandValue('foreColor') || '#000000',
         backgroundColor: this.queryCommandValue('backColor') || 'transparent',
         alignment: this.getCurrentAlignment()
@@ -127,6 +128,7 @@ export class SelectionService {
       underline: false,
       strikethrough: false,
       fontSize: '14px',
+      fontFamily: 'Arial, sans-serif',
       fontColor: '#000000',
       backgroundColor: 'transparent',
       alignment: 'left'
@@ -168,6 +170,76 @@ export class SelectionService {
     } catch (error) {
       return 'left';
     }
+  }
+
+  /**
+   * Get current font family
+   */
+  private getCurrentFontFamily(): string {
+    try {
+      // Try queryCommandValue first (deprecated but still works in some browsers)
+      const commandValue = this.queryCommandValue('fontName');
+      if (commandValue && commandValue !== '') {
+        return this.normalizeFontFamily(commandValue);
+      }
+
+      // Fallback: check computed style of current selection
+      const selection = this.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let element: Node | null = range.commonAncestorContainer;
+
+        // If it's a text node, get its parent element
+        if (element.nodeType === Node.TEXT_NODE) {
+          element = element.parentElement;
+        }
+
+        // Walk up the DOM tree to find the closest element with font-family
+        while (element && element.nodeType === Node.ELEMENT_NODE) {
+          const computedStyle = window.getComputedStyle(element as Element);
+          const fontFamily = computedStyle.fontFamily;
+          
+          if (fontFamily && fontFamily !== '' && fontFamily !== 'inherit') {
+            // Clean up the font family string (remove quotes, normalize)
+            return this.normalizeFontFamily(fontFamily);
+          }
+          
+          element = (element as Element).parentElement;
+        }
+      }
+
+      return 'Arial, sans-serif';
+    } catch (error) {
+      return 'Arial, sans-serif';
+    }
+  }
+
+  /**
+   * Normalize font family string
+   */
+  private normalizeFontFamily(fontFamily: string): string {
+    // Remove quotes and get the first font family
+    const normalized = fontFamily
+      .replace(/['"]/g, '')
+      .split(',')[0]
+      .trim();
+    
+    // Map common system fonts to our standard names
+    const fontMap: Record<string, string> = {
+      'arial': 'Arial, sans-serif',
+      'helvetica': 'Helvetica, sans-serif',
+      'times new roman': 'Times New Roman, serif',
+      'times': 'Times New Roman, serif',
+      'georgia': 'Georgia, serif',
+      'courier new': 'Courier New, monospace',
+      'courier': 'Courier New, monospace',
+      'verdana': 'Verdana, sans-serif',
+      'trebuchet ms': 'Trebuchet MS, sans-serif',
+      'impact': 'Impact, sans-serif'
+    };
+    
+    const lowerNormalized = normalized.toLowerCase();
+    return fontMap[lowerNormalized] || fontFamily;
   }
 
   /**

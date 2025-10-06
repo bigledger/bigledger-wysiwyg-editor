@@ -32,6 +32,8 @@ export interface ActiveFormats {
   strikethrough?: boolean;
   /** Current font size (e.g., '14px', '1.2em') */
   fontSize: string;
+  /** Current font family (e.g., 'Arial', 'Times New Roman') */
+  fontFamily: string;
   /** Current font color (hex, rgb, or named color) */
   fontColor: string;
   /** Current background color (hex, rgb, or named color) */

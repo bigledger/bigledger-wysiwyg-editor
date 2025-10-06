@@ -303,10 +303,10 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'bold', icon: 'bold', label: 'Bold' },
       { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
       { type: 'button' as const, command: 'underline', icon: 'underline', label: 'Underline' },
-      { 
-        type: 'dropdown' as const, 
-        command: 'fontSize', 
-        icon: 'fontSize', 
+      {
+        type: 'dropdown' as const,
+        command: 'fontSize',
+        icon: 'fontSize',
         label: 'Font Size',
         options: [
           { value: '12px', label: '12px' },
@@ -314,6 +314,19 @@ export class ToolbarConfigComponent {
           { value: '16px', label: '16px' },
           { value: '18px', label: '18px' },
           { value: '20px', label: '20px' }
+        ]
+      },
+      {
+        type: 'dropdown' as const,
+        command: 'fontFamily',
+        icon: 'fontFamily',
+        label: 'Font Family',
+        options: [
+          { value: 'Arial, sans-serif', label: 'Arial' },
+          { value: 'Helvetica, sans-serif', label: 'Helvetica' },
+          { value: 'Times New Roman, serif', label: 'Times New Roman' },
+          { value: 'Georgia, serif', label: 'Georgia' },
+          { value: 'Courier New, monospace', label: 'Courier New' }
         ]
       },
       { type: 'dialog' as const, command: 'fontColor', icon: 'fontColor', label: 'Text Color' },
@@ -333,10 +346,10 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
       { type: 'button' as const, command: 'underline', icon: 'underline', label: 'Underline' },
       { type: 'button' as const, command: 'strikethrough', icon: 'strikethrough', label: 'Strikethrough' },
-      { 
-        type: 'dropdown' as const, 
-        command: 'fontSize', 
-        icon: 'fontSize', 
+      {
+        type: 'dropdown' as const,
+        command: 'fontSize',
+        icon: 'fontSize',
         label: 'Font Size',
         options: [
           { value: '10px', label: '10px' },
@@ -347,6 +360,22 @@ export class ToolbarConfigComponent {
           { value: '20px', label: '20px' },
           { value: '24px', label: '24px' },
           { value: '28px', label: '28px' }
+        ]
+      },
+      {
+        type: 'dropdown' as const,
+        command: 'fontFamily',
+        icon: 'fontFamily',
+        label: 'Font Family',
+        options: [
+          { value: 'Arial, sans-serif', label: 'Arial' },
+          { value: 'Helvetica, sans-serif', label: 'Helvetica' },
+          { value: 'Times New Roman, serif', label: 'Times New Roman' },
+          { value: 'Georgia, serif', label: 'Georgia' },
+          { value: 'Courier New, monospace', label: 'Courier New' },
+          { value: 'Verdana, sans-serif', label: 'Verdana' },
+          { value: 'Trebuchet MS, sans-serif', label: 'Trebuchet MS' },
+          { value: 'Impact, sans-serif', label: 'Impact' }
         ]
       },
       { type: 'dialog' as const, command: 'fontColor', icon: 'fontColor', label: 'Text Color' },
@@ -367,10 +396,10 @@ export class ToolbarConfigComponent {
     tools: [
       { type: 'button' as const, command: 'bold', icon: 'bold', label: 'Bold' },
       { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
-      { 
-        type: 'dropdown' as const, 
-        command: 'fontSize', 
-        icon: 'fontSize', 
+      {
+        type: 'dropdown' as const,
+        command: 'fontSize',
+        icon: 'fontSize',
         label: 'Font Size',
         options: [
           { value: '14px', label: 'Small' },
@@ -411,6 +440,19 @@ export class ToolbarConfigComponent {
         { value: '16px', label: '16px' },
         { value: '18px', label: '18px' },
         { value: '20px', label: '20px' }
+      ]
+    },
+    { 
+      type: 'dropdown', 
+      command: 'fontFamily', 
+      icon: 'fontFamily', 
+      label: 'Font Family',
+      options: [
+        { value: 'Arial, sans-serif', label: 'Arial' },
+        { value: 'Helvetica, sans-serif', label: 'Helvetica' },
+        { value: 'Times New Roman, serif', label: 'Times New Roman' },
+        { value: 'Georgia, serif', label: 'Georgia' },
+        { value: 'Courier New, monospace', label: 'Courier New' }
       ]
     },
     { type: 'button', command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },

@@ -14,7 +14,8 @@ import { ToolbarTool, ToolOption } from '../../models/toolbar.interface';
       class="wysiwyg-toolbar-dropdown"
       [class.wysiwyg-toolbar-dropdown--disabled]="disabled || tool?.disabled"
       [class.wysiwyg-toolbar-dropdown--open]="isOpen"
-      [class]="tool?.cssClass">
+      [class]="tool?.cssClass"
+      [attr.data-command]="tool?.command">
       
       <button
         #triggerButton
@@ -76,6 +77,7 @@ import { ToolbarTool, ToolOption } from '../../models/toolbar.interface';
           [disabled]="option.disabled"
           role="menuitem"
           [attr.aria-selected]="isOptionSelected(option)"
+          [attr.data-font-family]="tool?.command === 'fontFamily' ? option.value : null"
           (click)="selectOption(option)"
           (keydown.enter)="selectOption(option)"
           (keydown.space)="selectOption(option, $event)">
@@ -285,7 +287,7 @@ export class ToolbarDropdownComponent implements OnInit, OnDestroy {
       'fontSize': '<span style="font-size: 16px;">A</span>',
       'fontColor': '🎨',
       'backgroundColor': '🖍️',
-      'fontFamily': 'Aa',
+      'fontFamily': '<span style="font-family: serif;">Aa</span>',
       'lineHeight': '≡'
     };
 
