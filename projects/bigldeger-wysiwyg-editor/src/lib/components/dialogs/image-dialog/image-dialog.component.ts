@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ImageData } from '../../../models/image.interface';
@@ -49,6 +49,34 @@ export class ImageDialogComponent implements OnInit {
 
   /** Maximum file size (5MB) */
   private readonly maxFileSize = 5 * 1024 * 1024;
+
+  /** Upload progress percentage */
+  uploadProgress = 0;
+
+  /** Whether an upload is in progress */
+  isUploading = false;
+
+  /** Error message for upload failures */
+  uploadError: string | null = null;
+
+  /** Drag over state for drop zone */
+  isDragOver = false;
+
+  /** Upload handler function */
+  @Input() uploadHandler?: (file: File) => Promise<string>;
+
+  /** Maximum image dimensions */
+  @Input() maxWidth = 2000;
+  @Input() maxHeight = 2000;
+
+  /** Whether to auto-resize large images */
+  @Input() autoResize = true;
+
+  /** JPEG compression quality (0-1) */
+  @Input() quality = 0.8;
+
+  /** Reference to the file input element */
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   constructor(private formBuilder: FormBuilder) {
     this.imageForm = this.createForm();
@@ -133,9 +161,16 @@ export class ImageDialogComponent implements OnInit {
   }
 
   /**
+   * Triggers the hidden file input when the button is clicked
+   */
+  triggerFileInput(): void {
+    this.fileInput?.nativeElement?.click();
+  }
+
+  /**
    * Handles file selection for upload
    */
-  onFileSelected(event: Event): void {
+  async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
@@ -143,6 +178,13 @@ export class ImageDialogComponent implements OnInit {
       return;
     }
 
+    await this.processFile(file);
+  }
+
+  /**
+   * Processes and validates the selected file
+   */
+  private async processFile(file: File): Promise<void> {
     // Validate file type
     if (!this.supportedFormats.includes(file.type)) {
       this.setFileError('Unsupported file format. Please use JPEG, PNG, GIF, WebP, or SVG.');
@@ -155,26 +197,146 @@ export class ImageDialogComponent implements OnInit {
       return;
     }
 
-    this.selectedFile = file;
+    this.uploadError = null;
     this.clearFileError();
-    this.generatePreview(file);
+
+    // Check if image needs resizing
+    if (this.autoResize && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+      try {
+        const resizedFile = await this.resizeImageIfNeeded(file);
+        this.selectedFile = resizedFile;
+        await this.generatePreview(resizedFile);
+      } catch (error) {
+        console.error('Error resizing image:', error);
+        this.selectedFile = file;
+        await this.generatePreview(file);
+      }
+    } else {
+      this.selectedFile = file;
+      await this.generatePreview(file);
+    }
+  }
+
+  /**
+   * Resizes image if it exceeds maximum dimensions
+   */
+  private async resizeImageIfNeeded(file: File): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+
+      img.onload = () => {
+        let { width, height } = img;
+        
+        // Check if resize is needed
+        if (width <= this.maxWidth && height <= this.maxHeight) {
+          resolve(file);
+          return;
+        }
+
+        // Calculate new dimensions maintaining aspect ratio
+        const ratio = Math.min(this.maxWidth / width, this.maxHeight / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
+
+        // Create canvas and resize
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert canvas to blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const resizedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now()
+              });
+              resolve(resizedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          file.type,
+          this.quality
+        );
+      };
+
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * Handles drag over event
+   */
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  /**
+   * Handles drag leave event
+   */
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  /**
+   * Handles drop event
+   */
+  async onDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      await this.processFile(files[0]);
+    }
   }
 
   /**
    * Generates preview for selected file
    */
-  private generatePreview(file: File): void {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.previewUrl = e.target?.result as string;
-      
-      // Auto-fill alt text with filename if empty
-      if (!this.imageForm.get('alt')?.value) {
-        const filename = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
-        this.imageForm.patchValue({ alt: filename });
-      }
-    };
-    reader.readAsDataURL(file);
+  private async generatePreview(file: File): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.previewUrl = e.target?.result as string;
+        
+        // Auto-fill alt text with filename if empty
+        if (!this.imageForm.get('alt')?.value) {
+          const filename = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+          this.imageForm.patchValue({ alt: filename });
+        }
+        resolve();
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
   }
 
   /**
@@ -219,15 +381,41 @@ export class ImageDialogComponent implements OnInit {
   /**
    * Handles form submission
    */
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
     if (this.isFormValid()) {
       const formValue = this.imageForm.value;
       let src = '';
 
       if (this.activeTab === 'upload' && this.selectedFile) {
-        // For file upload, use the preview URL (data URL)
-        // In a real implementation, you'd upload to a server and get back a URL
-        src = this.previewUrl || '';
+        // If custom upload handler is provided, use it
+        if (this.uploadHandler) {
+          try {
+            this.isUploading = true;
+            this.uploadProgress = 0;
+            this.uploadError = null;
+
+            // Simulate progress for better UX
+            const progressInterval = setInterval(() => {
+              if (this.uploadProgress < 90) {
+                this.uploadProgress += 10;
+              }
+            }, 200);
+
+            src = await this.uploadHandler(this.selectedFile);
+
+            clearInterval(progressInterval);
+            this.uploadProgress = 100;
+            this.isUploading = false;
+          } catch (error) {
+            this.isUploading = false;
+            this.uploadProgress = 0;
+            this.uploadError = error instanceof Error ? error.message : 'Upload failed';
+            return;
+          }
+        } else {
+          // For file upload without handler, use the preview URL (data URL)
+          src = this.previewUrl || '';
+        }
       } else {
         // For URL input, process the URL
         src = formValue.src?.trim() || '';
@@ -281,6 +469,10 @@ export class ImageDialogComponent implements OnInit {
     this.selectedFile = null;
     this.previewUrl = null;
     this.activeTab = 'url';
+    this.uploadProgress = 0;
+    this.isUploading = false;
+    this.uploadError = null;
+    this.isDragOver = false;
     this.dialogClosed.emit();
   }
 
@@ -339,5 +531,18 @@ export class ImageDialogComponent implements OnInit {
    */
   hasFileError(): boolean {
     return this.activeTab === 'upload' && (!this.selectedFile || this.hasFieldError('src'));
+  }
+
+  /**
+   * Formats file size for display
+   */
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   }
 }

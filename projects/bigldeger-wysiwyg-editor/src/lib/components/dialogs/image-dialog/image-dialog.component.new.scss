@@ -27,7 +27,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: 90%;
   max-width: 650px;
-  max-height: 85vh;
+  max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -36,8 +36,7 @@
   form {
     display: flex;
     flex-direction: column;
-    max-height: 85vh;
-    overflow: hidden;
+    height: 100%;
   }
 }
 
@@ -177,11 +176,9 @@
 // Dialog Body
 // ========================================
 .wysiwyg-dialog-body {
-  flex: 1 1 auto;
+  flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
   padding: 28px;
-  min-height: 0; // Critical for flex scrolling
   
   &::-webkit-scrollbar {
     width: 8px;
@@ -865,11 +862,7 @@
 @media (max-width: 640px) {
   .wysiwyg-image-dialog {
     width: 95%;
-    max-height: 90vh;
-
-    form {
-      max-height: 90vh;
-    }
+    max-height: 95vh;
   }
 
   .wysiwyg-image-dialog-header {
