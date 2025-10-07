@@ -1,7 +1,10 @@
 @import '../../styles/themes.scss';
 
 .wysiwyg-content {
+  display: block;
+  width: 100%;
   flex: 1;
+  margin: 0;
   padding: var(--wysiwyg-spacing-md);
   border: none;
   outline: none;
@@ -11,8 +14,10 @@
   font-size: inherit;
   line-height: inherit;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 120px;
   resize: vertical;
+  box-sizing: border-box;
   
   @include wysiwyg-scrollbar;
 
@@ -22,6 +27,40 @@
   &.readonly {
     cursor: default;
     user-select: none;
+  }
+}
+
+.wysiwyg-html-view {
+  display: block;
+  width: 100%;
+  flex: 1;
+  margin: 0;
+  padding: var(--wysiwyg-spacing-md);
+  border: none;
+  outline: none;
+  background: var(--wysiwyg-code-bg, #f5f5f5);
+  color: var(--wysiwyg-code-color, #333);
+  font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-y: auto;
+  overflow-x: auto;
+  min-height: 120px;
+  resize: vertical;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  tab-size: 2;
+  box-sizing: border-box;
+  
+  @include wysiwyg-scrollbar;
+
+  &:focus {
+    background: var(--wysiwyg-code-focus-bg, #fff);
+  }
+
+  &[readonly] {
+    cursor: default;
+    opacity: 0.7;
   }
 }
 

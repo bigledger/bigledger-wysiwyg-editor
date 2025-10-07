@@ -8,11 +8,12 @@ import {
   OnInit, 
   OnDestroy, 
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   forwardRef,
   Inject,
   PLATFORM_ID
 } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { Subject, takeUntil, debounceTime } from 'rxjs';
 
@@ -26,9 +27,13 @@ import { ContentEditableDirective } from '../../directives/content-editable.dire
 @Component({
   selector: 'wysiwyg-editor-content',
   standalone: true,
-  imports: [ContentEditableDirective],
+  imports: [CommonModule, ContentEditableDirective],
+  host: {
+    'style': 'display: flex; flex-direction: column; width: 100%; flex: 1;'
+  },
   template: `
     <div 
+      *ngIf="!htmlMode"
       #contentArea
       class="wysiwyg-content"
       [class.readonly]="readonly"
@@ -56,6 +61,21 @@ import { ContentEditableDirective } from '../../directives/content-editable.dire
       (drop)="onDrop($event)"
       (click)="onClick($event)">
     </div>
+    
+    <textarea
+      *ngIf="htmlMode"
+      #htmlTextarea
+      class="wysiwyg-html-view"
+      [style.height]="height"
+      [style.min-height]="minHeight"
+      [style.max-height]="maxHeight"
+      [value]="content"
+      [readonly]="readonly"
+      [attr.spellcheck]="false"
+      [attr.aria-label]="'HTML code editor'"
+      (input)="onHtmlInput($event)"
+      (focus)="onFocus($event)"
+      (blur)="onBlur($event)">{{content}}</textarea>
   `,
   styleUrls: ['./editor-content.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,7 +88,8 @@ import { ContentEditableDirective } from '../../directives/content-editable.dire
   ]
 })
 export class EditorContentComponent implements OnInit, OnDestroy, ControlValueAccessor {
-  @ViewChild('contentArea', { static: true }) contentArea!: ElementRef<HTMLDivElement>;
+  @ViewChild('contentArea', { static: false }) contentArea!: ElementRef<HTMLDivElement>;
+  @ViewChild('htmlTextarea', { static: false }) htmlTextarea!: ElementRef<HTMLTextAreaElement>;
 
   @Input() content: string = '';
   @Input() placeholder: string = '';
@@ -78,6 +99,20 @@ export class EditorContentComponent implements OnInit, OnDestroy, ControlValueAc
   @Input() maxHeight: string = '600px';
   @Input() spellCheck: boolean = true;
   @Input() ariaLabel: string = '';
+  
+  private _htmlMode: boolean = false;
+  @Input() 
+  set htmlMode(value: boolean) {
+    const oldValue = this._htmlMode;
+    this._htmlMode = value;
+    
+    if (oldValue !== value) {
+      this.onHtmlModeChange(value);
+    }
+  }
+  get htmlMode(): boolean {
+    return this._htmlMode;
+  }
 
   @Output() contentChange = new EventEmitter<string>();
   @Output() selectionChange = new EventEmitter<SelectionState>();
@@ -98,6 +133,7 @@ export class EditorContentComponent implements OnInit, OnDestroy, ControlValueAc
     private selectionService: SelectionService,
     private sanitizerService: HTMLSanitizerService,
     private commandService: CommandService,
+    private cdr: ChangeDetectorRef,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     // Debounce content changes to avoid excessive emissions
@@ -170,6 +206,72 @@ export class EditorContentComponent implements OnInit, OnDestroy, ControlValueAc
     }
   }
 
+  /**
+   * Handle HTML mode change
+   */
+  private onHtmlModeChange(isHtmlMode: boolean): void {
+    if (isHtmlMode) {
+      // Switching to HTML mode - get content from contentArea and format it
+      if (this.contentArea?.nativeElement) {
+        this.content = this.formatHtml(this.contentArea.nativeElement.innerHTML);
+        this.cdr.detectChanges();
+      }
+    } else {
+      // Switching to visual mode - update contentArea with the HTML from textarea
+      setTimeout(() => {
+        this.updateContentArea();
+        this.cdr.detectChanges();
+      }, 0);
+    }
+  }
+
+  /**
+   * Format HTML for better readability
+   */
+  private formatHtml(html: string): string {
+    if (!html) return '';
+
+    // Remove extra whitespace
+    let formatted = html.trim();
+
+    // Add line breaks after closing tags
+    formatted = formatted.replace(/(<\/[^>]+>)/g, '$1\n');
+    
+    // Add line breaks before opening tags (except inline elements)
+    formatted = formatted.replace(/(<(?:div|p|h[1-6]|ul|ol|li|blockquote|pre|table|tr|td|th|section|article|header|footer|nav|aside)[^>]*>)/g, '\n$1');
+    
+    // Add line breaks after self-closing tags
+    formatted = formatted.replace(/(<(?:br|img|hr|input)[^>]*\/?>)/g, '$1\n');
+
+    // Indent nested elements
+    const lines = formatted.split('\n').filter(line => line.trim());
+    let indentLevel = 0;
+    const indentSize = 2;
+    
+    formatted = lines.map((line) => {
+      const trimmed = line.trim();
+      
+      // Decrease indent for closing tags
+      if (trimmed.startsWith('</')) {
+        indentLevel = Math.max(0, indentLevel - 1);
+      }
+      
+      const indented = ' '.repeat(indentLevel * indentSize) + trimmed;
+      
+      // Increase indent for opening tags (but not self-closing or inline elements)
+      if (trimmed.startsWith('<') && 
+          !trimmed.startsWith('</') && 
+          !trimmed.endsWith('/>') &&
+          !trimmed.match(/<(span|a|strong|em|b|i|u|code|small|mark)[^>]*>/)) {
+        indentLevel++;
+      }
+      
+      return indented;
+    }).join('\n');
+
+    return formatted;
+  }
+
   onInput(event: Event): void {
     if (this.readonly) return;
 
@@ -179,6 +281,16 @@ export class EditorContentComponent implements OnInit, OnDestroy, ControlValueAc
     this.content = content;
     this.contentChangeSubject.next(content);
     this.selectionChangeSubject.next();
+  }
+
+  onHtmlInput(event: Event): void {
+    if (this.readonly) return;
+
+    const target = event.target as HTMLTextAreaElement;
+    const content = target.value;
+    
+    this.content = content;
+    this.contentChangeSubject.next(content);
   }
 
   onKeydown(event: KeyboardEvent): void {

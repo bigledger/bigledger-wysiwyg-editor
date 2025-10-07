@@ -80,7 +80,12 @@ export class ToolbarButtonComponent {
       return '';
     }
 
-    return this.tool.label || this.getCommandDisplayName(this.tool.command);
+    // Special handling for toggleHtmlView - show what clicking will do
+    if (this.tool.command === 'toggleHtmlView') {
+      return this.active ? 'Switch to Visual Mode' : 'View HTML Code';
+    }
+
+    return this.tool.title || this.tool.label || this.getCommandDisplayName(this.tool.command);
   }
 
   /**
@@ -112,6 +117,15 @@ export class ToolbarButtonComponent {
       return '';
     }
 
+    // Special handling for toggleHtmlView - show different icon based on active state
+    if (this.tool.command === 'toggleHtmlView') {
+      // HTML mode (active): show eye icon to indicate "view visual mode"
+      // Visual mode (inactive): show code icon to indicate "view HTML code"
+      return this.active 
+        ? '<span style="font-size: 18px;">👁</span>' 
+        : '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>';
+    }
+
     // Icon mapping for common formatting commands
     const iconMap: Record<string, string> = {
       'bold': '<strong>B</strong>',
@@ -132,6 +146,7 @@ export class ToolbarButtonComponent {
       'createLink': '🔗',
       'unlink': '🔗❌',
       'insertImage': '🖼️',
+      'code': '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>',
       'undo': '↶',
       'redo': '↷',
       'removeFormat': '🧹',
@@ -164,6 +179,7 @@ export class ToolbarButtonComponent {
       'createLink': 'Insert Link',
       'unlink': 'Remove Link',
       'insertImage': 'Insert Image',
+      'toggleHtmlView': 'Toggle HTML View',
       'undo': 'Undo',
       'redo': 'Redo',
       'removeFormat': 'Clear Formatting',

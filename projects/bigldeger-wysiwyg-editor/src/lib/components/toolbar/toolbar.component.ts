@@ -263,6 +263,8 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
         return formats.alignment === 'right';
       case 'justifyFull':
         return formats.alignment === 'justify';
+      case 'toggleHtmlView':
+        return (this.selectionState as any).htmlMode || false;
       default:
         return false;
     }
@@ -404,6 +406,16 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       return '';
     }
 
+    // Special handling for toggleHtmlView - show different icon based on active state
+    if (tool.command === 'toggleHtmlView') {
+      const isActive = this.isToolActive(tool);
+      // HTML mode (active): show eye icon to indicate "view visual mode"
+      // Visual mode (inactive): show code icon to indicate "view HTML code"
+      return isActive 
+        ? '<span style="font-size: 18px;">👁</span>' 
+        : '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>';
+    }
+
     // Return basic icon mapping - can be extended with icon library
     const iconMap: Record<string, string> = {
       'bold': '<strong>B</strong>',
@@ -422,6 +434,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       'insertOrderedList': '1.',
       'createLink': '🔗',
       'insertImage': '🖼️',
+      'code': '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>',
       'undo': '↶',
       'redo': '↷'
     };
@@ -443,6 +456,12 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
    * Get tool title with keyboard shortcut
    */
   getToolTitle(tool: ToolbarTool): string {
+    // Special handling for toggleHtmlView - show what clicking will do
+    if (tool.command === 'toggleHtmlView') {
+      const isActive = this.isToolActive(tool);
+      return isActive ? 'Switch to Visual Mode' : 'View HTML Code';
+    }
+
     const shortcut = this.accessibilityService.getShortcutKeys(tool.command);
     const title = tool.title || tool.label || tool.command;
     return shortcut ? `${title} (${shortcut})` : title;

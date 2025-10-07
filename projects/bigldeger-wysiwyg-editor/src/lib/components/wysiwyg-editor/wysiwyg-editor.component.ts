@@ -48,6 +48,7 @@ import { SelectionService } from '../../services/selection.service';
         [placeholder]="placeholder"
         [readonly]="readonly"
         [height]="height"
+        [htmlMode]="isHtmlMode"
         (contentChange)="onContentChange($event)"
         (selectionChange)="onSelectionChange($event)"
         (blurEvent)="onBlur($event)">
@@ -72,6 +73,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
   content = '';
   currentSelection: SelectionState | null = null;
+  isHtmlMode = false;
   
   // Content change detection
   private lastKnownContent = '';
@@ -178,10 +180,22 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       case 'backgroundColor':
         this.showColorPickerDialog('background');
         break;
+      case 'toggleHtmlView':
+        this.toggleHtmlView();
+        break;
       default:
         this.executeCommand(command);
         break;
     }
+  }
+
+  /**
+   * Toggle between HTML and visual editing mode
+   */
+  private toggleHtmlView(): void {
+    this.isHtmlMode = !this.isHtmlMode;
+    // Update selection state to reflect the new HTML mode
+    this.updateSelectionState();
   }
 
   /**
@@ -570,8 +584,14 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Handle selection changes from editor
    */
   onSelectionChange(selection: SelectionState): void {
-    this.currentSelection = selection;
-    this.selectionChange.emit(selection);
+    // Add HTML mode state to selection
+    this.currentSelection = {
+      ...selection,
+      htmlMode: this.isHtmlMode
+    } as any;
+    if (this.currentSelection) {
+      this.selectionChange.emit(this.currentSelection);
+    }
   }
 
   /**
@@ -666,6 +686,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         { type: 'button', command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
         { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link' },
         { type: 'dialog', command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
+        { type: 'button', command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' },
         { type: 'button', command: 'undo', icon: 'undo', label: 'Undo' },
         { type: 'button', command: 'redo', icon: 'redo', label: 'Redo' }
       ]

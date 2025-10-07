@@ -293,7 +293,8 @@ export class ToolbarConfigComponent {
     tools: [
       { type: 'button' as const, command: 'bold', icon: 'bold', label: 'Bold' },
       { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
-      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' }
+      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+      { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' }
     ]
   };
 
@@ -333,7 +334,8 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
       { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
       { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
-      { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' }
+      { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
+      { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' }
     ]
   };
 
@@ -387,7 +389,8 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
       { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
       { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
-      { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' }
+      { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
+      { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' }
     ]
   };
 
@@ -410,6 +413,7 @@ export class ToolbarConfigComponent {
       },
       { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
       { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+      { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' },
       { type: 'button' as const, command: 'undo', icon: 'undo', label: 'Undo' },
       { type: 'button' as const, command: 'redo', icon: 'redo', label: 'Redo' }
     ]
