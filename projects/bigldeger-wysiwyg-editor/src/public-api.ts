@@ -1,8 +1,8 @@
 /*
- * Public API Surface of angular-wysiwyg-editor
+ * Public API Surface of bigldeger-wysiwyg-editor
  */
 
-export * from './lib/angular-wysiwyg-editor';
+export * from './lib/bigldeger-wysiwyg-editor';
 
 // Export all models and interfaces
 export * from './lib/models';

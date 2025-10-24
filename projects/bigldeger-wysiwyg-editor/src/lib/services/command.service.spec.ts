@@ -79,6 +79,7 @@ describe('CommandService', () => {
         italic: false,
         underline: false,
         fontSize: '14px',
+          fontFamily: 'Arial',
         fontColor: '#000000',
         backgroundColor: '#ffffff',
         alignment: 'left' as TextAlignment
@@ -101,6 +102,7 @@ describe('CommandService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
           alignment: 'left' as TextAlignment
@@ -127,6 +129,7 @@ describe('CommandService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
           alignment: 'left' as TextAlignment
@@ -252,6 +255,7 @@ describe('CommandService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
           alignment: 'left' as TextAlignment
@@ -282,6 +286,7 @@ describe('CommandService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
           alignment: 'left' as TextAlignment
@@ -305,6 +310,7 @@ describe('CommandService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
           alignment: 'left' as TextAlignment
@@ -328,6 +334,7 @@ describe('CommandService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
           alignment: 'left' as TextAlignment
@@ -351,6 +358,7 @@ describe('CommandService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: '#ffffff',
           alignment: 'left' as TextAlignment
@@ -466,6 +474,7 @@ describe('CommandService', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -512,6 +521,7 @@ describe('CommandService', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -704,6 +714,7 @@ describe('CommandService', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -738,6 +749,7 @@ describe('CommandService', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -772,6 +784,7 @@ describe('CommandService', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -806,6 +819,7 @@ describe('CommandService', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -1083,6 +1097,7 @@ describe('CommandService', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -1831,6 +1846,7 @@ describe('batch command execution and advanced formatting', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -1881,6 +1897,7 @@ describe('batch command execution and advanced formatting', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -1952,6 +1969,7 @@ describe('batch command execution and advanced formatting', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -1986,6 +2004,7 @@ describe('batch command execution and advanced formatting', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -2020,6 +2039,7 @@ describe('batch command execution and advanced formatting', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment
@@ -2054,6 +2074,7 @@ describe('batch command execution and advanced formatting', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: '#ffffff',
             alignment: 'left' as TextAlignment

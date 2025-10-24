@@ -384,6 +384,7 @@ describe('Comprehensive Performance Tests', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: 'transparent',
             alignment: 'left' as 'left' as 'left'
@@ -568,6 +569,7 @@ describe('Comprehensive Performance Tests', () => {
               italic: false,
               underline: false,
               fontSize: '14px',
+          fontFamily: 'Arial',
               fontColor: '#000000',
               backgroundColor: 'transparent',
               alignment: 'left' as 'left'
@@ -749,6 +751,7 @@ describe('Comprehensive Performance Tests', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: 'transparent',
             alignment: 'left' as 'left'
@@ -798,6 +801,7 @@ describe('Comprehensive Performance Tests', () => {
               italic: false,
               underline: false,
               fontSize: '14px',
+          fontFamily: 'Arial',
               fontColor: '#000000',
               backgroundColor: 'transparent',
               alignment: 'left' as 'left'
@@ -851,6 +855,7 @@ describe('Comprehensive Performance Tests', () => {
             italic: false,
             underline: false,
             fontSize: '14px',
+          fontFamily: 'Arial',
             fontColor: '#000000',
             backgroundColor: 'transparent',
             alignment: 'left' as 'left'

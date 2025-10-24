@@ -15,6 +15,8 @@ describe('Selection State Interfaces', () => {
         italic: false,
         underline: false,
         fontSize: '14px',
+          fontFamily: 'Arial',
+
         fontColor: '#000000',
         backgroundColor: 'transparent',
         alignment: 'left'
@@ -37,6 +39,8 @@ describe('Selection State Interfaces', () => {
         italic: true,
         underline: false,
         fontSize: '16px',
+          fontFamily: 'Arial',
+
         fontColor: '#ff0000',
         backgroundColor: '#ffff00',
         alignment: 'center'
@@ -68,6 +72,8 @@ describe('Selection State Interfaces', () => {
         italic: false,
         underline: true,
         fontSize: '12px',
+          fontFamily: 'Arial',
+
         fontColor: '#333333',
         backgroundColor: 'white',
         alignment: 'justify'
@@ -89,6 +95,8 @@ describe('Selection State Interfaces', () => {
         underline: false,
         strikethrough: true,
         fontSize: '18px',
+          fontFamily: 'Arial',
+
         fontColor: 'blue',
         backgroundColor: 'yellow',
         alignment: 'right',
@@ -118,6 +126,8 @@ describe('Selection State Interfaces', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
+
           fontColor: 'black',
           backgroundColor: 'white',
           alignment: alignment
@@ -147,6 +157,8 @@ describe('Selection State Interfaces', () => {
         italic: false,
         underline: false,
         fontSize: '14px',
+          fontFamily: 'Arial',
+
         fontColor: 'black',
         backgroundColor: 'white',
         alignment: 'left'
@@ -177,6 +189,8 @@ describe('Selection State Interfaces', () => {
         italic: false,
         underline: false,
         fontSize: '16px',
+          fontFamily: 'Arial',
+
         fontColor: 'red',
         backgroundColor: 'transparent',
         alignment: 'center'

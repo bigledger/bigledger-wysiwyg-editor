@@ -145,6 +145,7 @@ describe('EditorService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: 'transparent',
           alignment: 'left'
@@ -484,6 +485,7 @@ describe('EditorService', () => {
           italic: false,
           underline: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: 'transparent',
           alignment: 'left'

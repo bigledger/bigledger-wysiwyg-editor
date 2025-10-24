@@ -1,5 +1,5 @@
 {
-  "name": "bigldeger-wysiwyg-editor",
+  "name": "@bigledger/wysiwyg-editor",
   "version": "1.0.0",
   "description": "A rich text WYSIWYG editor component for Angular applications with comprehensive formatting tools, image support, and forms integration",
   "keywords": [
@@ -19,18 +19,18 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bigledger/bigldeger-wysiwyg-editor.git"
+    "url": "https://github.com/bigledger/wysiwyg-editor.git"
   },
-  "homepage": "https://github.com/bigledger/bigldeger-wysiwyg-editor#readme",
+  "homepage": "https://github.com/bigledger/wysiwyg-editor#readme",
   "bugs": {
-    "url": "https://github.com/bigledger/bigldeger-wysiwyg-editor/issues"
+    "url": "https://github.com/bigledger/wysiwyg-editor/issues"
   },
-  "main": "bundles/angular-wysiwyg-editor.umd.js",
-  "module": "fesm2022/angular-wysiwyg-editor.mjs",
-  "es2020": "fesm2020/angular-wysiwyg-editor.mjs",
-  "esm2020": "esm2020/angular-wysiwyg-editor.mjs",
-  "fesm2020": "fesm2020/angular-wysiwyg-editor.mjs",
-  "fesm2022": "fesm2022/angular-wysiwyg-editor.mjs",
+  "main": "bundles/bigldeger-wysiwyg-editor.umd.js",
+  "module": "fesm2022/bigldeger-wysiwyg-editor.mjs",
+  "es2020": "fesm2020/bigldeger-wysiwyg-editor.mjs",
+  "esm2020": "esm2020/bigldeger-wysiwyg-editor.mjs",
+  "fesm2020": "fesm2020/bigldeger-wysiwyg-editor.mjs",
+  "fesm2022": "fesm2022/bigldeger-wysiwyg-editor.mjs",
   "typings": "index.d.ts",
   "exports": {
     "./package.json": {
@@ -38,12 +38,12 @@
     },
     ".": {
       "types": "./index.d.ts",
-      "esm2022": "./esm2022/angular-wysiwyg-editor.mjs",
-      "esm2020": "./esm2020/angular-wysiwyg-editor.mjs",
-      "es2020": "./fesm2020/angular-wysiwyg-editor.mjs",
-      "es2015": "./fesm2015/angular-wysiwyg-editor.mjs",
-      "node": "./fesm2015/angular-wysiwyg-editor.mjs",
-      "default": "./fesm2022/angular-wysiwyg-editor.mjs"
+      "esm2022": "./esm2022/bigldeger-wysiwyg-editor.mjs",
+      "esm2020": "./esm2020/bigldeger-wysiwyg-editor.mjs",
+      "es2020": "./fesm2020/bigldeger-wysiwyg-editor.mjs",
+      "es2015": "./fesm2015/bigldeger-wysiwyg-editor.mjs",
+      "node": "./fesm2015/bigldeger-wysiwyg-editor.mjs",
+      "default": "./fesm2022/bigldeger-wysiwyg-editor.mjs"
     }
   },
   "peerDependencies": {

@@ -69,7 +69,7 @@ class PerformanceBenchmark {
   async measureBundleSize() {
     console.log('📦 Measuring bundle size...');
     
-    const distPath = path.join(__dirname, '../dist/angular-wysiwyg-editor');
+    const distPath = path.join(__dirname, '../dist/bigldeger-wysiwyg-editor');
     
     if (!fs.existsSync(distPath)) {
       console.log('   No build found, skipping bundle size check');

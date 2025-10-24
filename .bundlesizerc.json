@@ -1,12 +1,12 @@
 {
   "files": [
     {
-      "path": "dist/angular-wysiwyg-editor/fesm2022/angular-wysiwyg-editor.mjs",
+      "path": "dist/bigldeger-wysiwyg-editor/fesm2022/bigldeger-wysiwyg-editor.mjs",
       "maxSize": "200KB",
       "compression": "gzip"
     },
     {
-      "path": "dist/angular-wysiwyg-editor/bundles/angular-wysiwyg-editor.umd.js",
+      "path": "dist/bigldeger-wysiwyg-editor/bundles/bigldeger-wysiwyg-editor.umd.js",
       "maxSize": "250KB",
       "compression": "gzip"
     }

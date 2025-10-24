@@ -30,7 +30,7 @@ npm run build:lib
 if [ $? -eq 0 ]; then
     echo ""
     echo "✅ Build successful!"
-    echo "📦 Library built in: dist/angular-wysiwyg-editor"
+    echo "📦 Library built in: dist/bigldeger-wysiwyg-editor"
 else
     echo ""
     echo "❌ Build failed. Please check the errors above."

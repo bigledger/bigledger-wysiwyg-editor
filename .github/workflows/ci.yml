@@ -71,7 +71,7 @@ jobs:
       run: npm run build:lib
     
     - name: Publish to NPM
-      run: cd dist/angular-wysiwyg-editor && npm publish
+      run: cd dist/bigldeger-wysiwyg-editor && npm publish --access public
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

@@ -65,7 +65,16 @@ function checkPrerequisites() {
 }
 
 function getCurrentVersion() {
-  const packageJsonPath = path.join(__dirname, '../dist/angular-wysiwyg-editor/package.json');
+  const packageJsonPath = path.join(__dirname, '../projects/bigldeger-wysiwyg-editor/package.json');
+  if (!fs.existsSync(packageJsonPath)) {
+    // Fallback to built package if source doesn't exist
+    const builtPackageJsonPath = path.join(__dirname, '../dist/bigldeger-wysiwyg-editor/package.json');
+    if (fs.existsSync(builtPackageJsonPath)) {
+      const packageJson = JSON.parse(fs.readFileSync(builtPackageJsonPath, 'utf8'));
+      return packageJson.version;
+    }
+    return '0.0.0';
+  }
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   return packageJson.version;
 }
@@ -97,7 +106,7 @@ function publishToNpm(dryRun = false) {
   const action = dryRun ? 'dry-run' : 'publish';
   log(`${colors.bright}${dryRun ? 'Testing' : 'Publishing'} to NPM...${colors.reset}`);
   
-  const distPath = path.join(__dirname, '../dist/angular-wysiwyg-editor');
+  const distPath = path.join(__dirname, '../dist/bigldeger-wysiwyg-editor');
   const publishCommand = dryRun ? 'npm publish --dry-run' : 'npm publish --access public';
   
   execCommand(publishCommand, { cwd: distPath });
@@ -192,8 +201,8 @@ function main() {
     log(`\n${colors.bright}${colors.green}🎉 Publishing process completed successfully!${colors.reset}`);
     
     if (!options.dryRun) {
-      log(`${colors.green}Package bigldeger-wysiwyg-editor@${newVersion} is now available on NPM${colors.reset}`);
-      log(`${colors.blue}Install with: npm install bigldeger-wysiwyg-editor@${newVersion}${colors.reset}`);
+      log(`${colors.green}Package @bigledger/wysiwyg-editor@${newVersion} is now available on NPM${colors.reset}`);
+      log(`${colors.blue}Install with: npm install @bigledger/wysiwyg-editor@${newVersion}${colors.reset}`);
     }
 
   } catch (error) {

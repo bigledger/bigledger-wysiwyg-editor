@@ -4,8 +4,8 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
-      "angular-wysiwyg-editor": [
-        "./dist/angular-wysiwyg-editor"
+      "bigldeger-wysiwyg-editor": [
+        "./dist/bigldeger-wysiwyg-editor"
       ]
     },
     "strict": true,
@@ -36,10 +36,10 @@
       "path": "./tsconfig.spec.json"
     },
     {
-      "path": "./projects/angular-wysiwyg-editor/tsconfig.lib.json"
+      "path": "./projects/bigldeger-wysiwyg-editor/tsconfig.lib.json"
     },
     {
-      "path": "./projects/angular-wysiwyg-editor/tsconfig.spec.json"
+      "path": "./projects/bigldeger-wysiwyg-editor/tsconfig.spec.json"
     }
   ]
 }

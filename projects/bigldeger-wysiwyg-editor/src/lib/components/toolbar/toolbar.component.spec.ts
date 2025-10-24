@@ -110,6 +110,7 @@ describe('ToolbarComponent', () => {
           underline: false,
           strikethrough: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: 'transparent',
           alignment: 'left'
@@ -352,6 +353,7 @@ describe('ToolbarComponent', () => {
           underline: true,
           strikethrough: false,
           fontSize: '14px',
+          fontFamily: 'Arial',
           fontColor: '#000000',
           backgroundColor: 'transparent',
           alignment: 'center'

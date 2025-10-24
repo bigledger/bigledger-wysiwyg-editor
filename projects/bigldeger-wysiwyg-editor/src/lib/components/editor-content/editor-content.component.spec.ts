@@ -62,6 +62,7 @@ describe('EditorContentComponent', () => {
         italic: false,
         underline: false,
         fontSize: '14px',
+          fontFamily: 'Arial',
         fontColor: '#000000',
         backgroundColor: '#ffffff',
         alignment: 'left'
