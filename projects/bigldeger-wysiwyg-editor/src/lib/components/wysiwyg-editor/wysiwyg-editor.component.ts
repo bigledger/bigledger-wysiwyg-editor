@@ -9,6 +9,7 @@ import { EditorContentComponent } from '../editor-content/editor-content.compone
 import { LinkData } from '../dialogs/link-dialog/link-dialog.component';
 import { ImageData } from '../../models/image.interface';
 import { ColorData } from '../dialogs/color-picker-dialog/color-picker-dialog.component';
+import { TableData } from '../../models/table.interface';
 import { LazyLoaderService } from '../../services/lazy-loader.service';
 import { DebounceService } from '../../services/debounce.service';
 import { PerformanceMonitorService } from '../../services/performance-monitor.service';
@@ -70,32 +71,37 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   @Output() selectionChange = new EventEmitter<SelectionState>();
 
   @ViewChild('dialogContainer', { read: ViewContainerRef }) dialogContainer!: ViewContainerRef;
+  @ViewChild(EditorContentComponent) editorContent!: EditorContentComponent;
 
   content = '';
   currentSelection: SelectionState | null = null;
   isHtmlMode = false;
-  
+
   // Content change detection
   private lastKnownContent = '';
-  
+
   // Dialog visibility state
   linkDialogVisible = false;
   imageDialogVisible = false;
   colorPickerDialogVisible = false;
-  
+  tableDialogVisible = false;
+
   // Dialog state
   private linkDialogRef: ComponentRef<any> | null = null;
   private imageDialogRef: ComponentRef<any> | null = null;
   private colorPickerDialogRef: ComponentRef<any> | null = null;
+  private tableDialogRef: ComponentRef<any> | null = null;
   private currentLinkData: LinkData | null = null;
   private isEditingLink = false;
   private currentImageData: ImageData | null = null;
   private isEditingImage = false;
   private currentColorType: 'text' | 'background' = 'text';
+  private currentTableData: TableData | null = null;
+  private isEditingTable = false;
 
   private destroy$ = new Subject<void>();
-  private onChange = (value: string) => {};
-  private onTouched = () => {};
+  private onChange = (value: string) => { };
+  private onTouched = () => { };
 
   // Debounced content change handler (initialized in constructor)
   private debouncedContentChange!: (content: string) => void;
@@ -120,7 +126,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   ngOnInit(): void {
     // Start performance monitoring
     this.performanceMonitor.startBenchmark('componentInit');
-    
+
     // Set up keyboard shortcuts
     this.setupKeyboardShortcuts();
 
@@ -135,10 +141,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
     // Preload critical assets
     this.preloadCriticalAssets();
-    
+
     // End component initialization benchmark
     this.performanceMonitor.endBenchmark('componentInit');
-    
+
     // Start performance monitoring
     this.performanceMonitor.startMonitoring();
   }
@@ -146,16 +152,17 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    
+
     // Clean up dialog references
     this.closeLinkDialog();
     this.closeImageDialog();
     this.closeColorPickerDialog();
-    
+    this.closeTableDialog();
+
     // Stop performance monitoring and log summary
     this.performanceMonitor.stopMonitoring();
     this.performanceMonitor.logPerformanceSummary();
-    
+
     // Clean up assets
     this.assetOptimizer.cleanup();
   }
@@ -173,6 +180,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         break;
       case 'insertImage':
         this.showImageDialog();
+        break;
+      case 'insertTable':
+        this.showTableDialog();
         break;
       case 'fontColor':
         this.showColorPickerDialog('text');
@@ -222,19 +232,19 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     try {
       // Set dialog visibility state
       this.linkDialogVisible = true;
-      
+
       // Benchmark dialog loading
       this.performanceMonitor.startBenchmark('linkDialogLoad');
-      
+
       // Lazy load the link dialog component
       this.linkDialogRef = await this.lazyLoaderService.loadDialogComponent('link', this.dialogContainer);
-      
+
       this.performanceMonitor.endBenchmark('linkDialogLoad');
-      
+
       if (this.linkDialogRef) {
         // Check if we're editing an existing link
         const linkData = this.commandService.getLinkData();
-        
+
         if (linkData) {
           this.currentLinkData = linkData;
           this.isEditingLink = true;
@@ -242,7 +252,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
           // Get selected text for new link
           const selection = this.selectionService.getSelection();
           const selectedText = selection?.toString() || '';
-          
+
           this.currentLinkData = {
             url: '',
             text: selectedText,
@@ -294,7 +304,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         linkData.target
       );
     }
-    
+
     this.updateSelectionState();
     this.emitContentChange();
   }
@@ -358,19 +368,19 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     try {
       // Set dialog visibility state
       this.imageDialogVisible = true;
-      
+
       // Benchmark dialog loading
       this.performanceMonitor.startBenchmark('imageDialogLoad');
-      
+
       // Lazy load the image dialog component
       this.imageDialogRef = await this.lazyLoaderService.loadDialogComponent('image', this.dialogContainer);
-      
+
       this.performanceMonitor.endBenchmark('imageDialogLoad');
-      
+
       if (this.imageDialogRef) {
         // Check if we're editing an existing image
         const imageData = this.commandService.getImageData();
-        
+
         if (imageData) {
           this.currentImageData = imageData;
           this.isEditingImage = true;
@@ -412,7 +422,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     } else {
       this.commandService.insertImage(imageData);
     }
-    
+
     this.updateSelectionState();
     this.emitContentChange();
   }
@@ -466,22 +476,22 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     try {
       // CRITICAL: Save selection BEFORE opening dialog to prevent selection loss
       const savedSelection = this.selectionService.saveSelection();
-      
+
       // Set dialog visibility state
       this.colorPickerDialogVisible = true;
       this.currentColorType = type;
-      
+
       // Benchmark dialog loading
       this.performanceMonitor.startBenchmark('colorPickerDialogLoad');
-      
+
       // Lazy load the color picker dialog component
       this.colorPickerDialogRef = await this.lazyLoaderService.loadDialogComponent('color', this.dialogContainer);
-      
+
       this.performanceMonitor.endBenchmark('colorPickerDialogLoad');
-      
+
       if (this.colorPickerDialogRef) {
         // Get current color based on type from selection state
-        const currentColor = type === 'text' 
+        const currentColor = type === 'text'
           ? (this.currentSelection?.formats.fontColor || '#000000')
           : (this.currentSelection?.formats.backgroundColor || '#ffffff');
 
@@ -511,12 +521,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   onColorSelected(colorData: ColorData, savedSelection: SelectionState): void {
     // Restore the selection BEFORE executing the command
     this.selectionService.restoreSelection(savedSelection);
-    
+
     const commandName = colorData.type === 'text' ? 'foreColor' : 'backColor';
     const command: EditorCommand = { name: commandName };
-    
+
     this.commandService.executeCommand(command, colorData.color);
-    
+
     this.closeColorPickerDialog();
     this.updateSelectionState();
     this.emitContentChange();
@@ -541,6 +551,115 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   }
 
   /**
+   * Show table dialog (lazy loaded)
+   */
+  private async showTableDialog(): Promise<void> {
+    if (this.tableDialogRef) {
+      return; // Dialog already open
+    }
+
+    try {
+      // Set dialog visibility state
+      this.tableDialogVisible = true;
+
+      // Benchmark dialog loading
+      this.performanceMonitor.startBenchmark('tableDialogLoad');
+
+      // Lazy load the table dialog component
+      this.tableDialogRef = await this.lazyLoaderService.loadDialogComponent('table', this.dialogContainer);
+
+      this.performanceMonitor.endBenchmark('tableDialogLoad');
+
+      if (this.tableDialogRef) {
+        // Check if we're editing an existing table
+        const tableData = this.commandService.getTableProperties();
+
+        if (tableData) {
+          this.currentTableData = tableData;
+          this.isEditingTable = true;
+        } else {
+          this.currentTableData = null;
+          this.isEditingTable = false;
+        }
+
+        // Set component inputs
+        this.tableDialogRef.instance.isOpen = true;
+        this.tableDialogRef.instance.editMode = this.isEditingTable;
+        this.tableDialogRef.instance.initialData = this.currentTableData;
+
+        // Subscribe to component outputs
+        this.tableDialogRef.instance.insert.subscribe((tableData: TableData) => {
+          this.onTableInserted(tableData);
+        });
+
+        this.tableDialogRef.instance.cancel.subscribe(() => {
+          this.onTableDialogClosed();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load table dialog:', error);
+      this.tableDialogVisible = false;
+    }
+  }
+
+  /**
+   * Handle table insertion/update
+   */
+  onTableInserted(tableData: TableData): void {
+    console.log('WysiwygEditor: onTableInserted called with:', tableData);
+    if (this.isEditingTable) {
+      console.log('WysiwygEditor: Updating table properties');
+      this.commandService.updateTableProperties(tableData);
+    } else {
+      console.log('WysiwygEditor: Inserting new table');
+      const result = this.commandService.insertTable(tableData);
+      console.log('WysiwygEditor: Insert result:', result);
+
+      // Force update the content from the DOM
+      const editableElement = document.querySelector('[contenteditable="true"]') as HTMLElement;
+      if (editableElement) {
+        console.log('WysiwygEditor: Updating content from DOM');
+        const newContent = editableElement.innerHTML;
+        console.log('WysiwygEditor: New content length:', newContent.length);
+
+        // Update the content property which will trigger Angular's change detection
+        this.content = newContent;
+
+        // Notify forms
+        this.onChange(newContent);
+
+        // Emit content change event
+        this.contentChange.emit(newContent);
+
+        console.log('WysiwygEditor: Content updated successfully');
+      }
+    }
+
+    this.closeTableDialog();
+    this.updateSelectionState();
+  }
+
+  /**
+   * Handle table dialog closed event
+   */
+  onTableDialogClosed(): void {
+    this.closeTableDialog();
+  }
+
+  /**
+   * Close table dialog and clean up
+   */
+  private closeTableDialog(): void {
+    if (this.tableDialogRef) {
+      this.tableDialogRef.destroy();
+      this.tableDialogRef = null;
+    }
+    this.tableDialogVisible = false;
+    this.currentTableData = null;
+    this.isEditingTable = false;
+  }
+
+  /**
    * Handle content changes from editor (debounced)
    */
   onContentChange(content: string): void {
@@ -557,10 +676,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     if (this.hasContentChanged()) {
       // Emit to debounce service for internal processing
       this.debounceService.emitContentChange(this.content);
-      
+
       // Also emit directly to parent components with debouncing
       this.debouncedContentChange(this.content);
-      
+
       // Update last known content for change detection
       this.updateLastKnownContent();
     }
@@ -664,10 +783,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         { type: 'button', command: 'italic', icon: 'italic', label: 'Italic' },
         { type: 'button', command: 'underline', icon: 'underline', label: 'Underline' },
         { type: 'button', command: 'strikethrough', icon: 'strikethrough', label: 'Strikethrough' },
-        { 
-          type: 'dropdown', 
-          command: 'fontSize', 
-          icon: 'fontSize', 
+        {
+          type: 'dropdown',
+          command: 'fontSize',
+          icon: 'fontSize',
           label: 'Font Size',
           options: [
             { value: '12px', label: '12px' },
@@ -686,6 +805,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         { type: 'button', command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
         { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link' },
         { type: 'dialog', command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
+        { type: 'dialog', command: 'insertTable', icon: 'insertTable', label: 'Insert Table' },
         { type: 'button', command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' },
         { type: 'button', command: 'undo', icon: 'undo', label: 'Undo' },
         { type: 'button', command: 'redo', icon: 'redo', label: 'Redo' }

@@ -266,10 +266,10 @@ export class DemoHomeComponent {
       route: '/advanced'
     },
     {
-      title: 'Font Family Test',
-      description: 'Test the new font family dropdown feature with various font options.',
-      icon: 'icon-font',
-      route: '/font-family-test'
+      title: 'Table Feature',
+      description: 'Insert and edit tables with rows, columns, merging, and nested tables support.',
+      icon: 'icon-table',
+      route: '/table'
     }
   ];
 

@@ -434,6 +434,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       'insertOrderedList': '1.',
       'createLink': '🔗',
       'insertImage': '🖼️',
+      'insertTable': '⊞',
       'code': '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>',
       'undo': '↶',
       'redo': '↷'
