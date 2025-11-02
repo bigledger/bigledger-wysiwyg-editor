@@ -98,6 +98,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   private currentColorType: 'text' | 'background' = 'text';
   private currentTableData: TableData | null = null;
   private isEditingTable = false;
+  private isInsertingNestedTable = false;
 
   private destroy$ = new Subject<void>();
   private onChange = (value: string) => { };
@@ -147,6 +148,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
     // Start performance monitoring
     this.performanceMonitor.startMonitoring();
+    
+    // Listen for nested table insertion events
+    document.addEventListener('insert-nested-table', this.handleNestedTableRequest.bind(this));
   }
 
   ngOnDestroy(): void {
@@ -159,12 +163,29 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.closeColorPickerDialog();
     this.closeTableDialog();
 
+    // Remove nested table event listener
+    document.removeEventListener('insert-nested-table', this.handleNestedTableRequest.bind(this));
+
     // Stop performance monitoring and log summary
     this.performanceMonitor.stopMonitoring();
     this.performanceMonitor.logPerformanceSummary();
 
     // Clean up assets
     this.assetOptimizer.cleanup();
+  }
+  
+  /**
+   * Handle nested table insertion request from cell toolbar
+   */
+  private handleNestedTableRequest(event: Event): void {
+    const customEvent = event as CustomEvent;
+    console.log('Nested table requested for cell:', customEvent.detail.cell);
+    
+    // Show table dialog for nested table
+    this.showTableDialog();
+    
+    // Mark that this is for a nested table
+    this.isInsertingNestedTable = true;
   }
 
   /**
@@ -606,37 +627,141 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Handle table insertion/update
    */
   onTableInserted(tableData: TableData): void {
-    console.log('WysiwygEditor: onTableInserted called with:', tableData);
     if (this.isEditingTable) {
-      console.log('WysiwygEditor: Updating table properties');
       this.commandService.updateTableProperties(tableData);
+    } else if (this.isInsertingNestedTable) {
+      // Insert nested table into active cell
+      if (this.editorContent?.nestedTableService) {
+        const success = this.editorContent.nestedTableService.insertNestedTable(tableData);
+        if (success) {
+          console.log('Nested table inserted successfully');
+          // Trigger content update
+          setTimeout(() => {
+            if (this.editorContent?.contentArea?.nativeElement) {
+              this.content = this.editorContent.contentArea.nativeElement.innerHTML;
+              this.onChange(this.content);
+              this.contentChange.emit(this.content);
+            }
+          }, 10);
+        } else {
+          console.error('Failed to insert nested table - no active cell');
+        }
+      }
+      this.isInsertingNestedTable = false;
     } else {
-      console.log('WysiwygEditor: Inserting new table');
-      const result = this.commandService.insertTable(tableData);
-      console.log('WysiwygEditor: Insert result:', result);
+      // Build the table HTML string
+      const tableHtml = this.buildTableHtml(tableData);
 
-      // Force update the content from the DOM
-      const editableElement = document.querySelector('[contenteditable="true"]') as HTMLElement;
-      if (editableElement) {
-        console.log('WysiwygEditor: Updating content from DOM');
-        const newContent = editableElement.innerHTML;
-        console.log('WysiwygEditor: New content length:', newContent.length);
+      if (this.isHtmlMode) {
+        // HTML mode: Update the textarea content
+        const currentContent = this.content || '';
+        const newContent = currentContent + (currentContent ? '\n' : '') + tableHtml + '\n<p><br></p>';
 
-        // Update the content property which will trigger Angular's change detection
+        // Update content model
         this.content = newContent;
-
-        // Notify forms
         this.onChange(newContent);
-
-        // Emit content change event
         this.contentChange.emit(newContent);
 
-        console.log('WysiwygEditor: Content updated successfully');
+        // Force update the textarea after a short delay to ensure it's rendered
+        setTimeout(() => {
+          if (this.editorContent?.htmlTextarea?.nativeElement) {
+            this.editorContent.htmlTextarea.nativeElement.value = newContent;
+          }
+        }, 0);
+      } else {
+        // Visual mode: Use the editor content component's insertContent method
+        if (this.editorContent) {
+          // Focus the editor first to ensure proper cursor position
+          this.editorContent.focusElement();
+          
+          // Small delay to ensure focus is set
+          setTimeout(() => {
+            // Insert table with proper spacing
+            const tableWithSpacing = '<br>' + tableHtml + '<br><p><br></p>';
+            this.editorContent.insertContent(tableWithSpacing);
+            
+            // Update content model from the editor
+            setTimeout(() => {
+              if (this.editorContent?.contentArea?.nativeElement) {
+                this.content = this.editorContent.contentArea.nativeElement.innerHTML;
+                this.onChange(this.content);
+                this.contentChange.emit(this.content);
+              }
+            }, 10);
+          }, 10);
+        }
       }
     }
 
     this.closeTableDialog();
-    this.updateSelectionState();
+    setTimeout(() => {
+      this.updateSelectionState();
+    }, 50);
+  }
+
+  /**
+   * Build table HTML from table data
+   */
+  private buildTableHtml(tableData: TableData): string {
+    let html = '<table';
+
+    // Add attributes
+    if (tableData.border !== undefined) {
+      html += ` border="${tableData.border}"`;
+    }
+    if (tableData.cellPadding !== undefined) {
+      html += ` cellpadding="${tableData.cellPadding}"`;
+    }
+    if (tableData.cellSpacing !== undefined) {
+      html += ` cellspacing="${tableData.cellSpacing}"`;
+    }
+
+    // Add styles
+    let styles = 'border-collapse: collapse;';
+    if (tableData.width) {
+      styles += ` width: ${tableData.width};`;
+    }
+    if (tableData.align) {
+      if (tableData.align === 'center') {
+        styles += ' margin-left: auto; margin-right: auto;';
+      } else if (tableData.align === 'right') {
+        styles += ' margin-left: auto; margin-right: 0;';
+      }
+    }
+    if (!tableData.border) {
+      styles += ' border: 1px solid #ddd;';
+    }
+
+    html += ` style="${styles}"`;
+
+    if (tableData.cssClass) {
+      html += ` class="${tableData.cssClass}"`;
+    }
+
+    html += '><tbody>';
+
+    // Create rows
+    for (let i = 0; i < tableData.rows; i++) {
+      html += '<tr>';
+
+      // Create cells
+      for (let j = 0; j < tableData.columns; j++) {
+        const cellTag = tableData.hasHeader && i === 0 ? 'th' : 'td';
+        let cellStyle = 'border: 1px solid #ddd; padding: 8px; min-width: 50px; min-height: 30px;';
+
+        if (tableData.hasHeader && i === 0) {
+          cellStyle += ' font-weight: bold; background-color: #f5f5f5;';
+        }
+
+        html += `<${cellTag} style="${cellStyle}">&nbsp;</${cellTag}>`;
+      }
+
+      html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+
+    return html;
   }
 
   /**
@@ -657,6 +782,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.tableDialogVisible = false;
     this.currentTableData = null;
     this.isEditingTable = false;
+    this.isInsertingNestedTable = false;
   }
 
   /**
