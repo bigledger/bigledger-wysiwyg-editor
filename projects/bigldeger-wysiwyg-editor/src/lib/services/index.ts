@@ -10,3 +10,4 @@ export * from './lazy-loader.service';
 export * from './debounce.service';
 export * from './performance-monitor.service';
 export * from './asset-optimizer.service';
+export * from './table.service';

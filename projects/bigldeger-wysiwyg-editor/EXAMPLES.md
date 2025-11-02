@@ -336,6 +336,7 @@ export class FullToolbarComponent {
       { type: 'button', command: 'createLink', icon: 'link', label: 'Insert Link' },
       { type: 'button', command: 'unlink', icon: 'unlink', label: 'Remove Link' },
       { type: 'button', command: 'insertImage', icon: 'image', label: 'Insert Image' },
+      { type: 'button', command: 'insertTable', icon: 'table', label: 'Insert Table' },
       
       { type: 'button', command: 'separator', separator: true },
       

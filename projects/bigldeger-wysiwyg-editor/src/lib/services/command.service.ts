@@ -2,10 +2,12 @@ import { Injectable } from '@angular/core';
 import { EditorCommand } from '../models/editor-command.interface';
 import { LinkData } from '../components/dialogs/link-dialog/link-dialog.component';
 import { ImageData } from '../models/image.interface';
+import { TableData } from '../models/table.interface';
 import { SelectionService } from './selection.service';
 import { BrowserCompatibilityService } from './browser-compatibility.service';
 import { ErrorHandlerService } from './error-handler.service';
 import { HistoryService } from './history.service';
+import { TableService } from './table.service';
 
 /**
  * Service for executing editor commands and managing formatting operations
@@ -18,7 +20,8 @@ export class CommandService {
     private selectionService: SelectionService,
     private browserCompatibilityService: BrowserCompatibilityService,
     private errorHandlerService: ErrorHandlerService,
-    private historyService: HistoryService
+    private historyService: HistoryService,
+    private tableService: TableService
   ) {}
 
   /**
@@ -1348,5 +1351,124 @@ export class CommandService {
     }
 
     return success;
+  }
+
+  /**
+   * Insert table at cursor position
+   */
+  insertTable(tableData: TableData): boolean {
+    return this.tableService.insertTable(tableData);
+  }
+
+  /**
+   * Insert row above current row
+   */
+  insertTableRowAbove(): boolean {
+    return this.tableService.insertRowAbove();
+  }
+
+  /**
+   * Insert row below current row
+   */
+  insertTableRowBelow(): boolean {
+    return this.tableService.insertRowBelow();
+  }
+
+  /**
+   * Delete current table row
+   */
+  deleteTableRow(): boolean {
+    return this.tableService.deleteRow();
+  }
+
+  /**
+   * Insert column before current column
+   */
+  insertTableColumnBefore(): boolean {
+    return this.tableService.insertColumnBefore();
+  }
+
+  /**
+   * Insert column after current column
+   */
+  insertTableColumnAfter(): boolean {
+    return this.tableService.insertColumnAfter();
+  }
+
+  /**
+   * Delete current table column
+   */
+  deleteTableColumn(): boolean {
+    return this.tableService.deleteColumn();
+  }
+
+  /**
+   * Delete entire table
+   */
+  deleteTable(): boolean {
+    return this.tableService.deleteTable();
+  }
+
+  /**
+   * Merge selected table cells
+   */
+  mergeTableCells(): boolean {
+    return this.tableService.mergeCells();
+  }
+
+  /**
+   * Split merged table cell
+   */
+  splitTableCell(): boolean {
+    return this.tableService.splitCell();
+  }
+
+  /**
+   * Set table cell background color
+   */
+  setTableCellBackgroundColor(color: string): boolean {
+    return this.tableService.setCellBackgroundColor(color);
+  }
+
+  /**
+   * Set table cell text alignment
+   */
+  setTableCellTextAlign(align: 'left' | 'center' | 'right' | 'justify'): boolean {
+    return this.tableService.setCellTextAlign(align);
+  }
+
+  /**
+   * Set table cell vertical alignment
+   */
+  setTableCellVerticalAlign(align: 'top' | 'middle' | 'bottom'): boolean {
+    return this.tableService.setCellVerticalAlign(align);
+  }
+
+  /**
+   * Check if cursor is in a table
+   */
+  isInTable(): boolean {
+    return this.tableService.isInTable();
+  }
+
+  /**
+   * Get current table properties
+   */
+  getTableProperties(): TableData | null {
+    return this.tableService.getTableProperties();
+  }
+
+  /**
+   * Update table properties
+   */
+  updateTableProperties(tableData: Partial<TableData>): boolean {
+    return this.tableService.updateTableProperties(tableData);
+  }
+
+  /**
+   * Get table service instance
+   */
+  getTableService(): TableService {
+    return this.tableService;
   }
 }

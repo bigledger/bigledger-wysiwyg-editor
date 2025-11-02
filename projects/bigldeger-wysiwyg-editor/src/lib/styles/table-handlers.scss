@@ -1,0 +1,109 @@
+// Table selection and resize styles
+
+.table-selected {
+  outline: 2px solid #4a90e2 !important;
+  outline-offset: 2px;
+}
+
+.table-resizing {
+  opacity: 0.8;
+  user-select: none;
+}
+
+// Resize handles
+.table-resize-handle {
+  position: absolute;
+  background: #4a90e2;
+  border: 2px solid #fff;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+
+  &:hover {
+    background: #357abd;
+  }
+}
+
+// Corner handles (larger, circular)
+.table-resize-nw,
+.table-resize-ne,
+.table-resize-sw,
+.table-resize-se {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.table-resize-nw {
+  top: -5px;
+  left: -5px;
+}
+
+.table-resize-ne {
+  top: -5px;
+  right: -5px;
+}
+
+.table-resize-sw {
+  bottom: -5px;
+  left: -5px;
+}
+
+.table-resize-se {
+  bottom: -5px;
+  right: -5px;
+}
+
+// Edge handles (rectangular)
+.table-resize-n,
+.table-resize-s {
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.table-resize-n {
+  top: -3px;
+}
+
+.table-resize-s {
+  bottom: -3px;
+}
+
+.table-resize-e,
+.table-resize-w {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 50px;
+  border-radius: 3px;
+}
+
+.table-resize-e {
+  right: -3px;
+}
+
+.table-resize-w {
+  left: -3px;
+}
+
+// Table wrapper styles
+.wysiwyg-content table {
+  position: relative;
+  border-collapse: collapse;
+  margin: 10px 0;
+
+  &.table-selected {
+    margin: 15px 5px; // Extra space for handles
+  }
+}
+
+// Prevent text selection during resize
+.table-resizing,
+.table-resizing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}

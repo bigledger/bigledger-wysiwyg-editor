@@ -390,6 +390,7 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
       { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
       { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
+      { type: 'dialog' as const, command: 'insertTable', icon: 'insertTable', label: 'Insert Table' },
       { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' }
     ]
   };

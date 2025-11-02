@@ -30,6 +30,10 @@ export const routes: Routes = [
     loadComponent: () => import('./demo/advanced/advanced.component').then(m => m.AdvancedComponent)
   },
   {
+    path: 'table',
+    loadComponent: () => import('./demo/table-demo/table-demo.component').then(m => m.TableDemoComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }

@@ -1,0 +1,82 @@
+.wysiwyg-table-size-picker {
+  margin-bottom: 16px;
+}
+
+.wysiwyg-table-grid {
+  display: inline-block;
+  border: 1px solid #ddd;
+  padding: 4px;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.wysiwyg-table-grid-row {
+  display: flex;
+  gap: 2px;
+  
+  &:not(:last-child) {
+    margin-bottom: 2px;
+  }
+}
+
+.wysiwyg-table-grid-cell {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #fff;
+
+  &:hover {
+    border-color: #4CAF50;
+  }
+
+  &--active {
+    background: #4CAF50;
+    border-color: #4CAF50;
+  }
+}
+
+.wysiwyg-table-size-label {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  font-weight: 500;
+}
+
+.wysiwyg-form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  .wysiwyg-form-group {
+    flex: 1;
+    margin-bottom: 0;
+  }
+}
+
+.wysiwyg-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
+  span {
+    font-size: 14px;
+    color: #333;
+  }
+}
+
+.wysiwyg-form-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

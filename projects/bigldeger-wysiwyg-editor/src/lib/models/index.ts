@@ -18,3 +18,6 @@ export * from './history.interface';
 
 // Image interfaces
 export * from './image.interface';
+
+// Table interfaces
+export * from './table.interface';
