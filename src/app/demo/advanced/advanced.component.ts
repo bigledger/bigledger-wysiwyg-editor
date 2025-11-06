@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, interval, takeUntil } from 'rxjs';
-import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
+import { WysiwygEditorComponent } from 'bigldeger-wysiwyg-editor';
 
 @Component({
   selector: 'app-advanced',

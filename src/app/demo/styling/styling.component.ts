@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { WysiwygEditorComponent } from 'angular-wysiwyg-editor';
+import { WysiwygEditorComponent } from 'bigldeger-wysiwyg-editor';
 
 @Component({
   selector: 'app-styling',
