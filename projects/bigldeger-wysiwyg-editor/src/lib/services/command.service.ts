@@ -1471,4 +1471,32 @@ export class CommandService {
   getTableService(): TableService {
     return this.tableService;
   }
+
+  /**
+   * Toggle table header row
+   */
+  toggleTableHeader(): boolean {
+    return this.tableService.toggleHeaderRow();
+  }
+
+  /**
+   * Toggle table footer row
+   */
+  toggleTableFooter(): boolean {
+    return this.tableService.toggleFooterRow();
+  }
+
+  /**
+   * Split table cell vertically
+   */
+  splitTableCellVertically(): boolean {
+    return this.tableService.splitCellVertically();
+  }
+
+  /**
+   * Split table cell horizontally
+   */
+  splitTableCellHorizontally(): boolean {
+    return this.tableService.splitCellHorizontally();
+  }
 }

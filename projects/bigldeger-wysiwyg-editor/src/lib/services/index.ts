@@ -11,3 +11,4 @@ export * from './debounce.service';
 export * from './performance-monitor.service';
 export * from './asset-optimizer.service';
 export * from './table.service';
+export * from './table-context-menu.service';

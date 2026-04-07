@@ -1,0 +1,420 @@
+// Table context menu (Froala-style edit popup) styles
+
+// Multi-cell selection highlight (applied via drag-select or Ctrl+click)
+.tcm-cell-selected {
+  box-shadow: inset 0 0 0 3px #1a73e8 !important;
+  background-color: rgba(26, 115, 232, 0.18) !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.table-context-menu {
+  position: absolute;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  user-select: none;
+  animation: tcm-fade-in 0.15s ease-out;
+
+  .tcm-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .tcm-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .tcm-group {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .tcm-separator {
+    width: 1px;
+    height: 22px;
+    background: #e0e0e0;
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+
+  .tcm-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    position: relative;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    &:hover {
+      background: #f0f4ff;
+      border-color: #c4d6f5;
+      color: #2563eb;
+    }
+
+    &:active {
+      background: #dbeafe;
+    }
+
+    &--active {
+      background: #dbeafe;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+
+      &:hover {
+        background: #bfdbfe;
+        border-color: #60a5fa;
+      }
+    }
+
+    &--danger {
+      &:hover {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #dc2626;
+      }
+
+      &:active {
+        background: #fee2e2;
+      }
+    }
+
+    &--has-dropdown {
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 0;
+        height: 0;
+        border-left: 3px solid transparent;
+        border-right: 3px solid transparent;
+        border-top: 3px solid currentColor;
+        opacity: 0.5;
+      }
+    }
+  }
+}
+
+// Submenus (color picker, alignment, styles)
+.tcm-submenu {
+  position: absolute;
+  z-index: 10002;
+  min-width: 140px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  animation: tcm-fade-in 0.12s ease-out;
+
+  .tcm-submenu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    margin: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #333;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s ease;
+    white-space: nowrap;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      color: #555;
+    }
+
+    span {
+      flex: 1;
+    }
+
+    &:hover {
+      background: #f0f4ff;
+    }
+
+    &--active {
+      background: #eff6ff;
+      color: #2563eb;
+      font-weight: 500;
+
+      svg {
+        color: #2563eb;
+      }
+    }
+
+    &--clear {
+      color: #dc2626;
+      border-top: 1px solid #f0f0f0;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-radius: 0 0 4px 4px;
+
+      &:hover {
+        background: #fef2f2;
+      }
+    }
+
+    &--danger {
+      color: #dc2626;
+
+      svg {
+        color: #dc2626;
+      }
+
+      &:hover {
+        background: #fef2f2;
+      }
+    }
+
+    &--disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+}
+
+// Color picker grid
+.tcm-color-picker {
+  width: 180px;
+  padding: 8px;
+
+  .tcm-color-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+    margin-bottom: 6px;
+  }
+
+  .tcm-color-swatch {
+    width: 24px;
+    height: 24px;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    transition: all 0.12s ease;
+
+    &:hover {
+      transform: scale(1.2);
+      border-color: #999;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    &--border {
+      border-color: #ddd;
+    }
+  }
+
+  .tcm-color-clear {
+    display: block;
+    width: 100%;
+    padding: 5px 8px;
+    margin: 0;
+    border: none;
+    border-top: 1px solid #f0f0f0;
+    border-radius: 0;
+    background: transparent;
+    color: #dc2626;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.12s ease;
+
+    &:hover {
+      background: #fef2f2;
+    }
+  }
+}
+
+// Style preview
+.tcm-style-preview {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+// Settings panel
+.tcm-settings-panel {
+  min-width: 200px;
+  padding: 8px 12px;
+
+  .tcm-settings-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .tcm-settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+
+    label {
+      font-size: 12px;
+      color: #555;
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+  }
+
+  .tcm-settings-input,
+  .tcm-settings-select {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #333;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s ease;
+
+    &:focus {
+      border-color: #2563eb;
+    }
+  }
+
+  .tcm-settings-input {
+    width: 60px;
+    min-width: 0;
+  }
+
+  .tcm-settings-apply {
+    display: block;
+    width: 100%;
+    padding: 6px 12px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 4px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: #1d4ed8;
+    }
+  }
+}
+
+// Animation keyframes
+@keyframes tcm-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Predefined table cell styles (Froala-style)
+.wysiwyg-content table {
+  // Cell style: Highlighted
+  td.highlighted,
+  th.highlighted {
+    background-color: #fff3cd !important;
+    border-color: #ffc107 !important;
+  }
+
+  // Cell style: Thick Border
+  td.thick-border,
+  th.thick-border {
+    border-width: 3px !important;
+    border-style: solid !important;
+  }
+
+  // Cell style: Dashed Border
+  td.dashed-border,
+  th.dashed-border {
+    border-style: dashed !important;
+  }
+
+  // Table style: Alternate Rows
+  &.fr-alternate-rows {
+    tr:nth-child(even) td,
+    tr:nth-child(even) th {
+      background-color: #f8f9fa;
+    }
+    tr:nth-child(odd) td,
+    tr:nth-child(odd) th {
+      background-color: #fff;
+    }
+  }
+
+  // Table style: Dashed Borders
+  &.fr-dashed-borders {
+    border-style: dashed;
+    td, th {
+      border-style: dashed;
+    }
+  }
+
+  // Table style: No Borders
+  &.fr-no-borders {
+    border: none;
+    td, th {
+      border: none;
+    }
+  }
+}
+
+// Responsive: stack the toolbar on small screens
+@media (max-width: 480px) {
+  .table-context-menu {
+    .tcm-row {
+      flex-wrap: wrap;
+      max-width: 220px;
+    }
+
+    .tcm-separator {
+      display: none;
+    }
+  }
+}

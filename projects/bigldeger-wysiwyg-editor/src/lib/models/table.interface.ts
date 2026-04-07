@@ -23,6 +23,8 @@ export interface TableData {
   style?: string;
   /** Whether to include header row */
   hasHeader?: boolean;
+  /** Whether to include footer row */
+  hasFooter?: boolean;
 }
 
 export interface TableCellData {
@@ -57,6 +59,20 @@ export interface TableSelection {
   cellIndex?: number;
 }
 
+export interface TableCellStyle {
+  /** CSS class name */
+  cssClass: string;
+  /** Display name shown in the menu */
+  displayName: string;
+}
+
+export interface TableStyle {
+  /** CSS class name */
+  cssClass: string;
+  /** Display name shown in the menu */
+  displayName: string;
+}
+
 export interface TableConfig {
   /** Default number of rows */
   defaultRows?: number;
@@ -74,4 +90,42 @@ export interface TableConfig {
     borderCollapse?: 'collapse' | 'separate';
     width?: string;
   };
+  /** Custom cell styles - key is CSS class, value is display name */
+  tableCellStyles?: Record<string, string>;
+  /** Custom table styles - key is CSS class, value is display name */
+  tableStyles?: Record<string, string>;
+  /** Allow multiple cell styles at once (default: true) */
+  tableCellMultipleStyles?: boolean;
+  /** Cell background color presets */
+  cellColorPresets?: string[];
+}
+
+export interface TableCellPosition {
+  /** Row index (0-based) */
+  row: number;
+  /** Column index (0-based, accounts for colspan) */
+  column: number;
+}
+
+export interface TableCellRange {
+  /** Start position of the range */
+  start: TableCellPosition;
+  /** End position of the range */
+  end: TableCellPosition;
+}
+
+export interface TableActionAvailability {
+  canMerge: boolean;
+  canSplitVertical: boolean;
+  canSplitHorizontal: boolean;
+  canInsertRowAbove: boolean;
+  canInsertRowBelow: boolean;
+  canDeleteRow: boolean;
+  canInsertColumnBefore: boolean;
+  canInsertColumnAfter: boolean;
+  canDeleteColumn: boolean;
+  canToggleHeader: boolean;
+  canToggleFooter: boolean;
+  hasHeader: boolean;
+  hasFooter: boolean;
 }

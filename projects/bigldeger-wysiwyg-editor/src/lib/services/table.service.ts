@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { TableData, TableCellData, TableSelection } from '../models/table.interface';
+import { TableData, TableCellData, TableSelection, TableActionAvailability } from '../models/table.interface';
 import { ErrorHandlerService } from './error-handler.service';
 
 /**
@@ -446,24 +446,66 @@ export class TableService {
   /**
    * Merge selected cells
    */
-  mergeCells(): boolean {
+  mergeCells(cells?: HTMLTableCellElement[]): boolean {
     try {
-      // This is a simplified version - full implementation would need to track selected cells
-      const selection = this.getSelectedTable();
-      if (!selection || !selection.cell) {
-        return false;
+      if (!cells || cells.length < 2) return false;
+
+      // Determine direction: horizontal (same row) or vertical (same column)
+      const firstRow = cells[0].parentElement as HTMLTableRowElement;
+      const allSameRow = cells.every(c => c.parentElement === firstRow);
+
+      if (allSameRow) {
+        // Horizontal merge — combine into the leftmost cell
+        const sorted = [...cells].sort((a, b) =>
+          Array.from((a.parentElement as HTMLTableRowElement).cells).indexOf(a) -
+          Array.from((b.parentElement as HTMLTableRowElement).cells).indexOf(b)
+        );
+        const first = sorted[0];
+        let totalColspan = 0;
+        sorted.forEach(c => {
+          totalColspan += parseInt(c.getAttribute('colspan') || '1', 10);
+          if (c !== first) {
+            const content = c.innerHTML.trim();
+            if (content && content !== '&nbsp;') {
+              const existing = first.innerHTML.trim();
+              first.innerHTML = (existing === '&nbsp;' ? '' : existing + ' ') + content;
+            }
+            c.remove();
+          }
+        });
+        if (totalColspan > 1) {
+          first.setAttribute('colspan', totalColspan.toString());
+        } else {
+          first.removeAttribute('colspan');
+        }
+      } else {
+        // Vertical merge — combine into the topmost cell
+        const table = cells[0].closest('table') as HTMLTableElement;
+        const allRows = Array.from(table.querySelectorAll('tr'));
+        const sorted = [...cells].sort((a, b) =>
+          allRows.indexOf(a.parentElement as HTMLTableRowElement) -
+          allRows.indexOf(b.parentElement as HTMLTableRowElement)
+        );
+        const first = sorted[0];
+        let totalRowspan = 0;
+        sorted.forEach(c => {
+          totalRowspan += parseInt(c.getAttribute('rowspan') || '1', 10);
+          if (c !== first) {
+            const content = c.innerHTML.trim();
+            if (content && content !== '&nbsp;') {
+              const existing = first.innerHTML.trim();
+              first.innerHTML = (existing === '&nbsp;' ? '' : existing + ' ') + content;
+            }
+            c.remove();
+          }
+        });
+        if (totalRowspan > 1) {
+          first.setAttribute('rowspan', totalRowspan.toString());
+        } else {
+          first.removeAttribute('rowspan');
+        }
       }
 
-      // For now, just increase colspan
-      const currentColspan = parseInt(selection.cell.getAttribute('colspan') || '1', 10);
-      selection.cell.setAttribute('colspan', (currentColspan + 1).toString());
-      
-      // Remove next cell
-      const nextCell = selection.cell.nextElementSibling;
-      if (nextCell) {
-        nextCell.remove();
-      }
-      
       return true;
     } catch (error) {
       this.errorHandlerService.handleCommandError('mergeCells', {}, false);
@@ -656,5 +698,329 @@ export class TableService {
       this.errorHandlerService.handleCommandError('updateTableProperties', { tableData }, false);
       return false;
     }
+  }
+
+  /**
+   * Toggle header row: convert first row cells between th/td, wrap in thead/tbody
+   */
+  toggleHeaderRow(table?: HTMLTableElement): boolean {
+    try {
+      const tbl = table || this.getSelectedTable()?.table;
+      if (!tbl) return false;
+
+      const hasHeader = !!tbl.querySelector('thead');
+
+      if (hasHeader) {
+        // Remove header: move thead rows into tbody, convert th to td
+        const thead = tbl.querySelector('thead')!;
+        let tbody = tbl.querySelector('tbody');
+        if (!tbody) {
+          tbody = document.createElement('tbody');
+          tbl.appendChild(tbody);
+        }
+        const rows = Array.from(thead.rows);
+        rows.forEach(row => {
+          // Convert th to td
+          Array.from(row.cells).forEach(cell => {
+            if (cell.tagName === 'TH') {
+              const td = document.createElement('td');
+              td.innerHTML = cell.innerHTML;
+              td.style.cssText = cell.style.cssText;
+              td.className = cell.className;
+              if (cell.colSpan > 1) td.colSpan = cell.colSpan;
+              if (cell.rowSpan > 1) td.rowSpan = cell.rowSpan;
+              td.style.fontWeight = '';
+              td.style.backgroundColor = '';
+              row.replaceChild(td, cell);
+            }
+          });
+          tbody!.insertBefore(row, tbody!.firstChild);
+        });
+        thead.remove();
+      } else {
+        // Add header: take first row, convert td to th, wrap in thead
+        let tbody = tbl.querySelector('tbody');
+        // If no tbody, all rows are direct children of table
+        const allRows = tbody ? Array.from(tbody.rows) : Array.from(tbl.rows);
+        if (allRows.length === 0) return false;
+
+        const firstRow = allRows[0];
+        const thead = document.createElement('thead');
+
+        // Convert td to th
+        Array.from(firstRow.cells).forEach(cell => {
+          if (cell.tagName === 'TD') {
+            const th = document.createElement('th');
+            th.innerHTML = cell.innerHTML;
+            th.style.cssText = cell.style.cssText;
+            th.className = cell.className;
+            if (cell.colSpan > 1) th.colSpan = cell.colSpan;
+            if (cell.rowSpan > 1) th.rowSpan = cell.rowSpan;
+            th.style.fontWeight = 'bold';
+            th.style.backgroundColor = '#f5f5f5';
+            firstRow.replaceChild(th, cell);
+          }
+        });
+
+        thead.appendChild(firstRow);
+
+        // Ensure remaining rows are in tbody
+        if (!tbody) {
+          tbody = document.createElement('tbody');
+          const remainingRows = Array.from(tbl.rows);
+          remainingRows.forEach(r => tbody!.appendChild(r));
+          tbl.appendChild(tbody);
+        }
+        tbl.insertBefore(thead, tbl.firstChild);
+      }
+
+      return true;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('toggleHeaderRow', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Toggle footer row: add/remove tfoot with last row
+   */
+  toggleFooterRow(table?: HTMLTableElement): boolean {
+    try {
+      const tbl = table || this.getSelectedTable()?.table;
+      if (!tbl) return false;
+
+      const hasFooter = !!tbl.querySelector('tfoot');
+
+      if (hasFooter) {
+        // Remove footer: move tfoot rows into tbody
+        const tfoot = tbl.querySelector('tfoot')!;
+        let tbody = tbl.querySelector('tbody');
+        if (!tbody) {
+          tbody = document.createElement('tbody');
+          tbl.appendChild(tbody);
+        }
+        const rows = Array.from(tfoot.rows);
+        rows.forEach(row => {
+          tbody!.appendChild(row);
+        });
+        tfoot.remove();
+      } else {
+        // Add footer: take last body row, wrap in tfoot
+        let tbody = tbl.querySelector('tbody');
+        const bodyRows = tbody ? Array.from(tbody.rows) : Array.from(tbl.querySelectorAll('tr'));
+        // Don't count thead rows
+        const thead = tbl.querySelector('thead');
+        const theadRowCount = thead ? thead.rows.length : 0;
+        const nonHeaderRows = bodyRows.filter(r => !thead || !thead.contains(r));
+
+        if (nonHeaderRows.length <= 1) return false; // Need at least 2 body rows to make a footer
+
+        const lastRow = nonHeaderRows[nonHeaderRows.length - 1];
+        const tfoot = document.createElement('tfoot');
+        tfoot.appendChild(lastRow);
+        tbl.appendChild(tfoot);
+      }
+
+      return true;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('toggleFooterRow', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Split cell vertically (adds a column within this cell by increasing colspan then splitting)
+   * Effectively: split into left/right
+   */
+  splitCellVertically(cell?: HTMLTableCellElement): boolean {
+    try {
+      const targetCell = cell || this.getSelectedTable()?.cell;
+      if (!targetCell) return false;
+
+      const colspan = parseInt(targetCell.getAttribute('colspan') || '1', 10);
+
+      if (colspan > 1) {
+        // Spanned cell: split into two halves
+        const cellWidth = targetCell.getBoundingClientRect().width;
+        const halfPx = Math.floor(cellWidth / 2);
+
+        targetCell.setAttribute('colspan', (colspan - 1).toString());
+        const newCell = document.createElement('td');
+        newCell.innerHTML = '&nbsp;';
+        newCell.style.border = '1px solid #ddd';
+        newCell.style.padding = '8px';
+        if (halfPx > 0) {
+          // Distribute original width evenly between the two resulting cells
+          const originalPortion = Math.floor(cellWidth * (colspan - 1) / colspan);
+          const newPortion = cellWidth - originalPortion;
+          targetCell.style.width = originalPortion + 'px';
+          newCell.style.width = newPortion + 'px';
+        }
+        if (targetCell.nextSibling) {
+          targetCell.parentNode!.insertBefore(newCell, targetCell.nextSibling);
+        } else {
+          targetCell.parentNode!.appendChild(newCell);
+        }
+      } else {
+        // Normal cell (colspan=1): split into two equal-width cells.
+        const row = targetCell.parentElement as HTMLTableRowElement;
+        const table = targetCell.closest('table') as HTMLTableElement;
+        if (!row || !table) return false;
+
+        const cellIndex = Array.from(row.cells).indexOf(targetCell);
+        const tag = targetCell.tagName === 'TH' ? 'th' : 'td';
+
+        // Measure width BEFORE inserting new cell (getBCR is live)
+        const cellWidth = targetCell.getBoundingClientRect().width;
+        const halfPx = Math.floor(cellWidth / 2);
+
+        // Insert new sibling cell AFTER the target in the current row
+        const newCell = document.createElement(tag);
+        newCell.innerHTML = '&nbsp;';
+        newCell.style.border = '1px solid #ddd';
+        newCell.style.padding = '8px';
+        if (targetCell.nextSibling) {
+          row.insertBefore(newCell, targetCell.nextSibling);
+        } else {
+          row.appendChild(newCell);
+        }
+
+        // Apply equal widths so the split appears centered
+        if (halfPx > 0) {
+          targetCell.style.width = halfPx + 'px';
+          newCell.style.width = halfPx + 'px';
+        }
+
+        // Expand the cell at this column position in every other row so the table stays aligned
+        const allRows = Array.from(table.querySelectorAll('tr'));
+        allRows.forEach(r => {
+          if (r === row) return;
+          const refCell = r.cells[cellIndex];
+          if (refCell) {
+            const existingColspan = parseInt(refCell.getAttribute('colspan') || '1', 10);
+            refCell.setAttribute('colspan', (existingColspan + 1).toString());
+            // Keep the spanned cell width consistent with the two new cells combined
+            if (halfPx > 0) {
+              refCell.style.width = (halfPx * 2) + 'px';
+            }
+          } else {
+            const extraCell = document.createElement('td');
+            extraCell.innerHTML = '&nbsp;';
+            extraCell.style.border = '1px solid #ddd';
+            extraCell.style.padding = '8px';
+            r.appendChild(extraCell);
+          }
+        });
+      }
+
+      return true;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('splitCellVertically', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Split cell horizontally (adds a row within this cell by increasing rowspan then splitting)
+   * Effectively: split into top/bottom
+   */
+  splitCellHorizontally(cell?: HTMLTableCellElement): boolean {
+    try {
+      const targetCell = cell || this.getSelectedTable()?.cell;
+      if (!targetCell) return false;
+
+      const rowspan = parseInt(targetCell.getAttribute('rowspan') || '1', 10);
+      const row = targetCell.parentElement as HTMLTableRowElement;
+      const table = targetCell.closest('table') as HTMLTableElement;
+      if (!row || !table) return false;
+
+      if (rowspan > 1) {
+        // Already spanned: reduce rowspan by 1, insert new cell in the row below
+        targetCell.setAttribute('rowspan', (rowspan - 1).toString());
+        const cellIndex = Array.from(row.cells).indexOf(targetCell);
+        // Find the next row that this cell spans into
+        let nextRow = row.nextElementSibling as HTMLTableRowElement;
+        if (nextRow) {
+          const newCell = document.createElement('td');
+          newCell.innerHTML = '&nbsp;';
+          newCell.style.border = '1px solid #ddd';
+          newCell.style.padding = '8px';
+          if (nextRow.cells[cellIndex]) {
+            nextRow.insertBefore(newCell, nextRow.cells[cellIndex]);
+          } else {
+            nextRow.appendChild(newCell);
+          }
+        }
+      } else {
+        // Normal cell (rowspan=1): insert a new row below with ONE cell at this column position.
+        // All other cells in this row span into the new row (rowspan+1), keeping alignment.
+        const cellIndex = Array.from(row.cells).indexOf(targetCell);
+        const tag = targetCell.tagName === 'TH' ? 'th' : 'td';
+
+        const newRow = document.createElement('tr');
+        const newCell = document.createElement(tag);
+        newCell.innerHTML = '&nbsp;';
+        newCell.style.border = '1px solid #ddd';
+        newCell.style.padding = '8px';
+        newRow.appendChild(newCell);
+
+        // Increase rowspan for every sibling cell so they span into the new row
+        Array.from(row.cells).forEach((c, idx) => {
+          if (idx === cellIndex) return; // target cell itself stays in current row only
+          const existingRowspan = parseInt(c.getAttribute('rowspan') || '1', 10);
+          c.setAttribute('rowspan', (existingRowspan + 1).toString());
+        });
+
+        // Insert new row immediately after the current row
+        const parent = row.parentNode!;
+        if (row.nextSibling) {
+          parent.insertBefore(newRow, row.nextSibling);
+        } else {
+          parent.appendChild(newRow);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('splitCellHorizontally', {}, false);
+      return false;
+    }
+  }
+
+  /**
+   * Get the availability of table actions based on current state
+   */
+  getActionAvailability(table?: HTMLTableElement, cell?: HTMLTableCellElement): TableActionAvailability {
+    const tbl = table || this.getSelectedTable()?.table;
+    const activeCell = cell || this.getSelectedTable()?.cell;
+
+    const hasHeader = !!tbl?.querySelector('thead');
+    const hasFooter = !!tbl?.querySelector('tfoot');
+
+    const tbody = tbl?.querySelector('tbody');
+    const bodyRowCount = tbody ? tbody.rows.length : (tbl ? tbl.rows.length : 0);
+    const firstRow = tbl?.querySelector('tr');
+    const colCount = firstRow ? firstRow.cells.length : 0;
+
+    const colspan = activeCell ? parseInt(activeCell.getAttribute('colspan') || '1', 10) : 1;
+    const rowspan = activeCell ? parseInt(activeCell.getAttribute('rowspan') || '1', 10) : 1;
+    const canSplitV = colspan > 1;
+    const canSplitH = rowspan > 1;
+
+    return {
+      canMerge: !!activeCell && !!activeCell.nextElementSibling,
+      canSplitVertical: canSplitV || !!activeCell,
+      canSplitHorizontal: canSplitH || !!activeCell,
+      canInsertRowAbove: !!activeCell,
+      canInsertRowBelow: !!activeCell,
+      canDeleteRow: bodyRowCount > 1,
+      canInsertColumnBefore: !!activeCell,
+      canInsertColumnAfter: !!activeCell,
+      canDeleteColumn: colCount > 1,
+      canToggleHeader: !!tbl,
+      canToggleFooter: !!tbl && bodyRowCount > 1,
+      hasHeader,
+      hasFooter
+    };
   }
 }

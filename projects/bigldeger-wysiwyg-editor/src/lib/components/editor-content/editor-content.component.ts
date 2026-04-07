@@ -27,6 +27,7 @@ import { CommandService } from '../../services/command.service';
 import { ContentEditableDirective } from '../../directives/content-editable.directive';
 import { TableHandlerService } from '../../services/table-handler.service';
 import { NestedTableService } from '../../services/nested-table.service';
+import { TableContextMenuService } from '../../services/table-context-menu.service';
 
 @Component({
   selector: 'wysiwyg-editor-content',
@@ -139,6 +140,7 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     private commandService: CommandService,
     private tableHandlerService: TableHandlerService,
     public nestedTableService: NestedTableService,
+    public tableContextMenuService: TableContextMenuService,
     private cdr: ChangeDetectorRef,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
@@ -194,6 +196,9 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     
     // Clean up nested table service
     this.nestedTableService.cleanup();
+
+    // Clean up table context menu
+    this.tableContextMenuService.cleanup();
   }
 
   // ControlValueAccessor methods
@@ -420,6 +425,9 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     setTimeout(() => {
       this.selectionChangeSubject.next();
     }, 10);
+
+    // Detect mouse-drag selection of multiple table cells (enables Merge Cells)
+    this.tableContextMenuService.handleMouseUpSelection(event);
   }
 
   onTouchEnd(event: TouchEvent): void {
@@ -472,13 +480,18 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
   onClick(event: MouseEvent): void {
     const target = event.target as Element;
 
-    // Check if clicking inside a table cell (for nested table insertion)
-    if (target.tagName === 'TD' || target.tagName === 'TH') {
-      this.nestedTableService.handleCellClick(event as MouseEvent);
-      // Don't return - continue to handle table selection
+    // Check if clicking inside a table cell - show context menu
+    if (target.tagName === 'TD' || target.tagName === 'TH' || this.findParentElement(target as Node, 'TD') || this.findParentElement(target as Node, 'TH')) {
+      this.tableContextMenuService.handleCellClick(event as MouseEvent);
+      // Also handle table selection for resize handles
+      const tableParent = this.findParentElement(target as Node, 'TABLE');
+      if (tableParent) {
+        this.tableHandlerService.selectTable(tableParent as HTMLTableElement);
+      }
+      return;
     }
 
-    // Handle table selection
+    // Handle table selection (clicking on table border/element itself)
     if (target && target.tagName === 'TABLE') {
       const tableElement = target as HTMLTableElement;
       this.tableHandlerService.selectTable(tableElement);
@@ -486,7 +499,7 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
       return;
     }
 
-    // Check if clicking inside a table
+    // Check if clicking inside a table (but not a cell - e.g. tbody)
     const tableParent = this.findParentElement(target as Node, 'TABLE');
     if (tableParent) {
       this.tableHandlerService.selectTable(tableParent as HTMLTableElement);
@@ -504,6 +517,8 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
       this.clearImageSelection();
       // Clear table selection if clicking elsewhere
       this.tableHandlerService.deselectTable();
+      // Clear table context menu if clicking elsewhere
+      this.tableContextMenuService.hideMenu();
       // Clear cell toolbar if clicking elsewhere
       this.nestedTableService.hideCellToolbar();
     }
@@ -1276,6 +1291,11 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     if (isPlatformBrowser(this.platformId) && this.contentArea?.nativeElement) {
       setTimeout(() => {
         this.tableHandlerService.initializeTableHandlers(this.contentArea.nativeElement);
+        // Initialize context menu service with content area reference
+        this.tableContextMenuService.initialize(
+          this.contentArea.nativeElement,
+          () => this.updateContentFromDOM()
+        );
       }, 0);
     }
   }
