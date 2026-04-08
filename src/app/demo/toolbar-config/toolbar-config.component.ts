@@ -55,7 +55,9 @@ import { WysiwygEditorComponent, ToolbarConfig } from 'bigldeger-wysiwyg-editor'
             [(ngModel)]="fullFeaturedContent"
             [toolbarConfig]="fullFeaturedToolbarConfig"
             placeholder="Type here with full-featured toolbar..."
-            [height]="'200px'">
+            [height]="'200px'"
+            [showCharCounter]="true"
+            [maxCharacters]="500">
           </wysiwyg-editor>
         </div>
       </div>
@@ -188,6 +190,18 @@ import { WysiwygEditorComponent, ToolbarConfig } from 'bigldeger-wysiwyg-editor'
       overflow: visible;
     }
 
+    :host ::ng-deep .wysiwyg-preset-eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1d4ed8;
+    }
+
+    :host ::ng-deep .wysiwyg-preset-muted {
+      color: #64748b;
+    }
+
     .config-examples {
       display: grid;
       gap: 2rem;
@@ -286,7 +300,7 @@ export class ToolbarConfigComponent {
   minimalContent = '<p>This editor has a <strong>minimal toolbar</strong> with only essential formatting tools.</p>';
   standardContent = '<p>This editor has a <em>standard toolbar</em> with common formatting options like <strong>bold</strong>, <em>italic</em>, <span style="color: #2196F3;">text color</span>, lists, and links.</p>';
   fullFeaturedContent = '<p>This editor has a <strong>full-featured toolbar</strong> with all available formatting tools including font size, <span style="color: #4CAF50;">text colors</span>, <span style="background-color: #FFEB3B;">background colors</span>, alignment, and more.</p>';
-  customContent = '<p>This editor has a <strong>custom toolbar</strong> configured for specific use cases with selected tools.</p>';
+  customContent = '<p>This editor has a <strong>custom toolbar</strong> configured for specific use cases with selected tools.</p><p>Select a paragraph and apply the preset dropdown to turn it into lead copy, a callout, or a caption.</p>';
 
   // Minimal toolbar configuration
   minimalToolbarConfig: ToolbarConfig = {
@@ -351,12 +365,39 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
       { type: 'button' as const, command: 'underline', icon: 'underline', label: 'Underline' },
       { type: 'button' as const, command: 'strikethrough', icon: 'strikethrough', label: 'Strikethrough' },
+      { type: 'button' as const, command: 'subscript', icon: 'subscript', label: 'Subscript' },
+      { type: 'button' as const, command: 'superscript', icon: 'superscript', label: 'Superscript' },
+      {
+        type: 'dropdown' as const,
+        command: 'paragraphFormat',
+        label: 'Normal',
+        separatorBefore: true,
+        options: [
+          { value: 'p', label: 'Normal' },
+          { value: 'h1', label: 'Heading 1' },
+          { value: 'h2', label: 'Heading 2' },
+          { value: 'h3', label: 'Heading 3' },
+          { value: 'h4', label: 'Heading 4' }
+        ]
+      },
+      { type: 'button' as const, command: 'quote', icon: 'quote', label: 'Quote' },
+      {
+        type: 'dropdown' as const,
+        command: 'lineHeight',
+        label: 'Line Height',
+        options: [
+          { value: 'normal', label: 'Normal' },
+          { value: '1', label: '1.0' },
+          { value: '1.15', label: '1.15' },
+          { value: '1.5', label: '1.5' },
+          { value: '2', label: '2.0' }
+        ]
+      },
       {
         type: 'dropdown' as const,
         command: 'fontSize',
         icon: 'fontSize',
         label: 'Font Size',
-        separatorBefore: true,
         options: [
           { value: '10px', label: '10px' },
           { value: '12px', label: '12px' },
@@ -397,8 +438,10 @@ export class ToolbarConfigComponent {
       { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link', separatorBefore: true },
       { type: 'button' as const, command: 'unlink', icon: 'unlink', label: 'Remove Link' },
       { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
+      { type: 'dialog' as const, command: 'insertVideo', icon: 'insertVideo', label: 'Insert Video' },
       { type: 'dialog' as const, command: 'insertTable', icon: 'insertTable', label: 'Insert Table' },
       { type: 'button' as const, command: 'removeFormat', icon: 'removeFormat', label: 'Clear Formatting', separatorBefore: true },
+      { type: 'button' as const, command: 'fullscreen', icon: 'fullscreen', label: 'Fullscreen' },
       { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View', separatorBefore: true }
     ]
   };
@@ -410,6 +453,72 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'italic', icon: 'italic', label: 'Italic' },
       {
         type: 'dropdown' as const,
+        command: 'paragraphStyle',
+        label: 'Paragraph Style',
+        options: [
+          {
+            value: 'standard',
+            label: 'Standard Paragraph',
+            preset: { tagName: 'p' },
+            previewStyles: { fontSize: '14px', fontWeight: '400', color: '#334155' }
+          },
+          {
+            value: 'lead',
+            label: 'Lead Paragraph',
+            preset: {
+              tagName: 'p',
+              className: 'wysiwyg-preset-lead',
+              styles: {
+                fontSize: '18px',
+                lineHeight: '1.8',
+                color: '#0f172a',
+                fontWeight: '500'
+              }
+            },
+            previewStyles: { fontSize: '17px', fontWeight: '500', color: '#0f172a' }
+          },
+          {
+            value: 'callout',
+            label: 'Callout Box',
+            preset: {
+              tagName: 'p',
+              className: 'wysiwyg-preset-callout',
+              styles: {
+                fontSize: '15px',
+                lineHeight: '1.7',
+                backgroundColor: '#eff6ff',
+                borderLeft: '4px solid #2563eb',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                color: '#1e3a8a'
+              }
+            },
+            previewStyles: {
+              fontSize: '14px',
+              fontWeight: '500',
+              color: '#1e3a8a',
+              backgroundColor: '#eff6ff'
+            }
+          },
+          {
+            value: 'caption',
+            label: 'Caption',
+            preset: {
+              tagName: 'p',
+              className: 'wysiwyg-preset-caption',
+              styles: {
+                fontSize: '13px',
+                lineHeight: '1.5',
+                color: '#64748b',
+                fontStyle: 'italic'
+              }
+            },
+            previewStyles: { fontSize: '13px', fontStyle: 'italic', color: '#64748b' }
+          }
+        ]
+      },
+      {
+        type: 'dropdown' as const,
         command: 'fontSize',
         icon: 'fontSize',
         label: 'Font Size',
@@ -418,6 +527,78 @@ export class ToolbarConfigComponent {
           { value: '16px', label: 'Normal' },
           { value: '18px', label: 'Large' },
           { value: '24px', label: 'Extra Large' }
+        ]
+      },
+      {
+        type: 'dropdown' as const,
+        command: 'inlineClass',
+        label: 'Inline Class',
+        options: [
+          {
+            value: 'none',
+            label: 'Default Text',
+            preset: {}
+          },
+          {
+            value: 'eyebrow',
+            label: 'Eyebrow',
+            preset: { className: 'wysiwyg-preset-eyebrow' },
+            previewStyles: {
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontSize: '12px',
+              fontWeight: '700',
+              color: '#1d4ed8'
+            }
+          },
+          {
+            value: 'muted',
+            label: 'Muted Text',
+            preset: { className: 'wysiwyg-preset-muted' },
+            previewStyles: { color: '#64748b' }
+          }
+        ]
+      },
+      {
+        type: 'dropdown' as const,
+        command: 'inlineStyle',
+        label: 'Inline Style',
+        options: [
+          {
+            value: 'none',
+            label: 'Default Inline',
+            preset: {}
+          },
+          {
+            value: 'highlight',
+            label: 'Highlight',
+            preset: {
+              styles: {
+                backgroundColor: '#fef08a',
+                padding: '0 2px',
+                borderRadius: '3px'
+              }
+            },
+            previewStyles: {
+              backgroundColor: '#fef08a',
+              padding: '0 2px',
+              borderRadius: '3px'
+            }
+          },
+          {
+            value: 'accent',
+            label: 'Accent',
+            preset: {
+              styles: {
+                color: '#0f766e',
+                fontWeight: '600'
+              }
+            },
+            previewStyles: {
+              color: '#0f766e',
+              fontWeight: '600'
+            }
+          }
         ]
       },
       { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
@@ -479,6 +660,32 @@ export class ToolbarConfigComponent {
   tools: [
     { type: 'button', command: 'bold', icon: 'bold', label: 'Bold' },
     { type: 'button', command: 'italic', icon: 'italic', label: 'Italic' },
+    {
+      type: 'dropdown',
+      command: 'paragraphStyle',
+      label: 'Paragraph Style',
+      options: [
+        { value: 'standard', label: 'Standard Paragraph', preset: { tagName: 'p' } },
+        {
+          value: 'lead',
+          label: 'Lead Paragraph',
+          preset: {
+            tagName: 'p',
+            className: 'lead-copy',
+            styles: { fontSize: '18px', lineHeight: '1.8', fontWeight: '500' }
+          }
+        }
+      ]
+    },
+    {
+      type: 'dropdown',
+      command: 'inlineClass',
+      label: 'Inline Class',
+      options: [
+        { value: 'none', label: 'Default Text', preset: {} },
+        { value: 'eyebrow', label: 'Eyebrow', preset: { className: 'eyebrow-text' } }
+      ]
+    },
     { 
       type: 'dropdown', 
       command: 'fontSize', 

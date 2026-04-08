@@ -25,7 +25,7 @@
       </div>
 
       <!-- Elegant Tabs -->
-      <div class="wysiwyg-tabs-container" *ngIf="!isEditing">
+      <div class="wysiwyg-tabs-container" *ngIf="!isEditing && hasMultipleInputModes">
         <div class="wysiwyg-tabs">
           <button 
             type="button"
@@ -53,7 +53,7 @@
       <div class="wysiwyg-dialog-body">
 
         <!-- URL Tab Content -->
-        <div class="wysiwyg-tab-content" *ngIf="activeTab === 'url'">
+        <div class="wysiwyg-tab-content" *ngIf="activeTab === 'url' && allowUrlInput">
           <div class="wysiwyg-url-section">
             <div class="wysiwyg-form-group">
               <label for="imageUrl">
@@ -67,30 +67,31 @@
                 <input 
                   id="imageUrl"
                   type="url" 
-                  formControlName="url"
+                  formControlName="src"
                   placeholder="https://example.com/image.jpg"
-                  [class.error]="hasFieldError('url')">
+                  [class.error]="hasFieldError('src')"
+                  (input)="onUrlChange()">
               </div>
               <p class="wysiwyg-field-hint">Enter a direct link to an image (HTTPS recommended)</p>
-              <div class="wysiwyg-error-message" *ngIf="hasFieldError('url')">
+              <div class="wysiwyg-error-message" *ngIf="hasFieldError('src')">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                 </svg>
-                {{ getFieldError('url') }}
+                {{ getFieldError('src') }}
               </div>
             </div>
           </div>
         </div>
 
         <!-- Upload Tab Content -->
-        <div class="wysiwyg-tab-content" *ngIf="activeTab === 'upload'">
+        <div class="wysiwyg-tab-content" *ngIf="activeTab === 'upload' && allowFileUpload">
           <div class="wysiwyg-upload-container">
             
             <!-- Hidden File Input -->
             <input 
               #fileInput
               type="file"
-              accept="image/*"
+              [attr.accept]="fileAccept"
               (change)="onFileSelected($event)"
               style="display: none">
 

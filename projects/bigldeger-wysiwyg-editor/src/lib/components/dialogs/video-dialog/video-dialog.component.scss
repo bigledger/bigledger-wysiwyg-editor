@@ -1,0 +1,108 @@
+@import '../../../styles/themes.scss';
+
+.wysiwyg-video-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--wysiwyg-bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--wysiwyg-z-modal);
+  padding: var(--wysiwyg-spacing-lg);
+  animation: wysiwyg-fade-in 0.2s ease-out;
+
+  @include wysiwyg-mobile {
+    padding: var(--wysiwyg-spacing-sm);
+    align-items: flex-start;
+    padding-top: 10vh;
+  }
+}
+
+.wysiwyg-video-dialog {
+  @include wysiwyg-card;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: wysiwyg-slide-down 0.2s ease-out;
+
+  @include wysiwyg-scrollbar;
+}
+
+.wysiwyg-video-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-lg);
+  border-bottom: 1px solid var(--wysiwyg-border-primary);
+
+  h3 {
+    margin: 0;
+    font-size: var(--wysiwyg-font-size-xl);
+    font-weight: var(--wysiwyg-font-weight-semibold);
+    color: var(--wysiwyg-text-primary);
+  }
+}
+
+.wysiwyg-video-dialog-close {
+  @include wysiwyg-button-base;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: var(--wysiwyg-font-size-xl);
+  color: var(--wysiwyg-text-secondary);
+
+  &:hover {
+    background-color: var(--wysiwyg-bg-tertiary);
+    color: var(--wysiwyg-text-primary);
+  }
+
+  &:focus {
+    @include wysiwyg-focus-ring;
+  }
+}
+
+.wysiwyg-video-dialog-form {
+  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-xxl);
+}
+
+.wysiwyg-video-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--wysiwyg-spacing-md);
+
+  @include wysiwyg-mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wysiwyg-video-dialog-hint {
+  margin-top: var(--wysiwyg-spacing-xs);
+  font-size: var(--wysiwyg-font-size-sm);
+  color: var(--wysiwyg-text-secondary);
+}
+
+.wysiwyg-error-message {
+  color: var(--wysiwyg-danger-color);
+  font-size: var(--wysiwyg-font-size-sm);
+  margin-top: var(--wysiwyg-spacing-xs);
+  display: block;
+}
+
+.wysiwyg-video-dialog-actions {
+  display: flex;
+  gap: var(--wysiwyg-spacing-md);
+  justify-content: flex-end;
+  padding-top: var(--wysiwyg-spacing-lg);
+  border-top: 1px solid var(--wysiwyg-border-primary);
+}
+
+.wysiwyg-btn {
+  &--primary {
+    @include wysiwyg-button-primary;
+  }
+
+  &--secondary {
+    @include wysiwyg-button-secondary;
+  }
+}

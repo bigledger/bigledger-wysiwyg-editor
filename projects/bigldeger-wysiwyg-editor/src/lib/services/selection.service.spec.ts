@@ -188,6 +188,90 @@ describe('SelectionService', () => {
       
       expect(result.isMultiElement).toBe(true);
     });
+
+    it('should detect the current block format from selection ancestry', () => {
+      const heading = document.createElement('h2');
+      heading.textContent = 'Heading text';
+      testElement.innerHTML = '';
+      testElement.appendChild(heading);
+
+      const mockHeadingRange = jasmine.createSpyObj('Range', [
+        'cloneRange', 'collapse', 'selectNodeContents', 'setStart', 'surroundContents',
+        'extractContents', 'insertNode'
+      ], {
+        collapsed: false,
+        startOffset: 0,
+        endOffset: 7,
+        startContainer: heading.firstChild!,
+        endContainer: heading.firstChild!,
+        commonAncestorContainer: heading.firstChild!
+      });
+      mockHeadingRange.cloneRange.and.returnValue(mockHeadingRange);
+
+      const mockHeadingSelection = jasmine.createSpyObj('Selection', [
+        'getRangeAt', 'removeAllRanges', 'addRange', 'toString',
+        'collapseToStart', 'collapseToEnd'
+      ], {
+        rangeCount: 1,
+        isCollapsed: false,
+        anchorNode: heading.firstChild,
+        focusNode: heading.firstChild,
+        anchorOffset: 0,
+        focusOffset: 7
+      });
+      mockHeadingSelection.getRangeAt.and.returnValue(mockHeadingRange);
+      mockHeadingSelection.toString.and.returnValue('Heading');
+
+      spyOn(service, 'getSelection').and.returnValue(mockHeadingSelection);
+      spyOn(service, 'getRange').and.returnValue(mockHeadingRange);
+
+      const result = service.saveSelection();
+
+      expect(result.formats.blockFormat).toBe('h2');
+    });
+
+    it('should detect normalized line-height values from computed styles', () => {
+      const paragraph = document.createElement('p');
+      paragraph.style.fontSize = '20px';
+      paragraph.style.lineHeight = '30px';
+      paragraph.textContent = 'Paragraph text';
+      testElement.innerHTML = '';
+      testElement.appendChild(paragraph);
+
+      const mockParagraphRange = jasmine.createSpyObj('Range', [
+        'cloneRange', 'collapse', 'selectNodeContents', 'setStart', 'surroundContents',
+        'extractContents', 'insertNode'
+      ], {
+        collapsed: false,
+        startOffset: 0,
+        endOffset: 9,
+        startContainer: paragraph.firstChild!,
+        endContainer: paragraph.firstChild!,
+        commonAncestorContainer: paragraph.firstChild!
+      });
+      mockParagraphRange.cloneRange.and.returnValue(mockParagraphRange);
+
+      const mockParagraphSelection = jasmine.createSpyObj('Selection', [
+        'getRangeAt', 'removeAllRanges', 'addRange', 'toString',
+        'collapseToStart', 'collapseToEnd'
+      ], {
+        rangeCount: 1,
+        isCollapsed: false,
+        anchorNode: paragraph.firstChild,
+        focusNode: paragraph.firstChild,
+        anchorOffset: 0,
+        focusOffset: 9
+      });
+      mockParagraphSelection.getRangeAt.and.returnValue(mockParagraphRange);
+      mockParagraphSelection.toString.and.returnValue('Paragraph');
+
+      spyOn(service, 'getSelection').and.returnValue(mockParagraphSelection);
+      spyOn(service, 'getRange').and.returnValue(mockParagraphRange);
+
+      const result = service.saveSelection();
+
+      expect(result.formats.lineHeight).toBe('1.5');
+    });
   });
 
   describe('restoreSelection', () => {

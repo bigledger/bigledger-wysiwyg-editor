@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ElementRef, 
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
-import { ToolbarConfig, ToolbarTool, ToolOption } from '../../models/toolbar.interface';
+import { ToolbarConfig, ToolbarTool, ToolOption, ToolOptionPreset } from '../../models/toolbar.interface';
 import { EditorCommand } from '../../models/editor-command.interface';
 import { SelectionState } from '../../models/selection-state.interface';
 import { AccessibilityService } from '../../services/accessibility.service';
@@ -166,6 +166,8 @@ import { getToolbarIconMarkup } from './toolbar-icons';
                   
                   <span
                     class="wysiwyg-toolbar__label"
+                    [ngStyle]="getOptionPreviewStyles(tool, option)"
+                    [ngClass]="option.previewClass"
                     [style.font-family]="tool.command === 'fontFamily' ? option.value : null">
                     {{ option.label }}
                   </span>
@@ -306,6 +308,12 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
         return formats.underline || false;
       case 'strikethrough':
         return formats.strikethrough || false;
+      case 'subscript':
+        return formats.subscript || false;
+      case 'superscript':
+        return formats.superscript || false;
+      case 'quote':
+        return this.normalizeBlockFormatValue(formats.blockFormat) === 'blockquote';
       case 'justifyLeft':
         return formats.alignment === 'left';
       case 'justifyCenter':
@@ -315,7 +323,9 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       case 'justifyFull':
         return formats.alignment === 'justify';
       case 'toggleHtmlView':
-        return (this.selectionState as any).htmlMode || false;
+        return this.selectionState.htmlMode || false;
+      case 'fullscreen':
+        return this.selectionState.fullscreenMode || false;
       default:
         return false;
     }
@@ -448,6 +458,8 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
     let commandName = tool.command;
     if (tool.command === 'fontFamily') {
       commandName = 'fontName';
+    } else if (tool.command === 'paragraphFormat') {
+      commandName = 'formatBlock';
     }
 
     const command: EditorCommand = {
@@ -455,7 +467,11 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       value: option.value,
       options: {
         showUI: false,
-        preventDefault: true
+        preventDefault: true,
+        params: {
+          preset: option.preset,
+          presetOptions: tool.options || []
+        }
       }
     };
 
@@ -483,6 +499,12 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       return isActive ? getToolbarIconMarkup('eye') : getToolbarIconMarkup('code');
     }
 
+    if (tool.command === 'fullscreen') {
+      return this.isToolActive(tool)
+        ? getToolbarIconMarkup('fullscreenExit')
+        : getToolbarIconMarkup('fullscreen');
+    }
+
     return getToolbarIconMarkup(tool.icon);
   }
 
@@ -503,6 +525,10 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
       return isActive ? 'Switch to Visual Mode' : 'View HTML Code';
     }
 
+    if (tool.command === 'fullscreen') {
+      return this.isToolActive(tool) ? 'Exit Fullscreen' : 'Enter Fullscreen';
+    }
+
     const shortcut = this.accessibilityService.getShortcutKeys(tool.command);
     const currentOption = tool.type === 'dropdown' ? this.getCurrentDropdownOption(tool) : null;
     const baseTitle = tool.title || tool.label || tool.command;
@@ -514,6 +540,14 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
    * Get ARIA label for tool
    */
   getToolAriaLabel(tool: ToolbarTool): string {
+    if (tool.command === 'toggleHtmlView') {
+      return this.isToolActive(tool) ? 'Switch to visual mode' : 'View HTML code';
+    }
+
+    if (tool.command === 'fullscreen') {
+      return this.isToolActive(tool) ? 'Exit fullscreen mode' : 'Enter fullscreen mode';
+    }
+
     const label = tool.ariaLabel || tool.label || tool.command;
     const shortcut = this.accessibilityService.getShortcutKeys(tool.command);
     return shortcut ? `${label}, keyboard shortcut ${shortcut}` : label;
@@ -576,6 +610,15 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
         return this.normalizeColorValue(formats.fontColor) === this.normalizeColorValue(option.value);
       case 'backgroundColor':
         return this.normalizeColorValue(formats.backgroundColor) === this.normalizeColorValue(option.value);
+      case 'paragraphFormat':
+        return this.normalizeBlockFormatValue(formats.blockFormat) === this.normalizeBlockFormatValue(option.value);
+      case 'paragraphStyle':
+        return this.matchesParagraphStyleOption(tool, option);
+      case 'inlineClass':
+      case 'inlineStyle':
+        return this.matchesInlinePresetOption(tool, option);
+      case 'lineHeight':
+        return this.normalizeLineHeightValue(formats.lineHeight) === this.normalizeLineHeightValue(option.value);
       default:
         return false;
     }
@@ -611,6 +654,18 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   getSafeUtilityIcon(name: 'chevronDown' | 'check' | 'dialog'): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(this.getUtilityIcon(name));
+  }
+
+  getOptionPreviewStyles(tool: ToolbarTool, option: ToolOption): Record<string, string> | null {
+    if (option.previewStyles) {
+      return option.previewStyles;
+    }
+
+    if (tool.command === 'paragraphStyle' && option.preset?.styles) {
+      return option.preset.styles;
+    }
+
+    return null;
   }
 
   private getCurrentDropdownOption(tool: ToolbarTool): ToolOption | null {
@@ -665,6 +720,206 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private normalizeColorValue(value?: string | null): string {
     return (value || '').trim().toLowerCase();
+  }
+
+  private normalizeBlockFormatValue(value?: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    const normalized = value
+      .replace(/[<>'"]/g, '')
+      .trim()
+      .toLowerCase();
+
+    if (normalized === 'normal' || normalized === 'paragraph' || normalized === 'div') {
+      return 'p';
+    }
+
+    return normalized;
+  }
+
+  private normalizeLineHeightValue(value?: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'normal') {
+      return 'normal';
+    }
+
+    const numericValue = Number.parseFloat(normalized);
+    if (Number.isFinite(numericValue)) {
+      return Number.parseFloat(numericValue.toFixed(2)).toString();
+    }
+
+    return normalized;
+  }
+
+  private matchesParagraphStyleOption(tool: ToolbarTool, option: ToolOption): boolean {
+    const blockElement = this.getSelectionBlockElement();
+    if (!blockElement) {
+      return false;
+    }
+
+    const preset = option.preset;
+    if (!preset) {
+      return this.normalizeBlockFormatValue(this.selectionState?.formats.blockFormat) === this.normalizeBlockFormatValue(option.value);
+    }
+
+    const matchesPreset = this.matchesPresetElement(blockElement, preset);
+    if (!matchesPreset) {
+      return false;
+    }
+
+    const hasExplicitStyling = this.getPresetClassNames(preset).length > 0 || Object.keys(preset.styles || {}).length > 0;
+    if (hasExplicitStyling) {
+      return true;
+    }
+
+    return !tool.options?.some(otherOption => {
+      if (otherOption === option || !otherOption.preset) {
+        return false;
+      }
+
+      const otherPresetHasExplicitStyling =
+        this.getPresetClassNames(otherOption.preset).length > 0 ||
+        Object.keys(otherOption.preset.styles || {}).length > 0;
+
+      return otherPresetHasExplicitStyling && this.matchesPresetElement(blockElement, otherOption.preset);
+    });
+  }
+
+  private matchesInlinePresetOption(tool: ToolbarTool, option: ToolOption): boolean {
+    const preset = option.preset;
+    if (!preset) {
+      return false;
+    }
+
+    const inlineElement = this.getSelectionInlineElement();
+    const hasExplicitStyling = this.getPresetClassNames(preset).length > 0 || Object.keys(preset.styles || {}).length > 0;
+
+    if (!inlineElement) {
+      return !hasExplicitStyling;
+    }
+
+    const matchesPreset = this.matchesPresetElement(inlineElement, preset);
+    if (!matchesPreset) {
+      return false;
+    }
+
+    if (hasExplicitStyling) {
+      return true;
+    }
+
+    return !tool.options?.some(otherOption => {
+      if (otherOption === option || !otherOption.preset) {
+        return false;
+      }
+
+      const otherPresetHasExplicitStyling =
+        this.getPresetClassNames(otherOption.preset).length > 0 ||
+        Object.keys(otherOption.preset.styles || {}).length > 0;
+
+      return otherPresetHasExplicitStyling && this.matchesPresetElement(inlineElement, otherOption.preset);
+    });
+  }
+
+  private getSelectionBlockElement(): HTMLElement | null {
+    const range = this.selectionState?.range;
+    if (!range) {
+      return null;
+    }
+
+    let node: Node | null = range.commonAncestorContainer;
+    while (node && node.nodeType !== Node.ELEMENT_NODE) {
+      node = node.parentNode;
+    }
+
+    while (node && node.nodeType === Node.ELEMENT_NODE) {
+      const tagName = (node as Element).tagName.toLowerCase();
+      if (['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote'].includes(tagName)) {
+        return node as HTMLElement;
+      }
+      node = node.parentNode;
+    }
+
+    return null;
+  }
+
+  private getSelectionInlineElement(): HTMLElement | null {
+    const range = this.selectionState?.range;
+    if (!range) {
+      return null;
+    }
+
+    let node: Node | null = range.commonAncestorContainer;
+    while (node && node.nodeType !== Node.ELEMENT_NODE) {
+      node = node.parentNode;
+    }
+
+    while (node && node.nodeType === Node.ELEMENT_NODE) {
+      const tagName = (node as Element).tagName.toLowerCase();
+      if (tagName === 'span') {
+        return node as HTMLElement;
+      }
+
+      if (['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote'].includes(tagName)) {
+        return null;
+      }
+
+      node = node.parentNode;
+    }
+
+    return null;
+  }
+
+  private matchesPresetElement(element: HTMLElement, preset: ToolOptionPreset): boolean {
+    if (preset.tagName && element.tagName.toLowerCase() !== this.normalizeBlockFormatValue(preset.tagName)) {
+      return false;
+    }
+
+    const requiredClassNames = this.getPresetClassNames(preset);
+    if (requiredClassNames.some(className => !element.classList.contains(className))) {
+      return false;
+    }
+
+    return Object.entries(preset.styles || {}).every(([property, expectedValue]) => {
+      const normalizedProperty = this.normalizeStyleProperty(property);
+      const actualValue = element.style.getPropertyValue(normalizedProperty) || window.getComputedStyle(element).getPropertyValue(normalizedProperty);
+      return this.normalizeStyleComparison(normalizedProperty, actualValue) === this.normalizeStyleComparison(normalizedProperty, expectedValue);
+    });
+  }
+
+  private getPresetClassNames(preset?: ToolOptionPreset): string[] {
+    if (!preset?.className) {
+      return [];
+    }
+
+    const classNameList = Array.isArray(preset.className)
+      ? preset.className
+      : preset.className.split(/\s+/);
+
+    return classNameList
+      .map(className => className.trim())
+      .filter(Boolean);
+  }
+
+  private normalizeStyleProperty(property: string): string {
+    return property
+      .trim()
+      .replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+      .toLowerCase();
+  }
+
+  private normalizeStyleComparison(property: string, value: string): string {
+    const temporaryElement = document.createElement('div');
+    temporaryElement.style.setProperty(property, value);
+    return (temporaryElement.style.getPropertyValue(property) || value)
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
   }
 
   /**

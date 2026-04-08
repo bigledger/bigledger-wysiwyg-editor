@@ -1,0 +1,86 @@
+<div class="wysiwyg-video-dialog-overlay" *ngIf="visible" (click)="onCancel()">
+  <div class="wysiwyg-video-dialog" (click)="$event.stopPropagation()">
+    <div class="wysiwyg-video-dialog-header">
+      <h3>{{ isEditing ? 'Edit Video' : 'Insert Video' }}</h3>
+      <button
+        type="button"
+        class="wysiwyg-video-dialog-close"
+        (click)="onCancel()"
+        aria-label="Close dialog">
+        ×
+      </button>
+    </div>
+
+    <form [formGroup]="videoForm" (ngSubmit)="onSubmit()" class="wysiwyg-video-dialog-form">
+      <div class="wysiwyg-form-group">
+        <label for="videoUrl">Video URL *</label>
+        <input
+          id="videoUrl"
+          type="text"
+          formControlName="url"
+          placeholder="https://youtu.be/... or https://cdn.example.com/video.mp4"
+          [class.error]="hasFieldError('url')"
+          autocomplete="url">
+        <div class="wysiwyg-video-dialog-hint">{{ detectedProviderLabel }}</div>
+        <div class="wysiwyg-error-message" *ngIf="hasFieldError('url')">
+          {{ getFieldError('url') }}
+        </div>
+      </div>
+
+      <div class="wysiwyg-form-group">
+        <label for="videoTitle">Title (optional)</label>
+        <input
+          id="videoTitle"
+          type="text"
+          formControlName="title"
+          placeholder="Accessible title for the embedded video">
+      </div>
+
+      <div class="wysiwyg-video-dialog-grid">
+        <div class="wysiwyg-form-group">
+          <label for="videoWidth">Width</label>
+          <input
+            id="videoWidth"
+            type="number"
+            formControlName="width"
+            min="1"
+            max="3840"
+            [class.error]="hasFieldError('width')">
+          <div class="wysiwyg-error-message" *ngIf="hasFieldError('width')">
+            {{ getFieldError('width') }}
+          </div>
+        </div>
+
+        <div class="wysiwyg-form-group">
+          <label for="videoHeight">Height</label>
+          <input
+            id="videoHeight"
+            type="number"
+            formControlName="height"
+            min="1"
+            max="2160"
+            [class.error]="hasFieldError('height')">
+          <div class="wysiwyg-error-message" *ngIf="hasFieldError('height')">
+            {{ getFieldError('height') }}
+          </div>
+        </div>
+      </div>
+
+      <div class="wysiwyg-video-dialog-actions">
+        <button
+          type="button"
+          class="wysiwyg-btn wysiwyg-btn-secondary"
+          (click)="onCancel()">
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          class="wysiwyg-btn wysiwyg-btn-primary"
+          [disabled]="!videoForm.valid">
+          {{ isEditing ? 'Update Video' : 'Insert Video' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

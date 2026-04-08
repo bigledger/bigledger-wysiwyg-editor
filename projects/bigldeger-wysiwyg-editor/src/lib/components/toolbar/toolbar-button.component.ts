@@ -89,6 +89,10 @@ export class ToolbarButtonComponent {
       return this.active ? 'Switch to Visual Mode' : 'View HTML Code';
     }
 
+    if (this.tool.command === 'fullscreen') {
+      return this.active ? 'Exit Fullscreen' : 'Enter Fullscreen';
+    }
+
     return this.tool.title || this.tool.label || this.getCommandDisplayName(this.tool.command);
   }
 
@@ -98,6 +102,14 @@ export class ToolbarButtonComponent {
   getAriaLabel(): string {
     if (!this.tool) {
       return '';
+    }
+
+    if (this.tool.command === 'toggleHtmlView') {
+      return this.active ? 'Switch to visual mode' : 'View HTML code';
+    }
+
+    if (this.tool.command === 'fullscreen') {
+      return this.active ? 'Exit fullscreen mode' : 'Enter fullscreen mode';
     }
 
     const baseName = this.tool.label || this.getCommandDisplayName(this.tool.command);
@@ -125,6 +137,10 @@ export class ToolbarButtonComponent {
       return this.active ? getToolbarIconMarkup('eye') : getToolbarIconMarkup('code');
     }
 
+    if (this.tool.command === 'fullscreen') {
+      return this.active ? getToolbarIconMarkup('fullscreenExit') : getToolbarIconMarkup('fullscreen');
+    }
+
     return getToolbarIconMarkup(this.tool?.icon);
   }
 
@@ -141,6 +157,9 @@ export class ToolbarButtonComponent {
       'italic': 'Italic',
       'underline': 'Underline',
       'strikethrough': 'Strikethrough',
+      'subscript': 'Subscript',
+      'superscript': 'Superscript',
+      'quote': 'Quote',
       'fontSize': 'Font Size',
       'fontColor': 'Text Color',
       'backgroundColor': 'Background Color',
@@ -148,6 +167,7 @@ export class ToolbarButtonComponent {
       'justifyCenter': 'Align Center',
       'justifyRight': 'Align Right',
       'justifyFull': 'Justify',
+      'formatOLSimple': 'Simple Ordered List',
       'insertUnorderedList': 'Bullet List',
       'insertOrderedList': 'Numbered List',
       'indent': 'Increase Indent',
@@ -155,6 +175,8 @@ export class ToolbarButtonComponent {
       'createLink': 'Insert Link',
       'unlink': 'Remove Link',
       'insertImage': 'Insert Image',
+      'insertVideo': 'Insert Video',
+      'fullscreen': 'Fullscreen',
       'toggleHtmlView': 'Toggle HTML View',
       'undo': 'Undo',
       'redo': 'Redo',

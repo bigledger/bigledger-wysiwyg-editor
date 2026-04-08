@@ -240,8 +240,8 @@
   max-height: 212px;
   overflow-y: auto;
   padding: 6px;
-  background-color: var(--wysiwyg-bg-primary);
-
+  // background-color: var(--wysiwyg-bg-primary);
+  background: white;
   @include wysiwyg-scrollbar;
 }
 

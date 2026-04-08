@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Input, Output, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ImageData } from '../../../models/image.interface';
+import { ImageData, DEFAULT_IMAGE_UPLOAD_CONFIG } from '../../../models/image.interface';
 
 /**
  * Dialog component for inserting images via upload or URL
@@ -13,7 +13,7 @@ import { ImageData } from '../../../models/image.interface';
   templateUrl: './image-dialog.component.html',
   styleUrls: ['./image-dialog.component.scss']
 })
-export class ImageDialogComponent implements OnInit {
+export class ImageDialogComponent implements OnInit, OnChanges {
   /** Whether the dialog is visible */
   @Input() visible = false;
   
@@ -45,10 +45,10 @@ export class ImageDialogComponent implements OnInit {
   previewUrl: string | null = null;
 
   /** Supported image formats */
-  private readonly supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+  @Input() supportedFormats = [...DEFAULT_IMAGE_UPLOAD_CONFIG.allowedFormats];
 
   /** Maximum file size (5MB) */
-  private readonly maxFileSize = 5 * 1024 * 1024;
+  @Input() maxFileSize = DEFAULT_IMAGE_UPLOAD_CONFIG.maxFileSize;
 
   /** Upload progress percentage */
   uploadProgress = 0;
@@ -65,15 +65,21 @@ export class ImageDialogComponent implements OnInit {
   /** Upload handler function */
   @Input() uploadHandler?: (file: File) => Promise<string>;
 
+  /** Whether URL-based image insertion should be available */
+  @Input() allowUrlInput = DEFAULT_IMAGE_UPLOAD_CONFIG.allowUrlInput;
+
+  /** Whether file upload should be available */
+  @Input() allowFileUpload = DEFAULT_IMAGE_UPLOAD_CONFIG.allowFileUpload;
+
   /** Maximum image dimensions */
-  @Input() maxWidth = 2000;
-  @Input() maxHeight = 2000;
+  @Input() maxWidth = DEFAULT_IMAGE_UPLOAD_CONFIG.maxWidth;
+  @Input() maxHeight = DEFAULT_IMAGE_UPLOAD_CONFIG.maxHeight;
 
   /** Whether to auto-resize large images */
-  @Input() autoResize = true;
+  @Input() autoResize = DEFAULT_IMAGE_UPLOAD_CONFIG.autoResize;
 
   /** JPEG compression quality (0-1) */
-  @Input() quality = 0.8;
+  @Input() quality = DEFAULT_IMAGE_UPLOAD_CONFIG.quality;
 
   /** Reference to the file input element */
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -83,8 +89,17 @@ export class ImageDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if (this.imageData) {
-      this.populateForm(this.imageData);
+    this.syncDialogState();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (
+      changes['imageData'] ||
+      changes['allowUrlInput'] ||
+      changes['allowFileUpload'] ||
+      changes['visible']
+    ) {
+      this.syncDialogState();
     }
   }
 
@@ -142,9 +157,39 @@ export class ImageDialogComponent implements OnInit {
   }
 
   /**
+   * Synchronizes the dialog with the current inputs.
+   */
+  private syncDialogState(): void {
+    if (!this.allowUrlInput && this.allowFileUpload) {
+      this.activeTab = 'upload';
+    } else if (!this.allowFileUpload && this.allowUrlInput) {
+      this.activeTab = 'url';
+    } else if (!this.allowUrlInput && !this.allowFileUpload) {
+      this.activeTab = 'url';
+    }
+
+    if (this.imageData) {
+      this.populateForm(this.imageData);
+    } else if (!this.visible) {
+      this.imageForm.reset({
+        src: '',
+        alt: '',
+        title: '',
+        width: '',
+        height: ''
+      });
+      this.clearPreview();
+    }
+  }
+
+  /**
    * Switches between upload and URL tabs
    */
   switchTab(tab: 'upload' | 'url'): void {
+    if ((tab === 'upload' && !this.allowFileUpload) || (tab === 'url' && !this.allowUrlInput)) {
+      return;
+    }
+
     this.activeTab = tab;
     
     // Clear form and preview when switching tabs
@@ -164,6 +209,10 @@ export class ImageDialogComponent implements OnInit {
    * Triggers the hidden file input when the button is clicked
    */
   triggerFileInput(): void {
+    if (!this.allowFileUpload) {
+      return;
+    }
+
     this.fileInput?.nativeElement?.click();
   }
 
@@ -185,6 +234,10 @@ export class ImageDialogComponent implements OnInit {
    * Processes and validates the selected file
    */
   private async processFile(file: File): Promise<void> {
+    if (!this.allowFileUpload) {
+      return;
+    }
+
     // Validate file type
     if (!this.supportedFormats.includes(file.type)) {
       this.setFileError('Unsupported file format. Please use JPEG, PNG, GIF, WebP, or SVG.');
@@ -290,6 +343,10 @@ export class ImageDialogComponent implements OnInit {
    * Handles drag over event
    */
   onDragOver(event: DragEvent): void {
+    if (!this.allowFileUpload) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
     this.isDragOver = true;
@@ -299,6 +356,10 @@ export class ImageDialogComponent implements OnInit {
    * Handles drag leave event
    */
   onDragLeave(event: DragEvent): void {
+    if (!this.allowFileUpload) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
     this.isDragOver = false;
@@ -308,6 +369,10 @@ export class ImageDialogComponent implements OnInit {
    * Handles drop event
    */
   async onDrop(event: DragEvent): Promise<void> {
+    if (!this.allowFileUpload) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
     this.isDragOver = false;
@@ -343,6 +408,11 @@ export class ImageDialogComponent implements OnInit {
    * Handles URL input change for preview
    */
   onUrlChange(): void {
+    if (!this.allowUrlInput) {
+      this.clearPreview();
+      return;
+    }
+
     const url = this.imageForm.get('src')?.value?.trim();
     if (url && this.activeTab === 'url') {
       this.previewUrl = url;
@@ -468,7 +538,7 @@ export class ImageDialogComponent implements OnInit {
     this.imageForm.reset();
     this.selectedFile = null;
     this.previewUrl = null;
-    this.activeTab = 'url';
+    this.activeTab = this.allowUrlInput ? 'url' : 'upload';
     this.uploadProgress = 0;
     this.isUploading = false;
     this.uploadError = null;
@@ -514,6 +584,22 @@ export class ImageDialogComponent implements OnInit {
   hasFieldError(fieldName: string): boolean {
     const field = this.imageForm.get(fieldName);
     return !!(field?.errors && field.touched);
+  }
+
+  /**
+   * Whether both insertion modes are available.
+   */
+  get hasMultipleInputModes(): boolean {
+    return this.allowUrlInput && this.allowFileUpload;
+  }
+
+  /**
+   * File input accept attribute derived from allowed formats.
+   */
+  get fileAccept(): string {
+    return (this.supportedFormats && this.supportedFormats.length > 0)
+      ? this.supportedFormats.join(',')
+      : 'image/*';
   }
 
   /**

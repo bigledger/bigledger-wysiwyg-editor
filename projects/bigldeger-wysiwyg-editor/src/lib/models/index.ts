@@ -19,5 +19,8 @@ export * from './history.interface';
 // Image interfaces
 export * from './image.interface';
 
+// Video interfaces
+export * from './video.interface';
+
 // Table interfaces
 export * from './table.interface';

@@ -107,6 +107,10 @@ export class SelectionService {
         italic: this.queryCommandState('italic'),
         underline: this.queryCommandState('underline'),
         strikethrough: this.queryCommandState('strikethrough'),
+        subscript: this.queryCommandState('subscript'),
+        superscript: this.queryCommandState('superscript'),
+        blockFormat: this.getCurrentBlockFormat(),
+        lineHeight: this.getCurrentLineHeight(),
         fontSize: this.getCurrentFontSize(),
         fontFamily: this.getCurrentFontFamily(),
         fontColor: this.queryCommandValue('foreColor') || '#000000',
@@ -127,6 +131,10 @@ export class SelectionService {
       italic: false,
       underline: false,
       strikethrough: false,
+      subscript: false,
+      superscript: false,
+      blockFormat: 'p',
+      lineHeight: 'normal',
       fontSize: '14px',
       fontFamily: 'Arial, sans-serif',
       fontColor: '#000000',
@@ -169,6 +177,70 @@ export class SelectionService {
       return 'left';
     } catch (error) {
       return 'left';
+    }
+  }
+
+  /**
+   * Get current block format from the selection context.
+   */
+  private getCurrentBlockFormat(): string {
+    try {
+      const selection = this.getSelection();
+
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let element: Node | null = range.commonAncestorContainer;
+
+        if (element.nodeType === Node.TEXT_NODE) {
+          element = element.parentElement;
+        }
+
+        while (element && element.nodeType === Node.ELEMENT_NODE) {
+          const tagName = this.normalizeBlockFormatTag((element as Element).tagName);
+          if (tagName) {
+            return tagName;
+          }
+
+          element = (element as Element).parentElement;
+        }
+      }
+
+      return this.normalizeBlockFormatTag(this.queryCommandValue('formatBlock')) || 'p';
+    } catch (error) {
+      return 'p';
+    }
+  }
+
+  /**
+   * Get current line-height from the closest block element.
+   */
+  private getCurrentLineHeight(): string {
+    try {
+      const selection = this.getSelection();
+
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let element: Node | null = range.commonAncestorContainer;
+
+        if (element.nodeType === Node.TEXT_NODE) {
+          element = element.parentElement;
+        }
+
+        while (element && element.nodeType === Node.ELEMENT_NODE) {
+          const computedStyle = window.getComputedStyle(element as Element);
+          const lineHeight = this.normalizeLineHeightValue(computedStyle.lineHeight, computedStyle.fontSize);
+
+          if (lineHeight) {
+            return lineHeight;
+          }
+
+          element = (element as Element).parentElement;
+        }
+      }
+
+      return this.normalizeLineHeightValue(this.queryCommandValue('lineHeight')) || 'normal';
+    } catch (error) {
+      return 'normal';
     }
   }
 
@@ -272,6 +344,70 @@ export class SelectionService {
     
     const lowerNormalized = normalized.toLowerCase();
     return fontMap[lowerNormalized] || fontFamily;
+  }
+
+  /**
+   * Normalize block-format values into toolbar-friendly tags.
+   */
+  private normalizeBlockFormatTag(tagName: string): string {
+    if (!tagName) {
+      return '';
+    }
+
+    const normalized = tagName
+      .replace(/[<>'"]/g, '')
+      .trim()
+      .toLowerCase();
+
+    if (normalized === 'normal' || normalized === 'paragraph' || normalized === 'div') {
+      return 'p';
+    }
+
+    if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].includes(normalized)) {
+      return normalized;
+    }
+
+    return '';
+  }
+
+  /**
+   * Normalize line-height values into toolbar-friendly ratio strings.
+   */
+  private normalizeLineHeightValue(lineHeight: string, fontSize?: string): string {
+    if (!lineHeight) {
+      return '';
+    }
+
+    const normalized = lineHeight.trim().toLowerCase();
+    if (normalized === 'normal') {
+      return 'normal';
+    }
+
+    if (/^\d+(\.\d+)?$/.test(normalized)) {
+      return this.formatNumericValue(Number.parseFloat(normalized));
+    }
+
+    if (normalized.endsWith('px') && fontSize?.endsWith('px')) {
+      const lineHeightValue = Number.parseFloat(normalized);
+      const fontSizeValue = Number.parseFloat(fontSize);
+
+      if (Number.isFinite(lineHeightValue) && Number.isFinite(fontSizeValue) && fontSizeValue > 0) {
+        return this.formatNumericValue(lineHeightValue / fontSizeValue);
+      }
+    }
+
+    return normalized;
+  }
+
+  /**
+   * Format numeric toolbar values consistently without trailing zeros.
+   */
+  private formatNumericValue(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '';
+    }
+
+    return Number.parseFloat(value.toFixed(2)).toString();
   }
 
   /**

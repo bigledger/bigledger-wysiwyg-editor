@@ -16,6 +16,10 @@ export interface SelectionState {
   selectedText?: string;
   /** Whether the selection spans multiple elements */
   isMultiElement?: boolean;
+  /** Whether the editor is currently in HTML mode */
+  htmlMode?: boolean;
+  /** Whether the editor is currently in fullscreen mode */
+  fullscreenMode?: boolean;
 }
 
 /**
@@ -30,6 +34,14 @@ export interface ActiveFormats {
   underline: boolean;
   /** Whether strikethrough formatting is active */
   strikethrough?: boolean;
+  /** Whether subscript formatting is active */
+  subscript?: boolean;
+  /** Whether superscript formatting is active */
+  superscript?: boolean;
+  /** Current block format (e.g., 'p', 'h1', 'blockquote') */
+  blockFormat?: string;
+  /** Current line-height value (e.g., 'normal', '1.5', '2') */
+  lineHeight?: string;
   /** Current font size (e.g., '14px', '1.2em') */
   fontSize: string;
   /** Current font family (e.g., 'Arial', 'Times New Roman') */

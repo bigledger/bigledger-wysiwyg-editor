@@ -109,6 +109,8 @@ describe('ToolbarComponent', () => {
           italic: false,
           underline: false,
           strikethrough: false,
+          subscript: false,
+          superscript: false,
           fontSize: '14px',
           fontFamily: 'Arial',
           fontColor: '#000000',
@@ -344,6 +346,43 @@ describe('ToolbarComponent', () => {
       const menu = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-menu'));
       expect(menu).toBeFalsy();
     });
+
+    it('should map paragraph format dropdown selections to formatBlock commands', () => {
+      const config: ToolbarConfig = {
+        tools: [
+          {
+            type: 'dropdown',
+            command: 'paragraphFormat',
+            label: 'Normal',
+            options: [
+              { value: 'p', label: 'Normal' },
+              { value: 'h2', label: 'Heading 2' }
+            ]
+          }
+        ]
+      };
+
+      component.config = config;
+      fixture.detectChanges();
+
+      spyOn(component.command, 'emit');
+
+      const trigger = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-trigger'));
+      trigger.nativeElement.click();
+      fixture.detectChanges();
+
+      const options = fixture.debugElement.queryAll(By.css('.wysiwyg-toolbar__dropdown-option'));
+      options[1].nativeElement.click();
+
+      expect(component.command.emit).toHaveBeenCalledWith({
+        name: 'formatBlock',
+        value: 'h2',
+        options: {
+          showUI: false,
+          preventDefault: true
+        }
+      });
+    });
   });
 
   describe('Dialog Tools', () => {
@@ -396,6 +435,9 @@ describe('ToolbarComponent', () => {
           italic: false,
           underline: true,
           strikethrough: false,
+          subscript: true,
+          superscript: false,
+          blockFormat: 'blockquote',
           fontSize: '14px',
           fontFamily: 'Arial',
           fontColor: '#000000',
@@ -409,6 +451,9 @@ describe('ToolbarComponent', () => {
       expect(component.isToolActive({ type: 'button', command: 'bold' })).toBe(true);
       expect(component.isToolActive({ type: 'button', command: 'italic' })).toBe(false);
       expect(component.isToolActive({ type: 'button', command: 'underline' })).toBe(true);
+      expect(component.isToolActive({ type: 'button', command: 'subscript' })).toBe(true);
+      expect(component.isToolActive({ type: 'button', command: 'superscript' })).toBe(false);
+      expect(component.isToolActive({ type: 'button', command: 'quote' })).toBe(true);
       expect(component.isToolActive({ type: 'button', command: 'justifyCenter' })).toBe(true);
       expect(component.isToolActive({ type: 'button', command: 'justifyLeft' })).toBe(false);
     });
@@ -427,6 +472,8 @@ describe('ToolbarComponent', () => {
       expect(component.getToolIcon({ type: 'button', command: 'italic', icon: 'italic' }))
         .toContain('<svg');
       expect(component.getToolIcon({ type: 'button', command: 'underline', icon: 'underline' }))
+        .toContain('<svg');
+      expect(component.getToolIcon({ type: 'button', command: 'subscript', icon: 'subscript' }))
         .toContain('<svg');
     });
 
@@ -462,6 +509,8 @@ describe('ToolbarComponent', () => {
           italic: false,
           underline: false,
           strikethrough: false,
+          subscript: false,
+          superscript: false,
           fontSize: '14px',
           fontFamily: 'Georgia, serif',
           fontColor: '#000000',
@@ -500,6 +549,8 @@ describe('ToolbarComponent', () => {
           italic: false,
           underline: false,
           strikethrough: false,
+          subscript: false,
+          superscript: false,
           fontSize: '3',
           fontFamily: 'Arial, sans-serif',
           fontColor: '#000000',
@@ -512,6 +563,88 @@ describe('ToolbarComponent', () => {
 
       const label = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-trigger .wysiwyg-toolbar__label'));
       expect(label.nativeElement.textContent.trim()).toBe('14px');
+    });
+
+    it('should show the selected paragraph format in the trigger label', () => {
+      component.config = {
+        tools: [
+          {
+            type: 'dropdown',
+            command: 'paragraphFormat',
+            label: 'Normal',
+            options: [
+              { value: 'p', label: 'Normal' },
+              { value: 'h1', label: 'Heading 1' },
+              { value: 'h2', label: 'Heading 2' }
+            ]
+          }
+        ]
+      };
+
+      component.selectionState = {
+        range: null,
+        collapsed: true,
+        formats: {
+          bold: false,
+          italic: false,
+          underline: false,
+          strikethrough: false,
+          subscript: false,
+          superscript: false,
+          blockFormat: 'h2',
+          fontSize: '14px',
+          fontFamily: 'Arial, sans-serif',
+          fontColor: '#000000',
+          backgroundColor: 'transparent',
+          alignment: 'left'
+        }
+      };
+
+      fixture.detectChanges();
+
+      const label = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-trigger .wysiwyg-toolbar__label'));
+      expect(label.nativeElement.textContent.trim()).toBe('Heading 2');
+    });
+
+    it('should show the selected line-height in the trigger label', () => {
+      component.config = {
+        tools: [
+          {
+            type: 'dropdown',
+            command: 'lineHeight',
+            label: 'Line Height',
+            options: [
+              { value: 'normal', label: 'Normal' },
+              { value: '1', label: '1.0' },
+              { value: '1.5', label: '1.5' }
+            ]
+          }
+        ]
+      };
+
+      component.selectionState = {
+        range: null,
+        collapsed: true,
+        formats: {
+          bold: false,
+          italic: false,
+          underline: false,
+          strikethrough: false,
+          subscript: false,
+          superscript: false,
+          lineHeight: '1.5',
+          fontSize: '14px',
+          fontFamily: 'Arial, sans-serif',
+          fontColor: '#000000',
+          backgroundColor: 'transparent',
+          alignment: 'left'
+        }
+      };
+
+      fixture.detectChanges();
+
+      const label = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-trigger .wysiwyg-toolbar__label'));
+      expect(label.nativeElement.textContent.trim()).toBe('1.5');
     });
   });
 

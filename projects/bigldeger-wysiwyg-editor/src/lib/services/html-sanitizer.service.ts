@@ -22,7 +22,8 @@ export class HTMLSanitizerService {
     'a', 'img',
     'span', 'div',
     'blockquote', 'pre', 'code',
-    'table', 'thead', 'tbody', 'tr', 'th', 'td'
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'iframe', 'video'
   ];
 
   /**
@@ -30,22 +31,25 @@ export class HTMLSanitizerService {
    */
   private readonly DEFAULT_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
     'a': ['href', 'title', 'target', 'rel'],
-    'img': ['src', 'alt', 'title', 'width', 'height'],
-    'span': ['style'],
-    'div': ['style'],
-    'p': ['style'],
-    'h1': ['style'],
-    'h2': ['style'],
-    'h3': ['style'],
-    'h4': ['style'],
-    'h5': ['style'],
-    'h6': ['style'],
+    'img': ['src', 'alt', 'title', 'width', 'height', 'class'],
+    'span': ['style', 'class'],
+    'div': ['style', 'class', 'contenteditable'],
+    'p': ['style', 'class'],
+    'h1': ['style', 'class'],
+    'h2': ['style', 'class'],
+    'h3': ['style', 'class'],
+    'h4': ['style', 'class'],
+    'h5': ['style', 'class'],
+    'h6': ['style', 'class'],
+    'blockquote': ['style', 'class'],
     'td': ['colspan', 'rowspan', 'style'],
     'th': ['colspan', 'rowspan', 'style'],
-    'table': ['style'],
-    'ul': ['style'],
-    'ol': ['style'],
-    'li': ['style']
+    'table': ['style', 'class', 'border', 'cellpadding', 'cellspacing'],
+    'ul': ['style', 'class'],
+    'ol': ['style', 'class'],
+    'li': ['style', 'class'],
+    'iframe': ['src', 'title', 'width', 'height', 'loading', 'referrerpolicy', 'allow', 'allowfullscreen', 'frameborder', 'class'],
+    'video': ['src', 'title', 'width', 'height', 'controls', 'playsinline', 'preload', 'poster', 'class']
   };
 
   /**
@@ -546,7 +550,7 @@ export class HTMLSanitizerService {
       tempDiv.innerHTML = html;
       
       // Check for potentially dangerous elements
-      const dangerousElements = tempDiv.querySelectorAll('script, object, embed, iframe, form');
+      const dangerousElements = tempDiv.querySelectorAll('script, object, embed, form');
       if (dangerousElements.length > 0) {
         return false;
       }

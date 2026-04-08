@@ -37,6 +37,18 @@ export interface ToolbarTool {
 }
 
 /**
+ * Reusable preset metadata for dropdown-driven styling tools.
+ */
+export interface ToolOptionPreset {
+  /** Optional tag name to enforce for block-style presets */
+  tagName?: string;
+  /** One or more CSS classes to apply */
+  className?: string | string[];
+  /** Inline styles to apply */
+  styles?: Record<string, string>;
+}
+
+/**
  * Option for dropdown toolbar tools
  */
 export interface ToolOption {
@@ -48,4 +60,10 @@ export interface ToolOption {
   icon?: string;
   /** Whether this option is disabled */
   disabled?: boolean;
+  /** Optional styling preset metadata used by preset-aware commands */
+  preset?: ToolOptionPreset;
+  /** Optional preview styles for rendering richer dropdown items */
+  previewStyles?: Record<string, string>;
+  /** Optional preview class for rendering richer dropdown items */
+  previewClass?: string;
 }

@@ -66,6 +66,25 @@ describe('HTMLSanitizerService', () => {
       expect(result).toContain('<a href="https://example.com">Link</a>');
     });
 
+    it('should preserve safe embedded iframe markup', () => {
+      const html = '<div class="wysiwyg-video-embed" contenteditable="false"><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Demo" width="640" height="360" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media" allowfullscreen="" frameborder="0"></iframe></div>';
+      const result = service.sanitize(html);
+
+      expect(result).toContain('class="wysiwyg-video-embed"');
+      expect(result).toContain('<iframe');
+      expect(result).toContain('https://www.youtube.com/embed/dQw4w9WgXcQ');
+      expect(result).toContain('allowfullscreen');
+    });
+
+    it('should preserve safe HTML5 video markup', () => {
+      const html = '<div class="wysiwyg-video-embed" contenteditable="false"><video src="https://cdn.example.com/demo.mp4" title="Demo" width="640" height="360" controls="" playsinline="" preload="metadata"></video></div>';
+      const result = service.sanitize(html);
+
+      expect(result).toContain('<video');
+      expect(result).toContain('https://cdn.example.com/demo.mp4');
+      expect(result).toContain('controls');
+    });
+
     it('should handle custom allowed tags', () => {
       const html = '<custom-tag>Content</custom-tag><p>Paragraph</p>';
       const config: SanitizerConfig = {

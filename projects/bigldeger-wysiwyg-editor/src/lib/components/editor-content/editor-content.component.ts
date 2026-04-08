@@ -293,7 +293,7 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     formatted = formatted.replace(/(<\/[^>]+>)/g, '$1\n');
 
     // Add line breaks before opening tags (except inline elements)
-    formatted = formatted.replace(/(<(?:div|p|h[1-6]|ul|ol|li|blockquote|pre|table|tr|td|th|section|article|header|footer|nav|aside)[^>]*>)/g, '\n$1');
+    formatted = formatted.replace(/(<(?:div|p|h[1-6]|ul|ol|li|blockquote|pre|table|tr|td|th|section|article|header|footer|nav|aside|iframe|video)[^>]*>)/g, '\n$1');
 
     // Add line breaks after self-closing tags
     formatted = formatted.replace(/(<(?:br|img|hr|input)[^>]*\/?>)/g, '$1\n');

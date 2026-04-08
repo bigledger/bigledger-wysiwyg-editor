@@ -53,6 +53,41 @@
     cursor: not-allowed;
   }
 
+  &--fullscreen {
+    position: fixed;
+    inset: 16px;
+    z-index: 1400;
+    width: auto;
+    height: calc(100dvh - 32px);
+    max-height: calc(100dvh - 32px);
+    padding: 14px;
+    border-radius: 24px;
+    box-shadow: 0 30px 70px rgba(15, 23, 42, 0.24);
+
+    .wysiwyg-editor__toolbar-shell,
+    .wysiwyg-editor__content-shell {
+      flex-shrink: 0;
+    }
+
+    .wysiwyg-editor__content-shell {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+    }
+
+    .wysiwyg-editor__content-frame {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+    }
+
+    .wysiwyg-editor__content-frame wysiwyg-editor-content {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+    }
+  }
+
   // Focus styles
   &:focus-within {
     border-color: var(--wysiwyg-border-focus);
@@ -113,6 +148,14 @@
     
     &:focus-within {
       box-shadow: none;
+    }
+
+    &--fullscreen {
+      inset: 0;
+      height: 100dvh;
+      max-height: 100dvh;
+      border-radius: 0;
+      padding: 10px;
     }
   }
   
@@ -246,6 +289,45 @@
   display: flex;
   width: 100%;
   background: #fff;
+}
+
+.wysiwyg-editor__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px 2px;
+}
+
+.wysiwyg-editor__footer-label {
+  font-size: 11px;
+  font-weight: var(--wysiwyg-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--wysiwyg-text-secondary);
+}
+
+.wysiwyg-editor__footer-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background-color: rgba(226, 232, 240, 0.92);
+  color: var(--wysiwyg-text-secondary);
+  font-size: 12px;
+  font-weight: var(--wysiwyg-font-weight-semibold);
+
+  &--warning {
+    background-color: rgba(251, 191, 36, 0.18);
+    color: #b45309;
+  }
+
+  &--danger {
+    background-color: rgba(248, 113, 113, 0.16);
+    color: #b91c1c;
+  }
 }
 
 // Content styles are now handled by global styles

@@ -8,6 +8,7 @@ import { CommandService } from '../../services/command.service';
 import { SelectionService } from '../../services/selection.service';
 import { LinkData } from '../dialogs/link-dialog/link-dialog.component';
 import { ImageData } from '../../models/image.interface';
+import { VideoData } from '../../models/video.interface';
 
 describe('WysiwygEditorComponent', () => {
   let component: WysiwygEditorComponent;
@@ -24,6 +25,7 @@ describe('WysiwygEditorComponent', () => {
       'getLinkData',
       'isInLink',
       'insertImage',
+      'insertVideo',
       'updateImage',
       'removeImage',
       'getImageData'
@@ -65,6 +67,7 @@ describe('WysiwygEditorComponent', () => {
       it('should initialize dialog visibility properties to false', () => {
         expect(component.linkDialogVisible).toBeFalsy();
         expect(component.imageDialogVisible).toBeFalsy();
+        expect(component.videoDialogVisible).toBeFalsy();
       });
 
       it('should set linkDialogVisible to true when showing link dialog', async () => {
@@ -109,6 +112,25 @@ describe('WysiwygEditorComponent', () => {
         expect(component.imageDialogVisible).toBeTruthy();
       });
 
+      it('should set videoDialogVisible to true when showing video dialog', async () => {
+        spyOn(component['lazyLoaderService'], 'loadDialogComponent').and.returnValue(
+          Promise.resolve({
+            instance: {
+              visible: false,
+              videoData: null,
+              isEditing: false,
+              videoCreated: { subscribe: jasmine.createSpy() },
+              dialogClosed: { subscribe: jasmine.createSpy() }
+            },
+            destroy: jasmine.createSpy()
+          } as any)
+        );
+
+        await component['showVideoDialog']();
+
+        expect(component.videoDialogVisible).toBeTruthy();
+      });
+
       it('should set linkDialogVisible to false on dialog load error', async () => {
         spyOn(component['lazyLoaderService'], 'loadDialogComponent').and.returnValue(
           Promise.reject(new Error('Failed to load'))
@@ -132,6 +154,18 @@ describe('WysiwygEditorComponent', () => {
         expect(component.imageDialogVisible).toBeFalsy();
         expect(console.error).toHaveBeenCalled();
       });
+
+      it('should set videoDialogVisible to false on dialog load error', async () => {
+        spyOn(component['lazyLoaderService'], 'loadDialogComponent').and.returnValue(
+          Promise.reject(new Error('Failed to load'))
+        );
+        spyOn(console, 'error');
+
+        await component['showVideoDialog']();
+
+        expect(component.videoDialogVisible).toBeFalsy();
+        expect(console.error).toHaveBeenCalled();
+      });
     });
 
     describe('Dialog Event Handlers', () => {
@@ -141,6 +175,10 @@ describe('WysiwygEditorComponent', () => {
 
       it('should implement onImageDialogClosed method', () => {
         expect(typeof component.onImageDialogClosed).toBe('function');
+      });
+
+      it('should implement onVideoDialogClosed method', () => {
+        expect(typeof component.onVideoDialogClosed).toBe('function');
       });
 
       it('should call closeLinkDialog when onLinkDialogClosed is called', () => {
@@ -157,6 +195,14 @@ describe('WysiwygEditorComponent', () => {
         component.onImageDialogClosed();
 
         expect(component['closeImageDialog']).toHaveBeenCalled();
+      });
+
+      it('should call closeVideoDialog when onVideoDialogClosed is called', () => {
+        spyOn(component, 'closeVideoDialog' as any);
+
+        component.onVideoDialogClosed();
+
+        expect(component['closeVideoDialog']).toHaveBeenCalled();
       });
 
       it('should reset dialog state when onLinkDialogClosed is called', () => {
@@ -192,6 +238,22 @@ describe('WysiwygEditorComponent', () => {
         expect(component['isEditingImage']).toBeFalsy();
         expect(component['imageDialogRef']).toBeNull();
       });
+
+      it('should reset dialog state when onVideoDialogClosed is called', () => {
+        component.videoDialogVisible = true;
+        component['currentVideoData'] = { url: 'https://youtu.be/dQw4w9WgXcQ' };
+        component['isEditingVideo'] = true;
+        component['videoDialogRef'] = {
+          destroy: jasmine.createSpy()
+        } as any;
+
+        component.onVideoDialogClosed();
+
+        expect(component.videoDialogVisible).toBeFalsy();
+        expect(component['currentVideoData']).toBeNull();
+        expect(component['isEditingVideo']).toBeFalsy();
+        expect(component['videoDialogRef']).toBeNull();
+      });
     });
 
     describe('Dialog Lifecycle Management', () => {
@@ -199,17 +261,22 @@ describe('WysiwygEditorComponent', () => {
         // Set up dialog references
         const mockLinkDialogRef = { destroy: jasmine.createSpy() };
         const mockImageDialogRef = { destroy: jasmine.createSpy() };
+        const mockVideoDialogRef = { destroy: jasmine.createSpy() };
         component['linkDialogRef'] = mockLinkDialogRef as any;
         component['imageDialogRef'] = mockImageDialogRef as any;
+        component['videoDialogRef'] = mockVideoDialogRef as any;
         component.linkDialogVisible = true;
         component.imageDialogVisible = true;
+        component.videoDialogVisible = true;
 
         component.ngOnDestroy();
 
         expect(mockLinkDialogRef.destroy).toHaveBeenCalled();
         expect(mockImageDialogRef.destroy).toHaveBeenCalled();
+        expect(mockVideoDialogRef.destroy).toHaveBeenCalled();
         expect(component.linkDialogVisible).toBeFalsy();
         expect(component.imageDialogVisible).toBeFalsy();
+        expect(component.videoDialogVisible).toBeFalsy();
       });
 
       it('should handle multiple dialog close calls gracefully', () => {
@@ -680,8 +747,15 @@ describe('WysiwygEditorComponent', () => {
       expect(commands).toContain('bold');
       expect(commands).toContain('italic');
       expect(commands).toContain('underline');
+      expect(commands).toContain('subscript');
+      expect(commands).toContain('superscript');
+      expect(commands).toContain('paragraphFormat');
+      expect(commands).toContain('quote');
+      expect(commands).toContain('lineHeight');
       expect(commands).toContain('createLink');
       expect(commands).toContain('insertImage');
+      expect(commands).toContain('insertVideo');
+      expect(commands).toContain('fullscreen');
       expect(commands).toContain('insertUnorderedList');
       expect(commands).toContain('insertOrderedList');
       expect(commands).toContain('undo');
@@ -775,6 +849,31 @@ describe('WysiwygEditorComponent', () => {
       expect(component.imageDialogVisible).toBeFalsy();
       expect(component['currentImageData']).toBeNull()
       expect(component['isEditingImage']).toBeFalsy();
+    });
+  });
+
+  describe('Video Dialog Integration', () => {
+    it('should show video dialog when insertVideo command is executed', () => {
+      component.handleCommand({ name: 'insertVideo' });
+
+      expect(component.videoDialogVisible).toBeTruthy();
+      expect(component['isEditingVideo']).toBeFalsy();
+      expect(component['currentVideoData']).toBeNull();
+    });
+
+    it('should insert generated video HTML in HTML mode when dialog emits videoCreated', () => {
+      const videoData: VideoData = {
+        url: 'https://youtu.be/dQw4w9WgXcQ',
+        title: 'Demo video'
+      };
+
+      component.isHtmlMode = true;
+      spyOn(component.contentChange, 'emit');
+
+      component.onVideoCreated(videoData);
+
+      expect(component.content).toContain('youtube.com/embed/dQw4w9WgXcQ');
+      expect(component.contentChange.emit).toHaveBeenCalled();
     });
   });
 

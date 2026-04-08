@@ -3,6 +3,8 @@ import { EditorCommand } from '../models/editor-command.interface';
 import { LinkData } from '../components/dialogs/link-dialog/link-dialog.component';
 import { ImageData } from '../models/image.interface';
 import { TableData } from '../models/table.interface';
+import { VideoData, buildVideoEmbedHtml } from '../models/video.interface';
+import { ToolOption, ToolOptionPreset } from '../models/toolbar.interface';
 import { SelectionService } from './selection.service';
 import { BrowserCompatibilityService } from './browser-compatibility.service';
 import { ErrorHandlerService } from './error-handler.service';
@@ -29,23 +31,57 @@ export class CommandService {
    */
   executeCommand(command: EditorCommand, value?: string): boolean {
     try {
+      let commandName = command.name;
+
+      if (commandName === 'quote') {
+        return this.toggleBlockquote();
+      }
+
+      if (commandName === 'lineHeight') {
+        return this.applyLineHeight(value || 'normal');
+      }
+
+      if (commandName === 'paragraphStyle') {
+        return this.applyParagraphStylePreset(
+          value || '',
+          command.options?.params?.['preset'] as ToolOptionPreset | undefined,
+          command.options?.params?.['presetOptions'] as ToolOption[] | undefined
+        );
+      }
+
+      if (commandName === 'inlineClass' || commandName === 'inlineStyle') {
+        return this.applyInlinePreset(
+          command.options?.params?.['preset'] as ToolOptionPreset | undefined,
+          command.options?.params?.['presetOptions'] as ToolOption[] | undefined
+        );
+      }
+
+      if (commandName === 'formatOLSimple') {
+        commandName = 'insertOrderedList';
+      }
+
       // Handle fontSize command with pixel values
       let commandValue = value;
-      if (command.name === 'fontSize' && value) {
+      if (commandName === 'fontSize' && value) {
         // Convert pixel values to relative sizes (1-7)
         commandValue = this.convertPixelToFontSize(value);
       }
 
+      if ((commandName === 'paragraphFormat' || commandName === 'formatBlock') && value) {
+        commandName = 'formatBlock';
+        commandValue = this.normalizeFormatBlockValue(value);
+      }
+
       // For fontSize, fontFamily and color commands, always use fallback since document.execCommand is unreliable
-      if (command.name === 'fontSize' || command.name === 'fontName' || command.name === 'fontFamily' || command.name === 'foreColor' || command.name === 'backColor') {
-        return this.executeFallbackCommand(command, value);
+      if (commandName === 'fontSize' || commandName === 'fontName' || commandName === 'fontFamily' || commandName === 'foreColor' || commandName === 'backColor') {
+        return this.executeFallbackCommand({ ...command, name: commandName }, value);
       }
 
       // Execute the command
-      const success = document.execCommand(command.name, command.options?.showUI || false, commandValue);
+      const success = document.execCommand(commandName, command.options?.showUI || false, commandValue);
 
       if (!success) {
-        return this.executeFallbackCommand(command, value);
+        return this.executeFallbackCommand({ ...command, name: commandName }, value);
       }
 
       return success;
@@ -92,6 +128,9 @@ export class CommandService {
           return this.wrapSelectionWithTag('u');
         case 'strikethrough':
           return this.wrapSelectionWithTag('s');
+        case 'formatBlock':
+        case 'paragraphFormat':
+          return this.applyBlockFormat(value || 'p');
         case 'fontSize':
           return this.wrapSelectionWithStyle('font-size', value || '14px');
         case 'fontName':
@@ -169,8 +208,333 @@ export class CommandService {
     const newRange = document.createRange();
     newRange.selectNodeContents(wrapper);
     selection.addRange(newRange);
-    
+
     return true;
+  }
+
+  /**
+   * Apply a block-level format to the current selection.
+   */
+  private applyBlockFormat(tagName: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    const normalizedTag = this.normalizeBlockTag(tagName);
+    const range = selection.getRangeAt(0);
+    const currentBlock = this.findParentBlockElement(range.commonAncestorContainer);
+
+    try {
+      if (currentBlock) {
+        const currentTag = this.normalizeBlockTag(currentBlock.tagName);
+        if (currentTag === normalizedTag) {
+          return true;
+        }
+
+        const replacement = document.createElement(normalizedTag);
+        Array.from(currentBlock.attributes).forEach(attribute => {
+          replacement.setAttribute(attribute.name, attribute.value);
+        });
+        replacement.innerHTML = currentBlock.innerHTML || '<br>';
+        currentBlock.replaceWith(replacement);
+
+        const replacementRange = document.createRange();
+        replacementRange.selectNodeContents(replacement);
+        if (range.collapsed) {
+          replacementRange.collapse(false);
+        }
+
+        selection.removeAllRanges();
+        selection.addRange(replacementRange);
+        return true;
+      }
+
+      const wrapper = document.createElement(normalizedTag);
+      if (range.collapsed) {
+        wrapper.innerHTML = '<br>';
+        range.insertNode(wrapper);
+
+        const collapsedRange = document.createRange();
+        collapsedRange.selectNodeContents(wrapper);
+        collapsedRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(collapsedRange);
+        return true;
+      }
+
+      const selectedContent = range.extractContents();
+      wrapper.appendChild(selectedContent);
+      range.insertNode(wrapper);
+
+      const wrappedRange = document.createRange();
+      wrappedRange.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(wrappedRange);
+      return true;
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('applyBlockFormat', { tagName: normalizedTag }, false);
+      return false;
+    }
+  }
+
+  /**
+   * Toggle the current block between paragraph and blockquote.
+   */
+  private toggleBlockquote(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    const currentBlock = this.findParentBlockElement(range.commonAncestorContainer);
+    const currentTag = currentBlock ? this.normalizeBlockTag(currentBlock.tagName) : 'p';
+
+    return this.applyBlockFormat(currentTag === 'blockquote' ? 'p' : 'blockquote');
+  }
+
+  /**
+   * Apply line-height styling to the current block element.
+   */
+  private applyLineHeight(value: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    const blockElement = this.findParentBlockElement(range.commonAncestorContainer);
+
+    if (!blockElement) {
+      return false;
+    }
+
+    if (value === 'normal') {
+      blockElement.style.removeProperty('line-height');
+    } else {
+      blockElement.style.lineHeight = value;
+    }
+
+    return true;
+  }
+
+  /**
+   * Apply a paragraph-style preset to the current block element.
+   */
+  private applyParagraphStylePreset(
+    presetValue: string,
+    preset?: ToolOptionPreset,
+    presetOptions: ToolOption[] = []
+  ): boolean {
+    const targetTag = preset?.tagName || presetValue || 'p';
+    const blockFormatApplied = this.applyBlockFormat(targetTag);
+
+    if (!blockFormatApplied) {
+      return false;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    const blockElement = this.findParentBlockElement(range.commonAncestorContainer);
+    if (!blockElement) {
+      return false;
+    }
+
+    this.clearRelatedPresetFormatting(blockElement, presetOptions);
+    this.applyPresetToElement(blockElement, preset);
+    return true;
+  }
+
+  /**
+   * Apply an inline preset to the current selection.
+   */
+  private applyInlinePreset(
+    preset?: ToolOptionPreset,
+    presetOptions: ToolOption[] = []
+  ): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    let targetElement = this.findInlinePresetElement(range.commonAncestorContainer);
+
+    if (!targetElement) {
+      targetElement = this.wrapSelectionWithInlineElement(range, preset?.tagName || 'span');
+    }
+
+    if (!targetElement) {
+      return false;
+    }
+
+    this.clearRelatedPresetFormatting(targetElement, presetOptions);
+    this.applyPresetToElement(targetElement, preset);
+
+    const updatedRange = document.createRange();
+    updatedRange.selectNodeContents(targetElement);
+    selection.removeAllRanges();
+    selection.addRange(updatedRange);
+    return true;
+  }
+
+  /**
+   * Normalize toolbar block-format values for execCommand.
+   */
+  private normalizeFormatBlockValue(value: string): string {
+    return `<${this.normalizeBlockTag(value)}>`;
+  }
+
+  /**
+   * Normalize block tag names to safe HTML tag names.
+   */
+  private normalizeBlockTag(tagName: string): string {
+    const normalized = tagName
+      .replace(/[<>'"]/g, '')
+      .trim()
+      .toLowerCase();
+
+    if (normalized === 'normal' || normalized === 'paragraph' || normalized === 'div') {
+      return 'p';
+    }
+
+    if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].includes(normalized)) {
+      return normalized;
+    }
+
+    return 'p';
+  }
+
+  /**
+   * Apply preset classes and styles to an element.
+   */
+  private applyPresetToElement(element: HTMLElement, preset?: ToolOptionPreset): void {
+    if (!preset) {
+      return;
+    }
+
+    this.getPresetClassNames(preset).forEach(className => {
+      element.classList.add(className);
+    });
+
+    Object.entries(preset.styles || {}).forEach(([property, propertyValue]) => {
+      element.style.setProperty(this.normalizeStyleProperty(property), propertyValue);
+    });
+  }
+
+  /**
+   * Remove sibling preset classes and styles before applying the next preset.
+   */
+  private clearRelatedPresetFormatting(element: HTMLElement, presetOptions: ToolOption[]): void {
+    const presetClassNames = new Set<string>();
+    const presetStyleProperties = new Set<string>();
+
+    presetOptions.forEach(option => {
+      this.getPresetClassNames(option.preset).forEach(className => presetClassNames.add(className));
+      Object.keys(option.preset?.styles || {}).forEach(property => {
+        presetStyleProperties.add(this.normalizeStyleProperty(property));
+      });
+    });
+
+    presetClassNames.forEach(className => {
+      element.classList.remove(className);
+    });
+
+    presetStyleProperties.forEach(property => {
+      element.style.removeProperty(property);
+    });
+  }
+
+  /**
+   * Normalize preset class input into a flat list of class names.
+   */
+  private getPresetClassNames(preset?: ToolOptionPreset): string[] {
+    if (!preset?.className) {
+      return [];
+    }
+
+    const classNameList = Array.isArray(preset.className)
+      ? preset.className
+      : preset.className.split(/\s+/);
+
+    return classNameList
+      .map(className => className.trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Normalize style property names so presets can use either camelCase or kebab-case keys.
+   */
+  private normalizeStyleProperty(property: string): string {
+    return property
+      .trim()
+      .replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+      .toLowerCase();
+  }
+
+  /**
+   * Find the nearest inline element that can host preset styles without crossing block boundaries.
+   */
+  private findInlinePresetElement(node: Node): HTMLElement | null {
+    let element: Node | null = node;
+
+    while (element && element.nodeType !== Node.ELEMENT_NODE) {
+      element = element.parentNode;
+    }
+
+    while (element && element.nodeType === Node.ELEMENT_NODE) {
+      const tagName = (element as Element).tagName.toLowerCase();
+      if (tagName === 'span') {
+        return element as HTMLElement;
+      }
+
+      if (['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote'].includes(tagName)) {
+        return null;
+      }
+
+      element = element.parentNode;
+    }
+
+    return null;
+  }
+
+  /**
+   * Wrap the current range with an inline element so a preset can be applied.
+   */
+  private wrapSelectionWithInlineElement(range: Range, tagName: string): HTMLElement | null {
+    const normalizedTag = tagName
+      .replace(/[<>'"]/g, '')
+      .trim()
+      .toLowerCase() || 'span';
+
+    const wrapper = document.createElement(normalizedTag);
+    const selection = window.getSelection();
+
+    if (!selection) {
+      return null;
+    }
+
+    if (range.collapsed) {
+      wrapper.appendChild(document.createTextNode('\u00A0'));
+      range.insertNode(wrapper);
+
+      const collapsedRange = document.createRange();
+      collapsedRange.selectNodeContents(wrapper);
+      collapsedRange.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(collapsedRange);
+      return wrapper;
+    }
+
+    const selectedContent = range.extractContents();
+    wrapper.appendChild(selectedContent);
+    range.insertNode(wrapper);
+    return wrapper;
   }
 
   /**
@@ -345,6 +709,23 @@ export class CommandService {
       return true;
     } catch (error) {
       this.errorHandlerService.handleCommandError('insertImage', { src: imageData.src }, false);
+      return false;
+    }
+  }
+
+  /**
+   * Insert video embed HTML at current selection.
+   */
+  insertVideo(videoData: VideoData): boolean {
+    try {
+      const videoHtml = buildVideoEmbedHtml(videoData);
+      if (!videoHtml) {
+        return false;
+      }
+
+      return this.insertHTML(videoHtml);
+    } catch (error) {
+      this.errorHandlerService.handleCommandError('insertVideo', { url: videoData.url }, false);
       return false;
     }
   }

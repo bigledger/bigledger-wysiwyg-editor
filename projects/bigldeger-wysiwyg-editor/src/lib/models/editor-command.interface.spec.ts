@@ -133,6 +133,17 @@ describe('Editor Command Interfaces', () => {
         'italic',
         'underline',
         'strikethrough',
+        'subscript',
+        'superscript',
+        'paragraphFormat',
+        'paragraphStyle',
+        'inlineClass',
+        'inlineStyle',
+        'formatBlock',
+        'quote',
+        'lineHeight',
+        'insertVideo',
+        'fullscreen',
         'fontSize',
         'fontColor',
         'backgroundColor',
@@ -140,6 +151,7 @@ describe('Editor Command Interfaces', () => {
         'justifyCenter',
         'justifyRight',
         'justifyFull',
+        'formatOLSimple',
         'insertOrderedList',
         'insertUnorderedList',
         'indent',
@@ -160,12 +172,12 @@ describe('Editor Command Interfaces', () => {
         expect(command.name).toBe(commandName);
       });
 
-      expect(validCommands.length).toBe(24);
+      expect(validCommands.length).toBe(36);
     });
 
     it('should validate formatting commands', () => {
       const formattingCommands: EditorCommandName[] = [
-        'bold', 'italic', 'underline', 'strikethrough'
+        'bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript'
       ];
 
       formattingCommands.forEach(cmd => {

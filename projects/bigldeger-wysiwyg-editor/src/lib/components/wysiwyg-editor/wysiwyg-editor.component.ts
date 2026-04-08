@@ -8,7 +8,14 @@ import { takeUntil } from 'rxjs/operators';
 import { ToolbarComponent } from '../toolbar/toolbar.component';
 import { EditorContentComponent } from '../editor-content/editor-content.component';
 import { LinkData } from '../dialogs/link-dialog/link-dialog.component';
-import { ImageData } from '../../models/image.interface';
+import {
+  ImageData,
+  ImageUploadConfig,
+  createImageUploadConfig,
+  createImageUploadHandler,
+  validateImageUploadConfig
+} from '../../models/image.interface';
+import { VideoData, buildVideoEmbedHtml } from '../../models/video.interface';
 import { ColorData } from '../dialogs/color-picker-dialog/color-picker-dialog.component';
 import { TableData } from '../../models/table.interface';
 import { LazyLoaderService } from '../../services/lazy-loader.service';
@@ -38,7 +45,10 @@ import { getToolbarIconMarkup } from '../toolbar/toolbar-icons';
     }
   ],
   template: `
-    <div class="wysiwyg-editor" [class.wysiwyg-editor--readonly]="readonly">
+    <div
+      class="wysiwyg-editor"
+      [class.wysiwyg-editor--readonly]="readonly"
+      [class.wysiwyg-editor--fullscreen]="isFullscreen">
       <div *ngIf="showModeToggleInChrome" class="wysiwyg-editor__chrome">
         <div class="wysiwyg-editor__chrome-meta">
           <span class="wysiwyg-editor__chrome-label">Editor Mode</span>
@@ -78,13 +88,26 @@ import { getToolbarIconMarkup } from '../toolbar/toolbar-icons';
             [content]="content"
             [placeholder]="placeholder"
             [readonly]="readonly"
-            [height]="height"
+            [height]="getEditorContentHeight()"
+            [minHeight]="getEditorContentMinHeight()"
+            [maxHeight]="getEditorContentMaxHeight()"
             [htmlMode]="isHtmlMode"
             (contentChange)="onContentChange($event)"
             (selectionChange)="onSelectionChange($event)"
             (blurEvent)="onBlur($event)">
           </wysiwyg-editor-content>
         </div>
+      </div>
+
+      <div *ngIf="showCharCounter" class="wysiwyg-editor__footer">
+        <span class="wysiwyg-editor__footer-label">Characters</span>
+        <span
+          class="wysiwyg-editor__footer-count"
+          [class.wysiwyg-editor__footer-count--warning]="isCharacterLimitNear()"
+          [class.wysiwyg-editor__footer-count--danger]="isCharacterLimitExceeded()">
+          {{ characterCount }}
+          <ng-container *ngIf="maxCharacters !== null"> / {{ maxCharacters }}</ng-container>
+        </span>
       </div>
 
       <!-- Dynamic dialog container -->
@@ -97,6 +120,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   @Input() placeholder = '';
   @Input() readonly = false;
   @Input() height = '300px';
+  @Input() minHeight = '100px';
+  @Input() maxHeight = '600px';
+  @Input() showCharCounter = false;
+  @Input() maxCharacters: number | null = null;
 
   @Input()
   set toolbarConfig(value: ToolbarConfig | null) {
@@ -109,6 +136,15 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     return this._toolbarConfig;
   }
 
+  @Input()
+  set imageUpload(value: ImageUploadConfig | null) {
+    this._imageUpload = this.normalizeImageUploadConfig(value);
+  }
+
+  get imageUpload(): ImageUploadConfig {
+    return this._imageUpload;
+  }
+
   @Output() contentChange = new EventEmitter<string>();
   @Output() selectionChange = new EventEmitter<SelectionState>();
 
@@ -116,9 +152,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   @ViewChild(EditorContentComponent) editorContent!: EditorContentComponent;
 
   private _toolbarConfig: ToolbarConfig = this.getDefaultToolbarConfig();
+  private _imageUpload: ImageUploadConfig = createImageUploadConfig();
   content = '';
+  characterCount = 0;
   currentSelection: SelectionState | null = null;
   isHtmlMode = false;
+  isFullscreen = false;
   visibleToolbarConfig: ToolbarConfig = this.createVisibleToolbarConfig(this._toolbarConfig);
   showModeToggleInChrome = this.hasModeToggleTool(this._toolbarConfig);
 
@@ -128,23 +167,29 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   // Dialog visibility state
   linkDialogVisible = false;
   imageDialogVisible = false;
+  videoDialogVisible = false;
   colorPickerDialogVisible = false;
   tableDialogVisible = false;
 
   // Dialog state
   private linkDialogRef: ComponentRef<any> | null = null;
   private imageDialogRef: ComponentRef<any> | null = null;
+  private videoDialogRef: ComponentRef<any> | null = null;
   private colorPickerDialogRef: ComponentRef<any> | null = null;
   private tableDialogRef: ComponentRef<any> | null = null;
   private currentLinkData: LinkData | null = null;
   private isEditingLink = false;
   private currentImageData: ImageData | null = null;
   private isEditingImage = false;
+  private currentVideoData: VideoData | null = null;
+  private isEditingVideo = false;
   private currentColorType: 'text' | 'background' = 'text';
   private currentTableData: TableData | null = null;
   private isEditingTable = false;
   private isInsertingNestedTable = false;
   private pendingDialogSelection: SelectionState | null = null;
+  private previousBodyOverflow = '';
+  private boundFullscreenKeydownHandler!: (event: KeyboardEvent) => void;
 
   private destroy$ = new Subject<void>();
   private onChange = (value: string) => { };
@@ -198,6 +243,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     
     // Listen for nested table insertion events
     document.addEventListener('insert-nested-table', this.handleNestedTableRequest.bind(this));
+
+    this.boundFullscreenKeydownHandler = this.handleFullscreenKeydown.bind(this);
+    document.addEventListener('keydown', this.boundFullscreenKeydownHandler);
   }
 
   ngOnDestroy(): void {
@@ -207,11 +255,15 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     // Clean up dialog references
     this.closeLinkDialog();
     this.closeImageDialog();
+    this.closeVideoDialog();
     this.closeColorPickerDialog();
     this.closeTableDialog();
 
     // Remove nested table event listener
     document.removeEventListener('insert-nested-table', this.handleNestedTableRequest.bind(this));
+    document.removeEventListener('keydown', this.boundFullscreenKeydownHandler);
+
+    this.applyFullscreenState(false);
 
     // Stop performance monitoring and log summary
     this.performanceMonitor.stopMonitoring();
@@ -249,6 +301,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       case 'insertImage':
         this.showImageDialog();
         break;
+      case 'insertVideo':
+        this.showVideoDialog();
+        break;
       case 'insertTable':
         this.showTableDialog();
         break;
@@ -260,6 +315,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         break;
       case 'toggleHtmlView':
         this.toggleHtmlView();
+        break;
+      case 'fullscreen':
+        this.toggleFullscreen();
         break;
       default:
         this.executeCommand(command);
@@ -278,6 +336,15 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.isHtmlMode = !this.isHtmlMode;
     // Update selection state to reflect the new HTML mode
     this.updateSelectionState();
+  }
+
+  private toggleFullscreen(): void {
+    this.applyFullscreenState(!this.isFullscreen);
+    this.updateSelectionState();
+
+    setTimeout(() => {
+      this.editorContent?.focusElement();
+    }, 0);
   }
 
   getModeToggleLabel(): string {
@@ -492,6 +559,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         this.imageDialogRef.instance.visible = true;
         this.imageDialogRef.instance.imageData = this.currentImageData;
         this.imageDialogRef.instance.isEditing = this.isEditingImage;
+        this.applyImageDialogConfig(this.imageDialogRef.instance);
+        this.imageDialogRef.changeDetectorRef.detectChanges();
 
         // Subscribe to component outputs
         this.imageDialogRef.instance.imageCreated.subscribe((imageData: ImageData) => {
@@ -513,6 +582,46 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   }
 
   /**
+   * Show video dialog (lazy loaded).
+   */
+  private async showVideoDialog(): Promise<void> {
+    if (this.videoDialogRef) {
+      return;
+    }
+
+    try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+      this.restoreEditorSelection(savedSelection);
+
+      this.videoDialogVisible = true;
+      this.currentVideoData = null;
+      this.isEditingVideo = false;
+
+      this.performanceMonitor.startBenchmark('videoDialogLoad');
+      this.videoDialogRef = await this.lazyLoaderService.loadDialogComponent('video', this.dialogContainer);
+      this.performanceMonitor.endBenchmark('videoDialogLoad');
+
+      if (this.videoDialogRef) {
+        this.videoDialogRef.instance.visible = true;
+        this.videoDialogRef.instance.videoData = this.currentVideoData;
+        this.videoDialogRef.instance.isEditing = this.isEditingVideo;
+
+        this.videoDialogRef.instance.videoCreated.subscribe((videoData: VideoData) => {
+          this.onVideoCreated(videoData);
+        });
+
+        this.videoDialogRef.instance.dialogClosed.subscribe(() => {
+          this.onVideoDialogClosed();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load video dialog:', error);
+      this.videoDialogVisible = false;
+    }
+  }
+
+  /**
    * Handle image creation/update
    */
   onImageCreated(imageData: ImageData): void {
@@ -526,6 +635,48 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
     this.updateSelectionState();
     this.emitContentChange();
+  }
+
+  /**
+   * Handle video insertion.
+   */
+  onVideoCreated(videoData: VideoData): void {
+    const videoHtml = buildVideoEmbedHtml(videoData);
+    if (!videoHtml) {
+      this.closeVideoDialog();
+      return;
+    }
+
+    if (this.isHtmlMode) {
+      this.insertHtmlModeContent(videoHtml);
+      this.closeVideoDialog();
+      this.updateSelectionState();
+      return;
+    }
+
+    this.restoreEditorSelection(this.pendingDialogSelection);
+
+    if (this.editorContent) {
+      this.editorContent.insertContent(videoHtml);
+
+      setTimeout(() => {
+        if (this.editorContent?.contentArea?.nativeElement) {
+          this.content = this.editorContent.contentArea.nativeElement.innerHTML;
+          this.syncCharacterCount();
+          this.onChange(this.content);
+          this.contentChange.emit(this.content);
+        }
+        this.updateSelectionState();
+      }, 10);
+    } else {
+      const success = this.commandService.insertVideo(videoData);
+      if (success) {
+        this.updateSelectionState();
+        this.emitContentChange();
+      }
+    }
+
+    this.closeVideoDialog();
   }
 
   /**
@@ -566,6 +717,27 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.imageDialogVisible = false;
     this.currentImageData = null;
     this.isEditingImage = false;
+    this.pendingDialogSelection = null;
+  }
+
+  /**
+   * Handle video dialog closed event.
+   */
+  onVideoDialogClosed(): void {
+    this.closeVideoDialog();
+  }
+
+  /**
+   * Close video dialog and clean up.
+   */
+  private closeVideoDialog(): void {
+    if (this.videoDialogRef) {
+      this.videoDialogRef.destroy();
+      this.videoDialogRef = null;
+    }
+    this.videoDialogVisible = false;
+    this.currentVideoData = null;
+    this.isEditingVideo = false;
     this.pendingDialogSelection = null;
   }
 
@@ -729,6 +901,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
           setTimeout(() => {
             if (this.editorContent?.contentArea?.nativeElement) {
               this.content = this.editorContent.contentArea.nativeElement.innerHTML;
+              this.syncCharacterCount();
               this.onChange(this.content);
               this.contentChange.emit(this.content);
             }
@@ -749,6 +922,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
         // Update content model
         this.content = newContent;
+        this.syncCharacterCount();
         this.onChange(newContent);
         this.contentChange.emit(newContent);
 
@@ -767,6 +941,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
           setTimeout(() => {
             if (this.editorContent?.contentArea?.nativeElement) {
               this.content = this.editorContent.contentArea.nativeElement.innerHTML;
+              this.syncCharacterCount();
               this.onChange(this.content);
               this.contentChange.emit(this.content);
             }
@@ -779,6 +954,69 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     setTimeout(() => {
       this.updateSelectionState();
     }, 50);
+  }
+
+  /**
+   * Append generated HTML directly into HTML mode content.
+   */
+  private insertHtmlModeContent(html: string): void {
+    const currentContent = this.content || '';
+    const newContent = currentContent + (currentContent ? '\n' : '') + html;
+
+    this.content = newContent;
+    this.syncCharacterCount();
+    this.onChange(newContent);
+    this.contentChange.emit(newContent);
+
+    setTimeout(() => {
+      if (this.editorContent?.htmlTextarea?.nativeElement) {
+        this.editorContent.htmlTextarea.nativeElement.value = newContent;
+      }
+    }, 0);
+  }
+
+  /**
+   * Applies the public image upload configuration to the lazy-loaded image dialog.
+   */
+  private applyImageDialogConfig(dialogInstance: {
+    uploadHandler?: (file: File) => Promise<string>;
+    allowUrlInput?: boolean;
+    allowFileUpload?: boolean;
+    maxFileSize?: number;
+    supportedFormats?: string[];
+    maxWidth?: number;
+    maxHeight?: number;
+    autoResize?: boolean;
+    quality?: number;
+  }): void {
+    const imageUploadConfig = this.imageUpload;
+
+    dialogInstance.uploadHandler = createImageUploadHandler(imageUploadConfig);
+    dialogInstance.allowUrlInput = imageUploadConfig.allowUrlInput;
+    dialogInstance.allowFileUpload = imageUploadConfig.allowFileUpload;
+    dialogInstance.maxFileSize = imageUploadConfig.maxFileSize;
+    dialogInstance.supportedFormats = [...(imageUploadConfig.allowedFormats || [])];
+    dialogInstance.maxWidth = imageUploadConfig.maxWidth;
+    dialogInstance.maxHeight = imageUploadConfig.maxHeight;
+    dialogInstance.autoResize = imageUploadConfig.autoResize;
+    dialogInstance.quality = imageUploadConfig.quality;
+  }
+
+  /**
+   * Validates and normalizes the public image upload config.
+   */
+  private normalizeImageUploadConfig(config: ImageUploadConfig | null): ImageUploadConfig {
+    const nextConfig = config || {};
+    const validationResult = validateImageUploadConfig(nextConfig);
+
+    if (!validationResult.isValid) {
+      console.warn(
+        `Invalid image upload configuration supplied to wysiwyg-editor: ${validationResult.error}. Falling back to defaults.`
+      );
+      return createImageUploadConfig();
+    }
+
+    return createImageUploadConfig(nextConfig);
   }
 
   /**
@@ -881,6 +1119,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Private method for content change handling with debouncing
    */
   private emitContentChange(): void {
+    this.syncCharacterCount();
+
     // Detect if content has actually changed
     if (this.hasContentChanged()) {
       // Emit to debounce service for internal processing
@@ -915,8 +1155,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     // Add HTML mode state to selection
     this.currentSelection = {
       ...selection,
-      htmlMode: this.isHtmlMode
-    } as any;
+      htmlMode: this.isHtmlMode,
+      fullscreenMode: this.isFullscreen
+    };
     if (this.currentSelection) {
       this.selectionChange.emit(this.currentSelection);
     }
@@ -938,7 +1179,26 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     const selection = this.selectionService.saveSelection();
     if (selection) {
       this.onSelectionChange(selection);
+      return;
     }
+
+    this.currentSelection = {
+      range: null,
+      collapsed: true,
+      formats: this.currentSelection?.formats || {
+        bold: false,
+        italic: false,
+        underline: false,
+        fontSize: '',
+        fontFamily: '',
+        fontColor: '',
+        backgroundColor: '',
+        alignment: 'left'
+      },
+      htmlMode: this.isHtmlMode,
+      fullscreenMode: this.isFullscreen
+    };
+    this.selectionChange.emit(this.currentSelection);
   }
 
   /**
@@ -984,6 +1244,60 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.editorContent?.focusElement();
     this.selectionService.restoreSelection(selection);
     return true;
+  }
+
+  /**
+   * Adjusts editor shell state for fullscreen mode and restores body scrolling on exit.
+   */
+  private applyFullscreenState(nextState: boolean): void {
+    if (this.isFullscreen === nextState) {
+      return;
+    }
+
+    this.isFullscreen = nextState;
+
+    if (nextState) {
+      this.previousBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = this.previousBodyOverflow;
+    }
+  }
+
+  /**
+   * Exits fullscreen with Escape for a more editor-like flow.
+   */
+  private handleFullscreenKeydown(event: KeyboardEvent): void {
+    if (!this.isFullscreen || event.key !== 'Escape') {
+      return;
+    }
+
+    event.preventDefault();
+    this.applyFullscreenState(false);
+    this.updateSelectionState();
+  }
+
+  /**
+   * Provides a flexible content height that can expand fully in fullscreen mode.
+   */
+  getEditorContentHeight(): string {
+    return this.isFullscreen ? '100%' : this.height;
+  }
+
+  getEditorContentMinHeight(): string {
+    return this.isFullscreen ? '0' : this.minHeight;
+  }
+
+  getEditorContentMaxHeight(): string {
+    return this.isFullscreen ? '100%' : this.maxHeight;
+  }
+
+  isCharacterLimitNear(): boolean {
+    return this.maxCharacters !== null && this.characterCount >= Math.floor(this.maxCharacters * 0.9);
+  }
+
+  isCharacterLimitExceeded(): boolean {
+    return this.maxCharacters !== null && this.characterCount > this.maxCharacters;
   }
 
   /**
@@ -1037,12 +1351,39 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         { type: 'button', command: 'italic', icon: 'italic', label: 'Italic' },
         { type: 'button', command: 'underline', icon: 'underline', label: 'Underline' },
         { type: 'button', command: 'strikethrough', icon: 'strikethrough', label: 'Strikethrough' },
+        { type: 'button', command: 'subscript', icon: 'subscript', label: 'Subscript' },
+        { type: 'button', command: 'superscript', icon: 'superscript', label: 'Superscript' },
+        {
+          type: 'dropdown',
+          command: 'paragraphFormat',
+          label: 'Normal',
+          separatorBefore: true,
+          options: [
+            { value: 'p', label: 'Normal' },
+            { value: 'h1', label: 'Heading 1' },
+            { value: 'h2', label: 'Heading 2' },
+            { value: 'h3', label: 'Heading 3' },
+            { value: 'h4', label: 'Heading 4' }
+          ]
+        },
+        { type: 'button', command: 'quote', icon: 'quote', label: 'Quote' },
+        {
+          type: 'dropdown',
+          command: 'lineHeight',
+          label: 'Line Height',
+          options: [
+            { value: 'normal', label: 'Normal' },
+            { value: '1', label: '1.0' },
+            { value: '1.15', label: '1.15' },
+            { value: '1.5', label: '1.5' },
+            { value: '2', label: '2.0' }
+          ]
+        },
         {
           type: 'dropdown',
           command: 'fontSize',
           icon: 'fontSize',
           label: 'Font Size',
-          separatorBefore: true,
           options: [
             { value: '12px', label: '12px' },
             { value: '14px', label: '14px' },
@@ -1063,8 +1404,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link', separatorBefore: true },
         { type: 'button', command: 'unlink', icon: 'unlink', label: 'Remove Link' },
         { type: 'dialog', command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
+        { type: 'dialog', command: 'insertVideo', icon: 'insertVideo', label: 'Insert Video' },
         { type: 'dialog', command: 'insertTable', icon: 'insertTable', label: 'Insert Table' },
         { type: 'button', command: 'removeFormat', icon: 'removeFormat', label: 'Clear Formatting', separatorBefore: true },
+        { type: 'button', command: 'fullscreen', icon: 'fullscreen', label: 'Fullscreen' },
         { type: 'button', command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View', separatorBefore: true },
         { type: 'button', command: 'undo', icon: 'undo', label: 'Undo' },
         { type: 'button', command: 'redo', icon: 'redo', label: 'Redo' }
@@ -1102,6 +1445,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   writeValue(value: string | null): void {
     this.content = value || '';
     this.lastKnownContent = this.content;
+    this.syncCharacterCount();
   }
 
   registerOnChange(fn: (value: string) => void): void {
@@ -1125,7 +1469,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       'bold', 'italic', 'underline', 'strikethrough',
       'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull',
       'insertUnorderedList', 'insertOrderedList',
-      'createLink', 'insertImage', 'undo', 'redo'
+      'createLink', 'insertImage', 'insertVideo', 'fullscreen', 'undo', 'redo'
     ];
 
     // This would preload actual icon assets in a real implementation
@@ -1148,5 +1492,35 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    */
   getPerformanceMetrics() {
     return this.performanceMonitor.exportPerformanceData();
+  }
+
+  /**
+   * Updates the plain-text character count used by the optional footer counter.
+   */
+  private syncCharacterCount(): void {
+    this.characterCount = this.getPlainTextContent(this.content).length;
+  }
+
+  /**
+   * Converts editor HTML into plain text for char counting without counting markup.
+   */
+  private getPlainTextContent(content: string): string {
+    if (!content) {
+      return '';
+    }
+
+    if (typeof document !== 'undefined') {
+      const container = document.createElement('div');
+      container.innerHTML = content;
+      return (container.textContent || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/\r?\n/g, '\n');
+    }
+
+    return content
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .trim();
   }
 }

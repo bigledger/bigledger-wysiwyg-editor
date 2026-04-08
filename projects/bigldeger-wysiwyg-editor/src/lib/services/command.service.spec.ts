@@ -149,6 +149,188 @@ describe('CommandService', () => {
       expect(result).toBe(true);
       expect(window.getSelection).toHaveBeenCalled();
     });
+
+    it('should normalize paragraph format commands to formatBlock', () => {
+      const command: EditorCommand = { name: 'paragraphFormat' };
+
+      const result = service.executeCommand(command, 'h2');
+
+      expect(result).toBe(true);
+      expect(document.execCommand).toHaveBeenCalledWith('formatBlock', false, '<h2>');
+    });
+
+    it('should insert generated video embed HTML', () => {
+      const result = service.insertVideo({
+        url: 'https://youtu.be/dQw4w9WgXcQ',
+        title: 'Demo video'
+      });
+
+      expect(result).toBe(true);
+      expect(document.execCommand).toHaveBeenCalledWith(
+        'insertHTML',
+        false,
+        jasmine.stringMatching(/youtube\.com\/embed\/dQw4w9WgXcQ/)
+      );
+    });
+
+    it('should toggle quote commands using blockquote formatting', () => {
+      const command: EditorCommand = { name: 'quote' };
+      const block = document.createElement('p');
+      const range = {
+        commonAncestorContainer: block
+      };
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+      spyOn<any>(service, 'findParentBlockElement').and.returnValue(block);
+      spyOn<any>(service, 'applyBlockFormat').and.returnValue(true);
+
+      const result = service.executeCommand(command);
+
+      expect(result).toBe(true);
+      expect(service['applyBlockFormat']).toHaveBeenCalledWith('blockquote');
+    });
+
+    it('should apply line-height styling to the current block element', () => {
+      const command: EditorCommand = { name: 'lineHeight' };
+      const block = document.createElement('p');
+      const range = {
+        commonAncestorContainer: block
+      };
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+      spyOn<any>(service, 'findParentBlockElement').and.returnValue(block);
+
+      const result = service.executeCommand(command, '1.5');
+
+      expect(result).toBe(true);
+      expect(block.style.lineHeight).toBe('1.5');
+    });
+
+    it('should map formatOLSimple to the normal ordered-list command', () => {
+      const command: EditorCommand = { name: 'formatOLSimple' };
+
+      const result = service.executeCommand(command);
+
+      expect(result).toBe(true);
+      expect(document.execCommand).toHaveBeenCalledWith('insertOrderedList', false, undefined);
+    });
+
+    it('should apply paragraph-style preset metadata to the current block element', () => {
+      const command: EditorCommand = {
+        name: 'paragraphStyle',
+        options: {
+          params: {
+            preset: {
+              tagName: 'p',
+              className: 'lead-copy',
+              styles: {
+                fontSize: '18px',
+                lineHeight: '1.8'
+              }
+            },
+            presetOptions: [
+              {
+                value: 'standard',
+                label: 'Standard',
+                preset: { tagName: 'p' }
+              },
+              {
+                value: 'lead',
+                label: 'Lead',
+                preset: {
+                  tagName: 'p',
+                  className: 'lead-copy',
+                  styles: {
+                    fontSize: '18px',
+                    lineHeight: '1.8'
+                  }
+                }
+              }
+            ]
+          }
+        }
+      };
+      const block = document.createElement('p');
+      const range = {
+        commonAncestorContainer: block
+      };
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+      spyOn<any>(service, 'applyBlockFormat').and.returnValue(true);
+      spyOn<any>(service, 'findParentBlockElement').and.returnValue(block);
+
+      const result = service.executeCommand(command, 'lead');
+
+      expect(result).toBe(true);
+      expect(service['applyBlockFormat']).toHaveBeenCalledWith('p');
+      expect(block.classList.contains('lead-copy')).toBeTrue();
+      expect(block.style.fontSize).toBe('18px');
+      expect(block.style.lineHeight).toBe('1.8');
+    });
+
+    it('should apply inline-style preset metadata to a wrapped span', () => {
+      const command: EditorCommand = {
+        name: 'inlineStyle',
+        options: {
+          params: {
+            preset: {
+              styles: {
+                color: '#0f766e',
+                fontWeight: '600'
+              }
+            },
+            presetOptions: [
+              {
+                value: 'accent',
+                label: 'Accent',
+                preset: {
+                  styles: {
+                    color: '#0f766e',
+                    fontWeight: '600'
+                  }
+                }
+              }
+            ]
+          }
+        }
+      };
+      const container = document.createElement('p');
+      const textNode = document.createTextNode('Inline preset');
+      container.appendChild(textNode);
+      document.body.appendChild(container);
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range),
+        removeAllRanges: jasmine.createSpy('removeAllRanges'),
+        addRange: jasmine.createSpy('addRange')
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+      spyOn<any>(service, 'findInlinePresetElement').and.returnValue(null);
+
+      const result = service.executeCommand(command);
+
+      expect(result).toBe(true);
+      const insertedWrapper = (range.startContainer.parentNode as HTMLElement);
+      expect(insertedWrapper.tagName.toLowerCase()).toBe('span');
+      expect(insertedWrapper.style.color).not.toBe('');
+      expect(insertedWrapper.style.fontWeight).toBe('600');
+      container.remove();
+    });
   });
 
   describe('command query methods', () => {

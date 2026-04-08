@@ -41,9 +41,27 @@ export interface ImageUploadConfig {
   
   /** Upload URL endpoint for server-side uploads */
   uploadUrl?: string;
+
+  /** HTTP method to use for endpoint uploads (default: POST) */
+  uploadMethod?: 'POST' | 'PUT';
+
+  /** Multipart field name used for the uploaded file (default: file) */
+  uploadFieldName?: string;
   
   /** Additional headers to send with upload requests */
   uploadHeaders?: { [key: string]: string };
+
+  /** Extra multipart form fields to append during upload */
+  uploadParams?: { [key: string]: string };
+
+  /** Include credentials/cookies with endpoint uploads */
+  withCredentials?: boolean;
+
+  /** Dot-path to the uploaded image URL in the server response */
+  responseUrlPath?: string;
+
+  /** Custom extractor for reading the uploaded image URL from the response */
+  responseUrlExtractor?: (response: unknown) => string | null;
   
   /** Maximum image width in pixels */
   maxWidth?: number;
@@ -92,11 +110,17 @@ export interface ImageResizeOptions {
 /**
  * Default image upload configuration
  */
-export const DEFAULT_IMAGE_UPLOAD_CONFIG: Required<Omit<ImageUploadConfig, 'uploadHandler' | 'uploadUrl' | 'uploadHeaders'>> = {
+export const DEFAULT_IMAGE_UPLOAD_CONFIG: Required<Omit<
+  ImageUploadConfig,
+  'uploadHandler' | 'uploadUrl' | 'uploadHeaders' | 'uploadParams' | 'responseUrlPath' | 'responseUrlExtractor'
+>> = {
   maxFileSize: 5 * 1024 * 1024, // 5MB
   allowedFormats: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
   allowUrlInput: true,
   allowFileUpload: true,
+  uploadMethod: 'POST',
+  uploadFieldName: 'file',
+  withCredentials: false,
   maxWidth: 2000,
   maxHeight: 2000,
   autoResize: false,
@@ -199,6 +223,27 @@ export function validateImageUploadConfig(config: ImageUploadConfig): ImageValid
     }
   }
 
+  if (config.uploadMethod !== undefined && config.uploadMethod !== 'POST' && config.uploadMethod !== 'PUT') {
+    return {
+      isValid: false,
+      error: 'uploadMethod must be POST or PUT'
+    };
+  }
+
+  if (config.uploadFieldName !== undefined && config.uploadFieldName.trim().length === 0) {
+    return {
+      isValid: false,
+      error: 'uploadFieldName must be a non-empty string'
+    };
+  }
+
+  if (config.responseUrlPath !== undefined && config.responseUrlPath.trim().length === 0) {
+    return {
+      isValid: false,
+      error: 'responseUrlPath must be a non-empty string'
+    };
+  }
+
   // Check that at least one input method is enabled
   if (config.allowUrlInput === false && config.allowFileUpload === false) {
     return {
@@ -255,5 +300,130 @@ export function createImageUploadConfig(config: ImageUploadConfig = {}): ImageUp
   return {
     ...DEFAULT_IMAGE_UPLOAD_CONFIG,
     ...config
+  };
+}
+
+/**
+ * Extracts the uploaded image URL from a server response.
+ * Supports common response shapes such as `{ link }`, `{ url }`, and nested data.
+ */
+export function extractImageUploadUrl(
+  response: unknown,
+  responseUrlPath?: string,
+  responseUrlExtractor?: (response: unknown) => string | null
+): string | null {
+  const customValue = responseUrlExtractor?.(response);
+  if (typeof customValue === 'string' && customValue.trim()) {
+    return customValue.trim();
+  }
+
+  if (typeof response === 'string' && response.trim()) {
+    return response.trim();
+  }
+
+  if (!response || typeof response !== 'object') {
+    return null;
+  }
+
+  const lookupObject = response as Record<string, unknown>;
+
+  if (responseUrlPath) {
+    const resolvedPathValue = responseUrlPath
+      .split('.')
+      .filter(Boolean)
+      .reduce<unknown>((currentValue, pathSegment) => {
+        if (!currentValue || typeof currentValue !== 'object') {
+          return undefined;
+        }
+
+        return (currentValue as Record<string, unknown>)[pathSegment];
+      }, lookupObject);
+
+    if (typeof resolvedPathValue === 'string' && resolvedPathValue.trim()) {
+      return resolvedPathValue.trim();
+    }
+  }
+
+  const commonResponseKeys = [
+    'link',
+    'url',
+    'src',
+    'location',
+    'secure_url'
+  ];
+
+  for (const responseKey of commonResponseKeys) {
+    const value = lookupObject[responseKey];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  for (const nestedKey of ['data', 'result', 'image']) {
+    const nestedValue = lookupObject[nestedKey];
+    if (!nestedValue || typeof nestedValue !== 'object') {
+      continue;
+    }
+
+    const nestedUrl = extractImageUploadUrl(nestedValue);
+    if (nestedUrl) {
+      return nestedUrl;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Creates an upload handler from the provided config.
+ * Host apps can either pass a custom async handler or an upload endpoint.
+ */
+export function createImageUploadHandler(config: ImageUploadConfig = {}): ((file: File) => Promise<string>) | undefined {
+  if (config.uploadHandler) {
+    return config.uploadHandler;
+  }
+
+  if (!config.uploadUrl) {
+    return undefined;
+  }
+
+  const mergedConfig = createImageUploadConfig(config);
+
+  return async (file: File): Promise<string> => {
+    const formData = new FormData();
+    const uploadFieldName = mergedConfig.uploadFieldName || DEFAULT_IMAGE_UPLOAD_CONFIG.uploadFieldName;
+    formData.append(uploadFieldName, file, file.name);
+
+    Object.entries(mergedConfig.uploadParams || {}).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+
+    const response = await fetch(mergedConfig.uploadUrl as string, {
+      method: mergedConfig.uploadMethod,
+      headers: mergedConfig.uploadHeaders,
+      body: formData,
+      ...(mergedConfig.withCredentials ? { credentials: 'include' } : {})
+    });
+
+    if (!response.ok) {
+      throw new Error(`Image upload failed with status ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const responseBody = contentType.includes('json')
+      ? await response.json()
+      : await response.text();
+
+    const uploadedUrl = extractImageUploadUrl(
+      responseBody,
+      mergedConfig.responseUrlPath,
+      mergedConfig.responseUrlExtractor
+    );
+
+    if (!uploadedUrl) {
+      throw new Error('Image upload succeeded but no image URL was returned by the server');
+    }
+
+    return uploadedUrl;
   };
 }

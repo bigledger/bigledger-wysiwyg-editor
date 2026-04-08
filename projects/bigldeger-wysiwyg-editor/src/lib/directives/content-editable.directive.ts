@@ -307,7 +307,13 @@ export class ContentEditableDirective implements OnInit, OnDestroy {
 
   private removeUnwantedAttributes(): void {
     const element = this.elementRef.nativeElement;
-    const allowedAttributes = ['style', 'class', 'href', 'src', 'alt', 'title'];
+    const allowedAttributes = [
+      'style', 'class', 'href', 'src', 'alt', 'title', 'target', 'rel',
+      'width', 'height', 'controls', 'playsinline', 'preload', 'poster',
+      'allow', 'allowfullscreen', 'frameborder', 'referrerpolicy', 'loading',
+      'colspan', 'rowspan', 'cellpadding', 'cellspacing', 'border',
+      'contenteditable'
+    ];
     
     // Remove unwanted attributes from all elements
     const allElements = element.querySelectorAll('*');
