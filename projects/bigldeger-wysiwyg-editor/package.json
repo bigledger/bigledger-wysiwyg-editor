@@ -1,16 +1,16 @@
 {
   "name": "@bigledger/wysiwyg-editor",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A rich text WYSIWYG editor component for Angular applications with comprehensive formatting tools, image support, and forms integration",
   "keywords": [
-    "angular", 
-    "wysiwyg", 
-    "editor", 
-    "rich-text", 
-    "text-editor", 
-    "contenteditable", 
-    "formatting", 
-    "toolbar", 
+    "angular",
+    "wysiwyg",
+    "editor",
+    "rich-text",
+    "text-editor",
+    "contenteditable",
+    "formatting",
+    "toolbar",
     "html-editor",
     "angular-component",
     "typescript"
@@ -19,32 +19,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bigledger/wysiwyg-editor.git"
+    "url": "git+https://github.com/bigledger/wysiwyg-editor.git"
   },
   "homepage": "https://github.com/bigledger/wysiwyg-editor#readme",
   "bugs": {
     "url": "https://github.com/bigledger/wysiwyg-editor/issues"
-  },
-  "main": "bundles/bigldeger-wysiwyg-editor.umd.js",
-  "module": "fesm2022/bigldeger-wysiwyg-editor.mjs",
-  "es2020": "fesm2020/bigldeger-wysiwyg-editor.mjs",
-  "esm2020": "esm2020/bigldeger-wysiwyg-editor.mjs",
-  "fesm2020": "fesm2020/bigldeger-wysiwyg-editor.mjs",
-  "fesm2022": "fesm2022/bigldeger-wysiwyg-editor.mjs",
-  "typings": "index.d.ts",
-  "exports": {
-    "./package.json": {
-      "default": "./package.json"
-    },
-    ".": {
-      "types": "./index.d.ts",
-      "esm2022": "./esm2022/bigldeger-wysiwyg-editor.mjs",
-      "esm2020": "./esm2020/bigldeger-wysiwyg-editor.mjs",
-      "es2020": "./fesm2020/bigldeger-wysiwyg-editor.mjs",
-      "es2015": "./fesm2015/bigldeger-wysiwyg-editor.mjs",
-      "node": "./fesm2015/bigldeger-wysiwyg-editor.mjs",
-      "default": "./fesm2022/bigldeger-wysiwyg-editor.mjs"
-    }
   },
   "peerDependencies": {
     "@angular/common": ">=15.0.0",
