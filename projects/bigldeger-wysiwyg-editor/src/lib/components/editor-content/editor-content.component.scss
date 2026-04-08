@@ -8,10 +8,10 @@
   width: 100%;
   flex: 1;
   margin: 0;
-  padding: var(--wysiwyg-spacing-md);
+  padding: 18px 20px;
   border: none;
   outline: none;
-  background: transparent;
+  background: #fff;
   color: inherit;
   font-family: inherit;
   font-size: inherit;
@@ -38,11 +38,11 @@
   width: 100%;
   flex: 1;
   margin: 0;
-  padding: var(--wysiwyg-spacing-md);
+  padding: 18px 20px;
   border: none;
   outline: none;
-  background: var(--wysiwyg-code-bg, #f5f5f5);
-  color: var(--wysiwyg-code-color, #333);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  color: var(--wysiwyg-code-color, #334155);
   font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
@@ -58,7 +58,7 @@
   @include wysiwyg-scrollbar;
 
   &:focus {
-    background: var(--wysiwyg-code-focus-bg, #fff);
+    background: #fff;
   }
 
   &[readonly] {

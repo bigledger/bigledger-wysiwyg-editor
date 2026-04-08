@@ -1,6 +1,8 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToolbarTool, ToolOption } from '../../models/toolbar.interface';
+import { getToolbarIconMarkup } from './toolbar-icons';
 
 /**
  * Dropdown component for font size, color, and other options
@@ -36,7 +38,7 @@ import { ToolbarTool, ToolOption } from '../../models/toolbar.interface';
         <span 
           *ngIf="tool?.icon" 
           class="wysiwyg-toolbar-dropdown__icon"
-          [innerHTML]="getIcon()"
+          [innerHTML]="getSafeIcon()"
           aria-hidden="true">
         </span>
         
@@ -85,7 +87,7 @@ import { ToolbarTool, ToolOption } from '../../models/toolbar.interface';
           <span 
             *ngIf="option.icon" 
             class="wysiwyg-toolbar-dropdown__option-icon"
-            [innerHTML]="getOptionIcon(option)"
+            [innerHTML]="getSafeOptionIcon(option)"
             aria-hidden="true">
           </span>
           
@@ -117,6 +119,8 @@ export class ToolbarDropdownComponent implements OnInit, OnDestroy {
 
   isOpen = false;
   private clickOutsideListener?: (event: Event) => void;
+
+  constructor(private sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
     this.setupClickOutsideListener();
@@ -279,35 +283,27 @@ export class ToolbarDropdownComponent implements OnInit, OnDestroy {
    * Get icon HTML for the tool
    */
   getIcon(): string {
-    if (!this.tool?.icon) {
-      return '';
-    }
+    return getToolbarIconMarkup(this.tool?.icon);
+  }
 
-    const iconMap: Record<string, string> = {
-      'fontSize': '<span style="font-size: 16px;">A</span>',
-      'fontColor': '🎨',
-      'backgroundColor': '🖍️',
-      'fontFamily': '<span style="font-family: serif;">Aa</span>',
-      'lineHeight': '≡'
-    };
-
-    return iconMap[this.tool.icon] || this.tool.icon;
+  getSafeIcon(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.getIcon());
   }
 
   /**
    * Get icon HTML for an option
    */
   getOptionIcon(option: ToolOption): string {
-    if (!option.icon) {
-      return '';
-    }
-
     // Handle color swatches
-    if (option.icon.startsWith('#') || option.icon.startsWith('rgb')) {
+    if (option.icon && (option.icon.startsWith('#') || option.icon.startsWith('rgb'))) {
       return `<span class="color-swatch" style="background-color: ${option.icon}"></span>`;
     }
 
-    return option.icon;
+    return getToolbarIconMarkup(option.icon);
+  }
+
+  getSafeOptionIcon(option: ToolOption): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.getOptionIcon(option));
   }
 
   /**

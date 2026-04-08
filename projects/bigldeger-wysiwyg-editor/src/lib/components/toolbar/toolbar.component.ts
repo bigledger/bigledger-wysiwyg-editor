@@ -1,10 +1,12 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
-import { ToolbarConfig, ToolbarTool } from '../../models/toolbar.interface';
+import { ToolbarConfig, ToolbarTool, ToolOption } from '../../models/toolbar.interface';
 import { EditorCommand } from '../../models/editor-command.interface';
 import { SelectionState } from '../../models/selection-state.interface';
 import { AccessibilityService } from '../../services/accessibility.service';
+import { getToolbarIconMarkup } from './toolbar-icons';
 
 /**
  * Toolbar component that renders formatting tools based on configuration
@@ -28,6 +30,11 @@ import { AccessibilityService } from '../../services/accessibility.service';
       
       <div class="wysiwyg-toolbar__content">
         <ng-container *ngFor="let tool of config?.tools; trackBy: trackByTool; let i = index">
+          <span
+            *ngIf="tool.separatorBefore && i > 0"
+            class="wysiwyg-toolbar__divider"
+            aria-hidden="true">
+          </span>
           
           <!-- Button Tool -->
           <button
@@ -38,11 +45,12 @@ import { AccessibilityService } from '../../services/accessibility.service';
             [class.wysiwyg-toolbar__button--disabled]="tool.disabled || disabled"
             [class]="tool.cssClass"
             [disabled]="tool.disabled || disabled"
-            [title]="getToolTitle(tool)"
+            [attr.data-tooltip]="getToolTitle(tool)"
             [attr.aria-label]="getToolAriaLabel(tool)"
             [attr.aria-pressed]="isToolActive(tool)"
             [attr.aria-describedby]="getToolDescriptionId(tool)"
             [attr.tabindex]="i === 0 ? '0' : '-1'"
+            (mousedown)="preserveSelectionOnMouseDown($event)"
             (click)="executeCommand(tool)"
             (keydown)="handleToolKeydown($event, tool)"
             (focus)="onToolFocus($event)">
@@ -50,7 +58,7 @@ import { AccessibilityService } from '../../services/accessibility.service';
             <span 
               *ngIf="tool.icon" 
               class="wysiwyg-toolbar__icon"
-              [innerHTML]="getToolIcon(tool)"
+              [innerHTML]="getSafeToolIcon(tool)"
               aria-hidden="true">
             </span>
             
@@ -65,6 +73,7 @@ import { AccessibilityService } from '../../services/accessibility.service';
           <div
             *ngIf="tool.type === 'dropdown'"
             class="wysiwyg-toolbar__dropdown"
+            [attr.data-command]="tool.command"
             [class.wysiwyg-toolbar__dropdown--disabled]="tool.disabled || disabled">
             
             <button
@@ -72,13 +81,14 @@ import { AccessibilityService } from '../../services/accessibility.service';
               class="wysiwyg-toolbar__dropdown-trigger"
               [class.wysiwyg-toolbar__dropdown-trigger--active]="isDropdownOpen(tool)"
               [disabled]="tool.disabled || disabled"
-              [title]="getToolTitle(tool)"
+              [attr.data-tooltip]="getToolTitle(tool)"
               [attr.aria-label]="getDropdownAriaLabel(tool)"
               [attr.aria-expanded]="isDropdownOpen(tool)"
               [attr.aria-haspopup]="'menu'"
               [attr.aria-controls]="getDropdownMenuId(tool)"
               [id]="getDropdownTriggerId(tool)"
               [attr.tabindex]="i === 0 ? '0' : '-1'"
+              (mousedown)="preserveSelectionOnMouseDown($event)"
               (click)="toggleDropdown(tool)"
               (keydown)="handleDropdownKeydown($event, tool)"
               (focus)="onToolFocus($event)">
@@ -86,55 +96,88 @@ import { AccessibilityService } from '../../services/accessibility.service';
               <span 
                 *ngIf="tool.icon" 
                 class="wysiwyg-toolbar__icon"
-                [innerHTML]="getToolIcon(tool)"
+                [innerHTML]="getSafeToolIcon(tool)"
                 aria-hidden="true">
               </span>
               
               <span 
                 *ngIf="tool.label" 
-                class="wysiwyg-toolbar__label">
-                {{ tool.label }}
+                class="wysiwyg-toolbar__label"
+                [style.font-family]="getDropdownPreviewFont(tool)">
+                {{ getDropdownDisplayLabel(tool) }}
               </span>
               
-              <span class="wysiwyg-toolbar__dropdown-arrow" aria-hidden="true">▼</span>
+              <span
+                class="wysiwyg-toolbar__dropdown-arrow"
+                [innerHTML]="getSafeUtilityIcon('chevronDown')"
+                aria-hidden="true">
+              </span>
             </button>
 
             <div
               *ngIf="isDropdownOpen(tool)"
               class="wysiwyg-toolbar__dropdown-menu"
+              [class.wysiwyg-toolbar__dropdown-menu--above]="getDropdownPlacement(tool) === 'above'"
+              [class.wysiwyg-toolbar__dropdown-menu--align-end]="getDropdownAlignment(tool) === 'end'"
               [id]="getDropdownMenuId(tool)"
               role="menu"
               [attr.aria-labelledby]="getDropdownTriggerId(tool)"
               (click)="$event.stopPropagation()"
               (keydown)="handleDropdownMenuKeydown($event, tool)">
-              
-              <button
-                *ngFor="let option of tool.options; trackBy: trackByOption; let optionIndex = index"
-                type="button"
-                class="wysiwyg-toolbar__dropdown-option"
-                [class.wysiwyg-toolbar__dropdown-option--disabled]="option.disabled"
-                [class.wysiwyg-toolbar__dropdown-option--selected]="isOptionSelected(tool, option)"
-                [disabled]="option.disabled"
-                role="menuitem"
-                [attr.aria-selected]="isOptionSelected(tool, option)"
-                [attr.tabindex]="optionIndex === 0 ? '0' : '-1'"
-                (click)="executeDropdownCommand(tool, option)"
-                (focus)="onDropdownOptionFocus($event)">
-                
-                <span 
-                  *ngIf="option.icon" 
-                  class="wysiwyg-toolbar__icon"
-                  [innerHTML]="getOptionIcon(option)"
-                  aria-hidden="true">
+              <div class="wysiwyg-toolbar__dropdown-menu-header">
+                <span class="wysiwyg-toolbar__dropdown-menu-title">{{ tool.label || tool.command }}</span>
+                <span
+                  *ngIf="getDropdownCurrentLabel(tool) as currentLabel"
+                  class="wysiwyg-toolbar__dropdown-menu-current"
+                  [style.font-family]="getDropdownCurrentFont(tool)">
+                  {{ currentLabel }}
                 </span>
-                
-                <span class="wysiwyg-toolbar__label">{{ option.label }}</span>
-                
-                <span 
-                  *ngIf="isOptionSelected(tool, option)"
-                  class="wysiwyg-toolbar__selected-indicator"
-                  aria-hidden="true">✓</span>
-              </button>
+              </div>
+
+              <div class="wysiwyg-toolbar__dropdown-menu-body">
+                <button
+                  *ngFor="let option of tool.options; trackBy: trackByOption; let optionIndex = index"
+                  type="button"
+                  class="wysiwyg-toolbar__dropdown-option"
+                  [class.wysiwyg-toolbar__dropdown-option--disabled]="option.disabled"
+                  [class.wysiwyg-toolbar__dropdown-option--selected]="isOptionSelected(tool, option)"
+                  [disabled]="option.disabled"
+                  role="menuitem"
+                  [attr.aria-selected]="isOptionSelected(tool, option)"
+                  [attr.tabindex]="optionIndex === 0 ? '0' : '-1'"
+                  (mousedown)="preserveSelectionOnMouseDown($event)"
+                  (click)="executeDropdownCommand(tool, option)"
+                  (focus)="onDropdownOptionFocus($event)">
+                  
+                  <span 
+                    *ngIf="option.icon" 
+                    class="wysiwyg-toolbar__icon"
+                    [innerHTML]="getSafeOptionIcon(option)"
+                    aria-hidden="true">
+                  </span>
+
+                  <span
+                    *ngIf="!option.icon && tool.command === 'fontFamily'"
+                    class="wysiwyg-toolbar__option-preview"
+                    [style.font-family]="option.value"
+                    aria-hidden="true">
+                    Aa
+                  </span>
+                  
+                  <span
+                    class="wysiwyg-toolbar__label"
+                    [style.font-family]="tool.command === 'fontFamily' ? option.value : null">
+                    {{ option.label }}
+                  </span>
+                  
+                  <span 
+                    *ngIf="isOptionSelected(tool, option)"
+                    class="wysiwyg-toolbar__selected-indicator"
+                    [innerHTML]="getSafeUtilityIcon('check')"
+                    aria-hidden="true">
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -147,10 +190,11 @@ import { AccessibilityService } from '../../services/accessibility.service';
             [class.wysiwyg-toolbar__button--disabled]="tool.disabled || disabled"
             [class]="tool.cssClass"
             [disabled]="tool.disabled || disabled"
-            [title]="getToolTitle(tool)"
+            [attr.data-tooltip]="getToolTitle(tool)"
             [attr.aria-label]="getDialogAriaLabel(tool)"
             [attr.aria-haspopup]="'dialog'"
             [attr.tabindex]="i === 0 ? '0' : '-1'"
+            (mousedown)="preserveSelectionOnMouseDown($event)"
             (click)="executeCommand(tool)"
             (keydown)="handleToolKeydown($event, tool)"
             (focus)="onToolFocus($event)">
@@ -158,7 +202,7 @@ import { AccessibilityService } from '../../services/accessibility.service';
             <span 
               *ngIf="tool.icon" 
               class="wysiwyg-toolbar__icon"
-              [innerHTML]="getToolIcon(tool)"
+              [innerHTML]="getSafeToolIcon(tool)"
               aria-hidden="true">
             </span>
             
@@ -170,7 +214,9 @@ import { AccessibilityService } from '../../services/accessibility.service';
             
             <span 
               class="wysiwyg-toolbar__dialog-indicator"
-              aria-hidden="true">...</span>
+              [innerHTML]="getSafeUtilityIcon('dialog')"
+              aria-hidden="true">
+            </span>
           </button>
 
         </ng-container>
@@ -190,11 +236,16 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private destroy$ = new Subject<void>();
   private openDropdowns = new Set<string>();
+  private dropdownPlacements = new Map<string, 'below' | 'above'>();
+  private dropdownAlignments = new Map<string, 'start' | 'end'>();
   toolbarId: string;
   private boundDocumentClickHandler!: (event: MouseEvent) => void;
   private boundGlobalKeydownHandler!: (event: KeyboardEvent) => void;
 
-  constructor(private accessibilityService: AccessibilityService) {
+  constructor(
+    private accessibilityService: AccessibilityService,
+    private sanitizer: DomSanitizer
+  ) {
     this.toolbarId = this.accessibilityService.generateId('wysiwyg-toolbar');
   }
 
@@ -232,7 +283,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Track function for dropdown options
    */
-  trackByOption(index: number, option: any): string {
+  trackByOption(index: number, option: ToolOption): string {
     return option.value;
   }
 
@@ -283,9 +334,13 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   toggleDropdown(tool: ToolbarTool): void {
     if (this.openDropdowns.has(tool.command)) {
       this.openDropdowns.delete(tool.command);
+      this.dropdownPlacements.delete(tool.command);
+      this.dropdownAlignments.delete(tool.command);
     } else {
       // Close other dropdowns first
       this.openDropdowns.clear();
+      this.dropdownPlacements.clear();
+      this.dropdownAlignments.clear();
       this.openDropdowns.add(tool.command);
       
       // Position the dropdown menu after it opens
@@ -298,6 +353,8 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   private closeAllDropdowns(): void {
     this.openDropdowns.clear();
+    this.dropdownPlacements.clear();
+    this.dropdownAlignments.clear();
   }
 
   /**
@@ -312,28 +369,36 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const triggerRect = trigger.getBoundingClientRect();
-    const menuHeight = menu.offsetHeight;
-    const menuWidth = menu.offsetWidth;
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    
-    // Calculate vertical position - prefer below, but go above if not enough space
-    let top = triggerRect.bottom + 2;
-    if (top + menuHeight > viewportHeight - 10) {
-      top = triggerRect.top - menuHeight - 2;
-    }
-    
-    // Calculate horizontal position - prefer left-aligned, but adjust if near edge
-    let left = triggerRect.left;
-    if (left + menuWidth > viewportWidth - 10) {
-      left = viewportWidth - menuWidth - 10;
-    }
-    if (left < 10) {
-      left = 10;
-    }
-    
-    menu.style.top = `${top}px`;
-    menu.style.left = `${left}px`;
+    const minMenuWidth = Math.max(
+      Math.round(triggerRect.width + 24),
+      tool.command === 'fontFamily' ? 240 : 184
+    );
+    const maxMenuWidth = Math.min(tool.command === 'fontFamily' ? 320 : 260, viewportWidth - 20);
+
+    menu.style.minWidth = `${minMenuWidth}px`;
+    menu.style.maxWidth = `${maxMenuWidth}px`;
+
+    const menuHeight = menu.offsetHeight;
+    const menuWidth = menu.offsetWidth;
+    const spaceBelow = viewportHeight - triggerRect.bottom - 10;
+    const spaceAbove = triggerRect.top - 10;
+    const placement = spaceBelow >= menuHeight || spaceBelow >= spaceAbove ? 'below' : 'above';
+    const alignment = triggerRect.left + menuWidth <= viewportWidth - 10 || triggerRect.right - menuWidth < 10
+      ? 'start'
+      : 'end';
+
+    this.dropdownPlacements.set(tool.command, placement);
+    this.dropdownAlignments.set(tool.command, alignment);
+  }
+
+  getDropdownPlacement(tool: ToolbarTool): 'below' | 'above' {
+    return this.dropdownPlacements.get(tool.command) || 'below';
+  }
+
+  getDropdownAlignment(tool: ToolbarTool): 'start' | 'end' {
+    return this.dropdownAlignments.get(tool.command) || 'start';
   }
 
   /**
@@ -374,7 +439,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Execute a dropdown command with selected option
    */
-  executeDropdownCommand(tool: ToolbarTool, option: any): void {
+  executeDropdownCommand(tool: ToolbarTool, option: ToolOption): void {
     if (tool.disabled || this.disabled || option.disabled) {
       return;
     }
@@ -399,58 +464,33 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
+   * Prevent toolbar clicks from stealing the editor selection before commands run.
+   */
+  preserveSelectionOnMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+  }
+
+  /**
    * Get icon HTML for a tool
    */
   getToolIcon(tool: ToolbarTool): string {
-    if (!tool.icon) {
-      return '';
-    }
-
-    // Special handling for toggleHtmlView - show different icon based on active state
     if (tool.command === 'toggleHtmlView') {
       const isActive = this.isToolActive(tool);
-      // HTML mode (active): show eye icon to indicate "view visual mode"
-      // Visual mode (inactive): show code icon to indicate "view HTML code"
-      return isActive 
-        ? '<span style="font-size: 18px;">👁</span>' 
-        : '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>';
+      return isActive ? getToolbarIconMarkup('eye') : getToolbarIconMarkup('code');
     }
 
-    // Return basic icon mapping - can be extended with icon library
-    const iconMap: Record<string, string> = {
-      'bold': '<strong>B</strong>',
-      'italic': '<em>I</em>',
-      'underline': '<u>U</u>',
-      'strikethrough': '<s>S</s>',
-      'fontSize': 'A',
-      'fontFamily': 'Aa',
-      'fontColor': '🎨',
-      'backgroundColor': '🖍️',
-      'justifyLeft': '⬅️',
-      'justifyCenter': '↔️',
-      'justifyRight': '➡️',
-      'justifyFull': '↕️',
-      'insertUnorderedList': '•',
-      'insertOrderedList': '1.',
-      'createLink': '🔗',
-      'insertImage': '🖼️',
-      'insertTable': '⊞',
-      'code': '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>',
-      'undo': '↶',
-      'redo': '↷'
-    };
-
-    return iconMap[tool.icon] || tool.icon;
+    return getToolbarIconMarkup(tool.icon);
   }
 
   /**
    * Get icon HTML for a dropdown option
    */
-  getOptionIcon(option: any): string {
-    if (!option.icon) {
-      return '';
-    }
-    return option.icon;
+  getOptionIcon(option: ToolOption): string {
+    return getToolbarIconMarkup(option.icon);
   }
 
   /**
@@ -464,7 +504,9 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const shortcut = this.accessibilityService.getShortcutKeys(tool.command);
-    const title = tool.title || tool.label || tool.command;
+    const currentOption = tool.type === 'dropdown' ? this.getCurrentDropdownOption(tool) : null;
+    const baseTitle = tool.title || tool.label || tool.command;
+    const title = currentOption ? `${baseTitle}: ${currentOption.label}` : baseTitle;
     return shortcut ? `${title} (${shortcut})` : title;
   }
 
@@ -482,7 +524,8 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   getDropdownAriaLabel(tool: ToolbarTool): string {
     const label = tool.ariaLabel || tool.label || tool.command;
-    return `${label} menu`;
+    const currentOption = this.getCurrentDropdownOption(tool);
+    return currentOption ? `${label}, current selection ${currentOption.label}` : `${label} menu`;
   }
 
   /**
@@ -517,7 +560,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Check if dropdown option is selected
    */
-  isOptionSelected(tool: ToolbarTool, option: any): boolean {
+  isOptionSelected(tool: ToolbarTool, option: ToolOption): boolean {
     if (!this.selectionState?.formats) {
       return false;
     }
@@ -526,16 +569,102 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
     
     switch (tool.command) {
       case 'fontSize':
-        return formats.fontSize === option.value;
+        return this.normalizeFontSizeValue(formats.fontSize) === this.normalizeFontSizeValue(option.value);
       case 'fontFamily':
-        return formats.fontFamily === option.value;
+        return this.normalizeFontFamilyValue(formats.fontFamily) === this.normalizeFontFamilyValue(option.value);
       case 'fontColor':
-        return formats.fontColor === option.value;
+        return this.normalizeColorValue(formats.fontColor) === this.normalizeColorValue(option.value);
       case 'backgroundColor':
-        return formats.backgroundColor === option.value;
+        return this.normalizeColorValue(formats.backgroundColor) === this.normalizeColorValue(option.value);
       default:
         return false;
     }
+  }
+
+  getDropdownDisplayLabel(tool: ToolbarTool): string {
+    return this.getCurrentDropdownOption(tool)?.label || tool.label || tool.command;
+  }
+
+  getDropdownPreviewFont(tool: ToolbarTool): string | null {
+    return tool.command === 'fontFamily' ? this.getCurrentDropdownOption(tool)?.value || null : null;
+  }
+
+  getDropdownCurrentLabel(tool: ToolbarTool): string | null {
+    return this.getCurrentDropdownOption(tool)?.label || null;
+  }
+
+  getDropdownCurrentFont(tool: ToolbarTool): string | null {
+    return tool.command === 'fontFamily' ? this.getCurrentDropdownOption(tool)?.value || null : null;
+  }
+
+  getUtilityIcon(name: 'chevronDown' | 'check' | 'dialog'): string {
+    return getToolbarIconMarkup(name);
+  }
+
+  getSafeToolIcon(tool: ToolbarTool): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.getToolIcon(tool));
+  }
+
+  getSafeOptionIcon(option: ToolOption): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.getOptionIcon(option));
+  }
+
+  getSafeUtilityIcon(name: 'chevronDown' | 'check' | 'dialog'): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.getUtilityIcon(name));
+  }
+
+  private getCurrentDropdownOption(tool: ToolbarTool): ToolOption | null {
+    if (!tool.options?.length || !this.selectionState?.formats) {
+      return null;
+    }
+
+    return tool.options.find(option => this.isOptionSelected(tool, option)) || null;
+  }
+
+  private normalizeFontFamilyValue(value?: string | null): string {
+    return (value || '')
+      .replace(/['"]/g, '')
+      .split(',')[0]
+      .trim()
+      .toLowerCase();
+  }
+
+  private normalizeFontSizeValue(value?: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    const normalized = value.trim().toLowerCase();
+
+    if (/^\d+$/.test(normalized)) {
+      const sizeMap: Record<string, string> = {
+        '1': '10px',
+        '2': '12px',
+        '3': '14px',
+        '4': '16px',
+        '5': '18px',
+        '6': '24px',
+        '7': '32px'
+      };
+
+      return sizeMap[normalized] || normalized;
+    }
+
+    if (normalized.endsWith('px')) {
+      const pixelValue = Number.parseFloat(normalized);
+      return Number.isFinite(pixelValue) ? `${Math.round(pixelValue)}px` : normalized;
+    }
+
+    if (normalized.endsWith('pt')) {
+      const pointValue = Number.parseFloat(normalized);
+      return Number.isFinite(pointValue) ? `${Math.round(pointValue * (4 / 3))}px` : normalized;
+    }
+
+    return normalized;
+  }
+
+  private normalizeColorValue(value?: string | null): string {
+    return (value || '').trim().toLowerCase();
   }
 
   /**

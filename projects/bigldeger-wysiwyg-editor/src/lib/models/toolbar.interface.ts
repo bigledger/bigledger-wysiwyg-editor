@@ -32,6 +32,8 @@ export interface ToolbarTool {
   disabled?: boolean;
   /** Custom CSS classes for the tool */
   cssClass?: string;
+  /** Whether to render a visual divider before this tool */
+  separatorBefore?: boolean;
 }
 
 /**

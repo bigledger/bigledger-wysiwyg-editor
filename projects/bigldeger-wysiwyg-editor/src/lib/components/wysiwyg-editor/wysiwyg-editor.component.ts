@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, forwardRef, ViewContainerRef, ComponentRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -15,11 +16,12 @@ import { DebounceService } from '../../services/debounce.service';
 import { PerformanceMonitorService } from '../../services/performance-monitor.service';
 import { AssetOptimizerService } from '../../services/asset-optimizer.service';
 
-import { ToolbarConfig } from '../../models/toolbar.interface';
+import { ToolbarConfig, ToolbarTool } from '../../models/toolbar.interface';
 import { EditorCommand } from '../../models/editor-command.interface';
 import { SelectionState } from '../../models/selection-state.interface';
 import { CommandService } from '../../services/command.service';
 import { SelectionService } from '../../services/selection.service';
+import { getToolbarIconMarkup } from '../toolbar/toolbar-icons';
 
 /**
  * Main WYSIWYG Editor Component
@@ -37,23 +39,53 @@ import { SelectionService } from '../../services/selection.service';
   ],
   template: `
     <div class="wysiwyg-editor" [class.wysiwyg-editor--readonly]="readonly">
-      <wysiwyg-toolbar
-        [config]="toolbarConfig"
-        [disabled]="readonly"
-        [selectionState]="currentSelection"
-        (command)="handleCommand($event)">
-      </wysiwyg-toolbar>
+      <div *ngIf="showModeToggleInChrome" class="wysiwyg-editor__chrome">
+        <div class="wysiwyg-editor__chrome-meta">
+          <span class="wysiwyg-editor__chrome-label">Editor Mode</span>
+          <span class="wysiwyg-editor__chrome-value">{{ isHtmlMode ? 'HTML' : 'Visual' }}</span>
+        </div>
+
+        <button
+          type="button"
+          class="wysiwyg-editor__mode-toggle"
+          [class.wysiwyg-editor__mode-toggle--active]="isHtmlMode"
+          [disabled]="readonly"
+          [attr.aria-pressed]="isHtmlMode"
+          [attr.aria-label]="getModeToggleTitle()"
+          [attr.data-tooltip]="getModeToggleTitle()"
+          (click)="onModeToggleClick()">
+          <span
+            class="wysiwyg-editor__mode-toggle-icon"
+            [innerHTML]="getSafeModeToggleIcon()"
+            aria-hidden="true">
+          </span>
+          <span class="wysiwyg-editor__mode-toggle-text">{{ getModeToggleLabel() }}</span>
+        </button>
+      </div>
+
+      <div *ngIf="visibleToolbarConfig.tools.length > 0" class="wysiwyg-editor__toolbar-shell">
+        <wysiwyg-toolbar
+          [config]="visibleToolbarConfig"
+          [disabled]="readonly"
+          [selectionState]="currentSelection"
+          (command)="handleCommand($event)">
+        </wysiwyg-toolbar>
+      </div>
       
-      <wysiwyg-editor-content
-        [content]="content"
-        [placeholder]="placeholder"
-        [readonly]="readonly"
-        [height]="height"
-        [htmlMode]="isHtmlMode"
-        (contentChange)="onContentChange($event)"
-        (selectionChange)="onSelectionChange($event)"
-        (blurEvent)="onBlur($event)">
-      </wysiwyg-editor-content>
+      <div class="wysiwyg-editor__content-shell">
+        <div class="wysiwyg-editor__content-frame">
+          <wysiwyg-editor-content
+            [content]="content"
+            [placeholder]="placeholder"
+            [readonly]="readonly"
+            [height]="height"
+            [htmlMode]="isHtmlMode"
+            (contentChange)="onContentChange($event)"
+            (selectionChange)="onSelectionChange($event)"
+            (blurEvent)="onBlur($event)">
+          </wysiwyg-editor-content>
+        </div>
+      </div>
 
       <!-- Dynamic dialog container -->
       <ng-container #dialogContainer></ng-container>
@@ -62,10 +94,20 @@ import { SelectionService } from '../../services/selection.service';
   styleUrls: ['./wysiwyg-editor.component.scss']
 })
 export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAccessor {
-  @Input() toolbarConfig: ToolbarConfig = this.getDefaultToolbarConfig();
   @Input() placeholder = '';
   @Input() readonly = false;
   @Input() height = '300px';
+
+  @Input()
+  set toolbarConfig(value: ToolbarConfig | null) {
+    this._toolbarConfig = value || this.getDefaultToolbarConfig();
+    this.visibleToolbarConfig = this.createVisibleToolbarConfig(this._toolbarConfig);
+    this.showModeToggleInChrome = this.hasModeToggleTool(this._toolbarConfig);
+  }
+
+  get toolbarConfig(): ToolbarConfig {
+    return this._toolbarConfig;
+  }
 
   @Output() contentChange = new EventEmitter<string>();
   @Output() selectionChange = new EventEmitter<SelectionState>();
@@ -73,9 +115,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   @ViewChild('dialogContainer', { read: ViewContainerRef }) dialogContainer!: ViewContainerRef;
   @ViewChild(EditorContentComponent) editorContent!: EditorContentComponent;
 
+  private _toolbarConfig: ToolbarConfig = this.getDefaultToolbarConfig();
   content = '';
   currentSelection: SelectionState | null = null;
   isHtmlMode = false;
+  visibleToolbarConfig: ToolbarConfig = this.createVisibleToolbarConfig(this._toolbarConfig);
+  showModeToggleInChrome = this.hasModeToggleTool(this._toolbarConfig);
 
   // Content change detection
   private lastKnownContent = '';
@@ -99,6 +144,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   private currentTableData: TableData | null = null;
   private isEditingTable = false;
   private isInsertingNestedTable = false;
+  private pendingDialogSelection: SelectionState | null = null;
 
   private destroy$ = new Subject<void>();
   private onChange = (value: string) => { };
@@ -113,7 +159,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     private lazyLoaderService: LazyLoaderService,
     private debounceService: DebounceService,
     private performanceMonitor: PerformanceMonitorService,
-    private assetOptimizer: AssetOptimizerService
+    private assetOptimizer: AssetOptimizerService,
+    private sanitizer: DomSanitizer
   ) {
     // Initialize debounced content change handler
     this.debouncedContentChange = this.debounceService.debounce(
@@ -223,16 +270,35 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   /**
    * Toggle between HTML and visual editing mode
    */
+  onModeToggleClick(): void {
+    this.toggleHtmlView();
+  }
+
   private toggleHtmlView(): void {
     this.isHtmlMode = !this.isHtmlMode;
     // Update selection state to reflect the new HTML mode
     this.updateSelectionState();
   }
 
+  getModeToggleLabel(): string {
+    return this.isHtmlMode ? 'Switch To Visual' : 'View HTML';
+  }
+
+  getModeToggleTitle(): string {
+    return this.isHtmlMode ? 'Switch to Visual Mode' : 'View HTML Code';
+  }
+
+  getSafeModeToggleIcon(): SafeHtml {
+    const icon = this.isHtmlMode ? getToolbarIconMarkup('eye') : getToolbarIconMarkup('code');
+    return this.sanitizer.bypassSecurityTrustHtml(icon);
+  }
+
   /**
    * Execute a formatting command
    */
   private executeCommand(command: EditorCommand): void {
+    this.restoreEditorSelection();
+
     const success = this.commandService.executeCommand(command, command.value);
     if (success) {
       // Update selection state after command execution
@@ -251,6 +317,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+      this.restoreEditorSelection(savedSelection);
+
       // Set dialog visibility state
       this.linkDialogVisible = true;
 
@@ -271,8 +341,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
           this.isEditingLink = true;
         } else {
           // Get selected text for new link
-          const selection = this.selectionService.getSelection();
-          const selectedText = selection?.toString() || '';
+          const selectedText = savedSelection?.selectedText || this.selectionService.getSelection()?.toString() || '';
 
           this.currentLinkData = {
             url: '',
@@ -310,6 +379,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Handle link creation/update
    */
   onLinkCreated(linkData: LinkData): void {
+    this.restoreEditorSelection(this.pendingDialogSelection);
+
     if (this.isEditingLink) {
       this.commandService.updateLink(
         linkData.url,
@@ -351,6 +422,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Remove link from selection
    */
   private removeLink(): void {
+    this.restoreEditorSelection(this.pendingDialogSelection || this.getEditorSelectionSnapshot());
+
     const success = this.commandService.removeLink();
     if (success) {
       this.updateSelectionState();
@@ -376,6 +449,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.linkDialogVisible = false;
     this.currentLinkData = null;
     this.isEditingLink = false;
+    this.pendingDialogSelection = null;
   }
 
   /**
@@ -387,6 +461,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+      this.restoreEditorSelection(savedSelection);
+
       // Set dialog visibility state
       this.imageDialogVisible = true;
 
@@ -438,6 +516,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Handle image creation/update
    */
   onImageCreated(imageData: ImageData): void {
+    this.restoreEditorSelection(this.pendingDialogSelection);
+
     if (this.isEditingImage) {
       this.commandService.updateImage(imageData);
     } else {
@@ -459,6 +539,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Remove image from selection
    */
   private removeImage(): void {
+    this.restoreEditorSelection(this.pendingDialogSelection || this.getEditorSelectionSnapshot());
+
     const success = this.commandService.removeImage();
     if (success) {
       this.updateSelectionState();
@@ -484,6 +566,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.imageDialogVisible = false;
     this.currentImageData = null;
     this.isEditingImage = false;
+    this.pendingDialogSelection = null;
   }
 
   /**
@@ -495,8 +578,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     try {
-      // CRITICAL: Save selection BEFORE opening dialog to prevent selection loss
-      const savedSelection = this.selectionService.saveSelection();
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
 
       // Set dialog visibility state
       this.colorPickerDialogVisible = true;
@@ -539,9 +622,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   /**
    * Handle color selection
    */
-  onColorSelected(colorData: ColorData, savedSelection: SelectionState): void {
+  onColorSelected(colorData: ColorData, savedSelection: SelectionState | null): void {
     // Restore the selection BEFORE executing the command
-    this.selectionService.restoreSelection(savedSelection);
+    this.restoreEditorSelection(savedSelection);
 
     const commandName = colorData.type === 'text' ? 'foreColor' : 'backColor';
     const command: EditorCommand = { name: commandName };
@@ -569,6 +652,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       this.colorPickerDialogRef = null;
     }
     this.colorPickerDialogVisible = false;
+    this.pendingDialogSelection = null;
   }
 
   /**
@@ -580,6 +664,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+      this.restoreEditorSelection(savedSelection);
+
       // Set dialog visibility state
       this.tableDialogVisible = true;
 
@@ -627,6 +715,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    * Handle table insertion/update
    */
   onTableInserted(tableData: TableData): void {
+    this.restoreEditorSelection(this.pendingDialogSelection);
+
     if (this.isEditingTable) {
       this.commandService.updateTableProperties(tableData);
     } else if (this.isInsertingNestedTable) {
@@ -671,23 +761,15 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       } else {
         // Visual mode: Use the editor content component's insertContent method
         if (this.editorContent) {
-          // Focus the editor first to ensure proper cursor position
-          this.editorContent.focusElement();
-          
-          // Small delay to ensure focus is set
+          const tableWithSpacing = '<br>' + tableHtml + '<br><p><br></p>';
+          this.editorContent.insertContent(tableWithSpacing);
+
           setTimeout(() => {
-            // Insert table with proper spacing
-            const tableWithSpacing = '<br>' + tableHtml + '<br><p><br></p>';
-            this.editorContent.insertContent(tableWithSpacing);
-            
-            // Update content model from the editor
-            setTimeout(() => {
-              if (this.editorContent?.contentArea?.nativeElement) {
-                this.content = this.editorContent.contentArea.nativeElement.innerHTML;
-                this.onChange(this.content);
-                this.contentChange.emit(this.content);
-              }
-            }, 10);
+            if (this.editorContent?.contentArea?.nativeElement) {
+              this.content = this.editorContent.contentArea.nativeElement.innerHTML;
+              this.onChange(this.content);
+              this.contentChange.emit(this.content);
+            }
           }, 10);
         }
       }
@@ -783,6 +865,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.currentTableData = null;
     this.isEditingTable = false;
     this.isInsertingNestedTable = false;
+    this.pendingDialogSelection = null;
   }
 
   /**
@@ -859,6 +942,51 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   }
 
   /**
+   * Clone selection state so later restores do not reuse a mutated Range instance.
+   */
+  private cloneSelectionState(selection: SelectionState | null): SelectionState | null {
+    if (!selection) {
+      return null;
+    }
+
+    return {
+      ...selection,
+      range: selection.range ? selection.range.cloneRange() : null,
+      formats: { ...selection.formats }
+    };
+  }
+
+  /**
+   * Capture the editor's last valid selection, preferring the editor-scoped snapshot over the global selection.
+   */
+  private getEditorSelectionSnapshot(): SelectionState | null {
+    if (this.isHtmlMode) {
+      return null;
+    }
+
+    const currentSelection = this.cloneSelectionState(this.currentSelection);
+    if (currentSelection?.range) {
+      return currentSelection;
+    }
+
+    const liveSelection = this.cloneSelectionState(this.selectionService.saveSelection());
+    return liveSelection?.range ? liveSelection : null;
+  }
+
+  /**
+   * Restore the editor selection before executing toolbar actions or applying dialog results.
+   */
+  private restoreEditorSelection(selection: SelectionState | null = this.getEditorSelectionSnapshot()): boolean {
+    if (this.isHtmlMode || !selection?.range) {
+      return false;
+    }
+
+    this.editorContent?.focusElement();
+    this.selectionService.restoreSelection(selection);
+    return true;
+  }
+
+  /**
    * Set up keyboard shortcuts
    */
   private setupKeyboardShortcuts(): void {
@@ -914,6 +1042,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
           command: 'fontSize',
           icon: 'fontSize',
           label: 'Font Size',
+          separatorBefore: true,
           options: [
             { value: '12px', label: '12px' },
             { value: '14px', label: '14px' },
@@ -923,20 +1052,50 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
             { value: '24px', label: '24px' }
           ]
         },
-        { type: 'button', command: 'justifyLeft', icon: 'justifyLeft', label: 'Align Left' },
+        { type: 'button', command: 'justifyLeft', icon: 'justifyLeft', label: 'Align Left', separatorBefore: true },
         { type: 'button', command: 'justifyCenter', icon: 'justifyCenter', label: 'Align Center' },
         { type: 'button', command: 'justifyRight', icon: 'justifyRight', label: 'Align Right' },
         { type: 'button', command: 'justifyFull', icon: 'justifyFull', label: 'Justify' },
-        { type: 'button', command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
+        { type: 'button', command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List', separatorBefore: true },
         { type: 'button', command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
-        { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+        { type: 'button', command: 'outdent', icon: 'outdent', label: 'Decrease Indent' },
+        { type: 'button', command: 'indent', icon: 'indent', label: 'Increase Indent' },
+        { type: 'dialog', command: 'createLink', icon: 'createLink', label: 'Insert Link', separatorBefore: true },
+        { type: 'button', command: 'unlink', icon: 'unlink', label: 'Remove Link' },
         { type: 'dialog', command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
         { type: 'dialog', command: 'insertTable', icon: 'insertTable', label: 'Insert Table' },
-        { type: 'button', command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' },
+        { type: 'button', command: 'removeFormat', icon: 'removeFormat', label: 'Clear Formatting', separatorBefore: true },
+        { type: 'button', command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View', separatorBefore: true },
         { type: 'button', command: 'undo', icon: 'undo', label: 'Undo' },
         { type: 'button', command: 'redo', icon: 'redo', label: 'Redo' }
       ]
     };
+  }
+
+  private hasModeToggleTool(config: ToolbarConfig): boolean {
+    return config.tools.some(tool => tool.command === 'toggleHtmlView');
+  }
+
+  private createVisibleToolbarConfig(config: ToolbarConfig): ToolbarConfig {
+    const visibleTools = config.tools.filter(tool => tool.command !== 'toggleHtmlView');
+
+    return {
+      ...config,
+      tools: this.normalizeLeadingSeparators(visibleTools)
+    };
+  }
+
+  private normalizeLeadingSeparators(tools: ToolbarTool[]): ToolbarTool[] {
+    let firstVisibleFound = false;
+
+    return tools.map(tool => {
+      if (!firstVisibleFound) {
+        firstVisibleFound = true;
+        return tool.separatorBefore ? { ...tool, separatorBefore: false } : tool;
+      }
+
+      return tool;
+    });
   }
 
   // ControlValueAccessor implementation

@@ -504,6 +504,39 @@ describe('WysiwygEditorComponent', () => {
       expect(commandService.executeCommand).toHaveBeenCalledWith(command, undefined);
     });
 
+    it('should restore the last editor selection before executing toolbar commands', () => {
+      const command = { name: 'bold' };
+      const host = document.createElement('div');
+      host.textContent = 'selection target';
+      document.body.appendChild(host);
+
+      const range = document.createRange();
+      range.selectNodeContents(host);
+
+      component.currentSelection = {
+        range,
+        collapsed: false,
+        formats: {
+          bold: false,
+          italic: false,
+          underline: false,
+          strikethrough: false,
+          fontSize: '14px',
+          fontFamily: 'Arial, sans-serif',
+          fontColor: '#000000',
+          backgroundColor: 'transparent',
+          alignment: 'left'
+        }
+      } as any;
+
+      commandService.executeCommand.and.returnValue(true);
+
+      component.handleCommand(command);
+
+      expect(selectionService.restoreSelection).toHaveBeenCalled();
+      host.remove();
+    });
+
     it('should update selection state after successful command execution', fakeAsync(() => {
       const command = { name: 'bold' };
       commandService.executeCommand.and.returnValue(true);
@@ -548,8 +581,18 @@ describe('WysiwygEditorComponent', () => {
 
       component.onSelectionChange(mockSelection);
 
-      expect(component.currentSelection).toBe(mockSelection);
-      expect(component.selectionChange.emit).toHaveBeenCalledWith(mockSelection);
+      expect(component.currentSelection).toEqual(jasmine.objectContaining({
+        range: null,
+        collapsed: true,
+        formats: { bold: false, italic: false },
+        htmlMode: false
+      }));
+      expect(component.selectionChange.emit).toHaveBeenCalledWith(jasmine.objectContaining({
+        range: null,
+        collapsed: true,
+        formats: { bold: false, italic: false },
+        htmlMode: false
+      }));
     });
 
     it('should update selection state from selection service', () => {
@@ -760,9 +803,29 @@ describe('WysiwygEditorComponent', () => {
       const toolbar = fixture.debugElement.query(By.css('wysiwyg-toolbar'));
       const toolbarComponent = toolbar.componentInstance;
 
-      expect(toolbarComponent.config).toBe(component.toolbarConfig);
+      expect(toolbarComponent.config).toEqual(component.visibleToolbarConfig);
       expect(toolbarComponent.disabled).toBe(component.readonly);
       expect(toolbarComponent.selectionState).toBe(component.currentSelection);
+    });
+
+    it('should render html mode toggle in editor chrome instead of toolbar config', () => {
+      const modeToggle = fixture.debugElement.query(By.css('.wysiwyg-editor__mode-toggle'));
+      expect(modeToggle).toBeTruthy();
+
+      expect(component.visibleToolbarConfig.tools.some(tool => tool.command === 'toggleHtmlView')).toBeFalse();
+      expect(component.toolbarConfig.tools.some(tool => tool.command === 'toggleHtmlView')).toBeTrue();
+    });
+
+    it('should hide editor chrome when toolbar config has no html mode tool', () => {
+      component.toolbarConfig = {
+        tools: [
+          { type: 'button', command: 'bold', icon: 'bold', label: 'Bold' }
+        ]
+      };
+      fixture.detectChanges();
+
+      const modeToggle = fixture.debugElement.query(By.css('.wysiwyg-editor__mode-toggle'));
+      expect(modeToggle).toBeFalsy();
     });
 
     it('should pass correct props to editor content', () => {

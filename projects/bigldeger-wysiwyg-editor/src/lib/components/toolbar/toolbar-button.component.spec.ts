@@ -229,6 +229,11 @@ describe('ToolbarButtonComponent', () => {
     expect(component.getIcon()).toBe('custom-icon');
   });
 
+  it('should render mapped icons as svg markup', () => {
+    component.tool = { command: 'bold', icon: 'bold', type: 'button' };
+    expect(component.getIcon()).toContain('<svg');
+  });
+
   it('should handle click event properly', () => {
     spyOn(component.buttonClick, 'emit');
     component.tool = mockTool;

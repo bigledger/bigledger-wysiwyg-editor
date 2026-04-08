@@ -29,9 +29,6 @@ export class CommandService {
    */
   executeCommand(command: EditorCommand, value?: string): boolean {
     try {
-      // Save current selection
-      const savedSelection = this.selectionService.saveSelection();
-
       // Handle fontSize command with pixel values
       let commandValue = value;
       if (command.name === 'fontSize' && value) {
@@ -46,9 +43,6 @@ export class CommandService {
 
       // Execute the command
       const success = document.execCommand(command.name, command.options?.showUI || false, commandValue);
-
-      // Restore selection after command execution
-      this.selectionService.restoreSelection(savedSelection);
 
       if (!success) {
         return this.executeFallbackCommand(command, value);

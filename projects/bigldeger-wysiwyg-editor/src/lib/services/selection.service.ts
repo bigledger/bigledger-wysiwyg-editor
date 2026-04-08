@@ -107,7 +107,7 @@ export class SelectionService {
         italic: this.queryCommandState('italic'),
         underline: this.queryCommandState('underline'),
         strikethrough: this.queryCommandState('strikethrough'),
-        fontSize: this.queryCommandValue('fontSize') || '14px',
+        fontSize: this.getCurrentFontSize(),
         fontFamily: this.getCurrentFontFamily(),
         fontColor: this.queryCommandValue('foreColor') || '#000000',
         backgroundColor: this.queryCommandValue('backColor') || 'transparent',
@@ -169,6 +169,38 @@ export class SelectionService {
       return 'left';
     } catch (error) {
       return 'left';
+    }
+  }
+
+  /**
+   * Get current font size in a toolbar-friendly pixel value.
+   */
+  private getCurrentFontSize(): string {
+    try {
+      const selection = this.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let element: Node | null = range.commonAncestorContainer;
+
+        if (element.nodeType === Node.TEXT_NODE) {
+          element = element.parentElement;
+        }
+
+        while (element && element.nodeType === Node.ELEMENT_NODE) {
+          const computedStyle = window.getComputedStyle(element as Element);
+          const fontSize = this.normalizeFontSize(computedStyle.fontSize);
+
+          if (fontSize) {
+            return fontSize;
+          }
+
+          element = (element as Element).parentElement;
+        }
+      }
+
+      return this.normalizeFontSize(this.queryCommandValue('fontSize')) || '14px';
+    } catch (error) {
+      return '14px';
     }
   }
 
@@ -240,6 +272,43 @@ export class SelectionService {
     
     const lowerNormalized = normalized.toLowerCase();
     return fontMap[lowerNormalized] || fontFamily;
+  }
+
+  /**
+   * Normalize font-size values into pixel strings used by the toolbar config.
+   */
+  private normalizeFontSize(fontSize: string): string {
+    if (!fontSize) {
+      return '';
+    }
+
+    const normalized = fontSize.trim().toLowerCase();
+
+    if (/^\d+$/.test(normalized)) {
+      const sizeMap: Record<string, string> = {
+        '1': '10px',
+        '2': '12px',
+        '3': '14px',
+        '4': '16px',
+        '5': '18px',
+        '6': '24px',
+        '7': '32px'
+      };
+
+      return sizeMap[normalized] || '';
+    }
+
+    if (normalized.endsWith('px')) {
+      const pixelValue = Number.parseFloat(normalized);
+      return Number.isFinite(pixelValue) ? `${Math.round(pixelValue)}px` : '';
+    }
+
+    if (normalized.endsWith('pt')) {
+      const pointValue = Number.parseFloat(normalized);
+      return Number.isFinite(pointValue) ? `${Math.round(pointValue * (4 / 3))}px` : '';
+    }
+
+    return normalized;
   }
 
   /**

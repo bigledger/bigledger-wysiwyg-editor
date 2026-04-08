@@ -94,28 +94,11 @@ describe('CommandService', () => {
   describe('executeCommand', () => {
     it('should execute command successfully', () => {
       const command: EditorCommand = { name: 'bold' };
-      const mockSelection: SelectionState = {
-        range: null,
-        collapsed: true,
-        formats: {
-          bold: false,
-          italic: false,
-          underline: false,
-          fontSize: '14px',
-          fontFamily: 'Arial',
-          fontColor: '#000000',
-          backgroundColor: '#ffffff',
-          alignment: 'left' as TextAlignment
-        }
-      };
-      selectionService.saveSelection.and.returnValue(mockSelection);
       
       const result = service.executeCommand(command);
       
       expect(result).toBe(true);
-      expect(selectionService.saveSelection).toHaveBeenCalled();
       expect(document.execCommand).toHaveBeenCalledWith('bold', false, undefined);
-      expect(selectionService.restoreSelection).toHaveBeenCalledWith(mockSelection);
     });
 
     it('should execute command with value', () => {

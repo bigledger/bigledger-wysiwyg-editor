@@ -1,6 +1,8 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToolbarTool } from '../../models/toolbar.interface';
+import { getToolbarIconMarkup } from './toolbar-icons';
 
 /**
  * Individual toolbar button component with icon and label support
@@ -27,7 +29,7 @@ import { ToolbarTool } from '../../models/toolbar.interface';
       <span 
         *ngIf="tool?.icon" 
         class="wysiwyg-toolbar-button__icon"
-        [innerHTML]="getIcon()"
+        [innerHTML]="getSafeIcon()"
         aria-hidden="true">
       </span>
       
@@ -55,6 +57,8 @@ export class ToolbarButtonComponent {
   @Input() showLabel = false;
 
   @Output() buttonClick = new EventEmitter<ToolbarTool>();
+
+  constructor(private sanitizer: DomSanitizer) {}
 
   /**
    * Handle button click events
@@ -117,43 +121,15 @@ export class ToolbarButtonComponent {
       return '';
     }
 
-    // Special handling for toggleHtmlView - show different icon based on active state
     if (this.tool.command === 'toggleHtmlView') {
-      // HTML mode (active): show eye icon to indicate "view visual mode"
-      // Visual mode (inactive): show code icon to indicate "view HTML code"
-      return this.active 
-        ? '<span style="font-size: 18px;">👁</span>' 
-        : '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>';
+      return this.active ? getToolbarIconMarkup('eye') : getToolbarIconMarkup('code');
     }
 
-    // Icon mapping for common formatting commands
-    const iconMap: Record<string, string> = {
-      'bold': '<strong>B</strong>',
-      'italic': '<em>I</em>',
-      'underline': '<u>U</u>',
-      'strikethrough': '<s>S</s>',
-      'fontSize': '<span style="font-size: 16px;">A</span>',
-      'fontColor': '🎨',
-      'backgroundColor': '🖍️',
-      'justifyLeft': '⬅️',
-      'justifyCenter': '↔️',
-      'justifyRight': '➡️',
-      'justifyFull': '↕️',
-      'insertUnorderedList': '•',
-      'insertOrderedList': '1.',
-      'indent': '→',
-      'outdent': '←',
-      'createLink': '🔗',
-      'unlink': '🔗❌',
-      'insertImage': '🖼️',
-      'code': '<span style="font-size: 16px; font-weight: bold;">&lt;/&gt;</span>',
-      'undo': '↶',
-      'redo': '↷',
-      'removeFormat': '🧹',
-      'selectAll': '📄'
-    };
+    return getToolbarIconMarkup(this.tool?.icon);
+  }
 
-    return iconMap[this.tool.icon] || this.tool.icon;
+  getSafeIcon(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.getIcon());
   }
 
   /**

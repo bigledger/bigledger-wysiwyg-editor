@@ -91,7 +91,7 @@ describe('ToolbarComponent', () => {
 
       const button = fixture.debugElement.query(By.css('.wysiwyg-toolbar__button'));
       expect(button).toBeTruthy();
-      expect(button.nativeElement.title).toBe('Bold');
+      expect(button.nativeElement.getAttribute('data-tooltip')).toBe('Bold');
     });
 
     it('should show active state for active tools', () => {
@@ -147,6 +147,24 @@ describe('ToolbarComponent', () => {
           preventDefault: true
         }
       });
+    });
+
+    it('should prevent default on button mousedown to preserve editor selection', () => {
+      const config: ToolbarConfig = {
+        tools: [
+          { type: 'button', command: 'bold', icon: 'bold', label: 'Bold' }
+        ]
+      };
+
+      component.config = config;
+      fixture.detectChanges();
+
+      const button = fixture.debugElement.query(By.css('.wysiwyg-toolbar__button'));
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+      const dispatchResult = button.nativeElement.dispatchEvent(event);
+
+      expect(dispatchResult).toBe(false);
+      expect(event.defaultPrevented).toBe(true);
     });
 
     it('should not emit command when button is disabled', () => {
@@ -228,6 +246,32 @@ describe('ToolbarComponent', () => {
 
       const options = fixture.debugElement.queryAll(By.css('.wysiwyg-toolbar__dropdown-option'));
       expect(options.length).toBe(2);
+    });
+
+    it('should prevent default on dropdown trigger mousedown to preserve editor selection', () => {
+      const config: ToolbarConfig = {
+        tools: [
+          {
+            type: 'dropdown',
+            command: 'fontSize',
+            label: 'Font Size',
+            options: [
+              { value: '12px', label: '12px' },
+              { value: '14px', label: '14px' }
+            ]
+          }
+        ]
+      };
+
+      component.config = config;
+      fixture.detectChanges();
+
+      const trigger = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-trigger'));
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+      const dispatchResult = trigger.nativeElement.dispatchEvent(event);
+
+      expect(dispatchResult).toBe(false);
+      expect(event.defaultPrevented).toBe(true);
     });
 
     it('should emit command when dropdown option is selected', () => {
@@ -379,11 +423,11 @@ describe('ToolbarComponent', () => {
   describe('Icon Rendering', () => {
     it('should render icons correctly', () => {
       expect(component.getToolIcon({ type: 'button', command: 'bold', icon: 'bold' }))
-        .toBe('<strong>B</strong>');
+        .toContain('<svg');
       expect(component.getToolIcon({ type: 'button', command: 'italic', icon: 'italic' }))
-        .toBe('<em>I</em>');
+        .toContain('<svg');
       expect(component.getToolIcon({ type: 'button', command: 'underline', icon: 'underline' }))
-        .toBe('<u>U</u>');
+        .toContain('<svg');
     });
 
     it('should return empty string for tools without icons', () => {
@@ -393,6 +437,81 @@ describe('ToolbarComponent', () => {
     it('should return custom icon if not in predefined map', () => {
       expect(component.getToolIcon({ type: 'button', command: 'custom', icon: 'custom-icon' }))
         .toBe('custom-icon');
+    });
+
+    it('should show the selected dropdown value in the trigger label', () => {
+      component.config = {
+        tools: [
+          {
+            type: 'dropdown',
+            command: 'fontFamily',
+            label: 'Font Family',
+            options: [
+              { value: 'Arial, sans-serif', label: 'Arial' },
+              { value: 'Georgia, serif', label: 'Georgia' }
+            ]
+          }
+        ]
+      };
+
+      component.selectionState = {
+        range: null,
+        collapsed: true,
+        formats: {
+          bold: false,
+          italic: false,
+          underline: false,
+          strikethrough: false,
+          fontSize: '14px',
+          fontFamily: 'Georgia, serif',
+          fontColor: '#000000',
+          backgroundColor: 'transparent',
+          alignment: 'left'
+        }
+      };
+
+      fixture.detectChanges();
+
+      const label = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-trigger .wysiwyg-toolbar__label'));
+      expect(label.nativeElement.textContent.trim()).toBe('Georgia');
+    });
+
+    it('should match normalized font size values when resolving the selected option', () => {
+      component.config = {
+        tools: [
+          {
+            type: 'dropdown',
+            command: 'fontSize',
+            label: 'Font Size',
+            options: [
+              { value: '12px', label: '12px' },
+              { value: '14px', label: '14px' },
+              { value: '16px', label: '16px' }
+            ]
+          }
+        ]
+      };
+
+      component.selectionState = {
+        range: null,
+        collapsed: true,
+        formats: {
+          bold: false,
+          italic: false,
+          underline: false,
+          strikethrough: false,
+          fontSize: '3',
+          fontFamily: 'Arial, sans-serif',
+          fontColor: '#000000',
+          backgroundColor: 'transparent',
+          alignment: 'left'
+        }
+      };
+
+      fixture.detectChanges();
+
+      const label = fixture.debugElement.query(By.css('.wysiwyg-toolbar__dropdown-trigger .wysiwyg-toolbar__label'));
+      expect(label.nativeElement.textContent.trim()).toBe('14px');
     });
   });
 
@@ -408,7 +527,7 @@ describe('ToolbarComponent', () => {
       fixture.detectChanges();
 
       const button = fixture.debugElement.query(By.css('.wysiwyg-toolbar__button'));
-      expect(button.nativeElement.title).toBe('Bold');
+      expect(button.nativeElement.getAttribute('data-tooltip')).toBe('Bold');
       expect(button.nativeElement.type).toBe('button');
     });
 

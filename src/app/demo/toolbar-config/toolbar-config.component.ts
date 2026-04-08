@@ -185,7 +185,7 @@ import { WysiwygEditorComponent, ToolbarConfig } from 'bigldeger-wysiwyg-editor'
       display: block;
       border: 1px solid #ddd;
       border-radius: 4px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .config-examples {
@@ -334,8 +334,10 @@ export class ToolbarConfigComponent {
       { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
       { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
       { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+      { type: 'button' as const, command: 'unlink', icon: 'unlink', label: 'Remove Link' },
       { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
       { type: 'dialog' as const, command: 'insertTable', icon: 'insertTable', label: 'Insert Table' },
+      { type: 'button' as const, command: 'removeFormat', icon: 'removeFormat', label: 'Clear Formatting' },
       { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' }
     ]
   };
@@ -354,6 +356,7 @@ export class ToolbarConfigComponent {
         command: 'fontSize',
         icon: 'fontSize',
         label: 'Font Size',
+        separatorBefore: true,
         options: [
           { value: '10px', label: '10px' },
           { value: '12px', label: '12px' },
@@ -383,16 +386,20 @@ export class ToolbarConfigComponent {
       },
       { type: 'dialog' as const, command: 'fontColor', icon: 'fontColor', label: 'Text Color' },
       { type: 'dialog' as const, command: 'backgroundColor', icon: 'backgroundColor', label: 'Background Color' },
-      { type: 'button' as const, command: 'justifyLeft', icon: 'justifyLeft', label: 'Align Left' },
+      { type: 'button' as const, command: 'justifyLeft', icon: 'justifyLeft', label: 'Align Left', separatorBefore: true },
       { type: 'button' as const, command: 'justifyCenter', icon: 'justifyCenter', label: 'Align Center' },
       { type: 'button' as const, command: 'justifyRight', icon: 'justifyRight', label: 'Align Right' },
       { type: 'button' as const, command: 'justifyFull', icon: 'justifyFull', label: 'Justify' },
-      { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List' },
+      { type: 'button' as const, command: 'insertUnorderedList', icon: 'insertUnorderedList', label: 'Bullet List', separatorBefore: true },
       { type: 'button' as const, command: 'insertOrderedList', icon: 'insertOrderedList', label: 'Numbered List' },
-      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link' },
+      { type: 'button' as const, command: 'outdent', icon: 'outdent', label: 'Decrease Indent' },
+      { type: 'button' as const, command: 'indent', icon: 'indent', label: 'Increase Indent' },
+      { type: 'dialog' as const, command: 'createLink', icon: 'createLink', label: 'Insert Link', separatorBefore: true },
+      { type: 'button' as const, command: 'unlink', icon: 'unlink', label: 'Remove Link' },
       { type: 'dialog' as const, command: 'insertImage', icon: 'insertImage', label: 'Insert Image' },
       { type: 'dialog' as const, command: 'insertTable', icon: 'insertTable', label: 'Insert Table' },
-      { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View' }
+      { type: 'button' as const, command: 'removeFormat', icon: 'removeFormat', label: 'Clear Formatting', separatorBefore: true },
+      { type: 'button' as const, command: 'toggleHtmlView', icon: 'code', title: 'Toggle HTML View', separatorBefore: true }
     ]
   };
 
