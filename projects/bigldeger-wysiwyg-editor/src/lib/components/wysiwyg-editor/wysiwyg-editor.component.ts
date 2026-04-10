@@ -305,7 +305,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         this.showVideoDialog();
         break;
       case 'insertTable':
-        this.showTableDialog();
+        this.showTableDialog(command.options?.params?.['anchorRect'] ?? null);
         break;
       case 'fontColor':
         this.showColorPickerDialog('text');
@@ -830,7 +830,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   /**
    * Show table dialog (lazy loaded)
    */
-  private async showTableDialog(): Promise<void> {
+  private async showTableDialog(anchorRect?: DOMRect | null): Promise<void> {
     if (this.tableDialogRef) {
       return; // Dialog already open
     }
@@ -867,6 +867,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         this.tableDialogRef.instance.isOpen = true;
         this.tableDialogRef.instance.editMode = this.isEditingTable;
         this.tableDialogRef.instance.initialData = this.currentTableData;
+        this.tableDialogRef.instance.anchorRect = anchorRect ?? null;
 
         // Subscribe to component outputs
         this.tableDialogRef.instance.insert.subscribe((tableData: TableData) => {

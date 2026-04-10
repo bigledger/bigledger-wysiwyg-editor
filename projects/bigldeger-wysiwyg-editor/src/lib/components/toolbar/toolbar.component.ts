@@ -196,7 +196,7 @@ import { getToolbarIconMarkup } from './toolbar-icons';
             [attr.aria-label]="getDialogAriaLabel(tool)"
             [attr.aria-haspopup]="'dialog'"
             [attr.tabindex]="i === 0 ? '0' : '-1'"
-            (mousedown)="preserveSelectionOnMouseDown($event)"
+            (mousedown)="onDialogButtonMousedown(tool, $event)"
             (click)="executeCommand(tool)"
             (keydown)="handleToolKeydown($event, tool)"
             (focus)="onToolFocus($event)">
@@ -241,6 +241,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   private dropdownPlacements = new Map<string, 'below' | 'above'>();
   private dropdownAlignments = new Map<string, 'start' | 'end'>();
   toolbarId: string;
+  private pendingAnchorRect: DOMRect | null = null;
   private boundDocumentClickHandler!: (event: MouseEvent) => void;
   private boundGlobalKeydownHandler!: (event: KeyboardEvent) => void;
 
@@ -428,18 +429,36 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
+   * Capture the toolbar button rect at mousedown time (most reliable moment)
+   * and preserve the editor selection.
+   */
+  onDialogButtonMousedown(tool: ToolbarTool, event: MouseEvent): void {
+    this.preserveSelectionOnMouseDown(event);
+    const btn = event.currentTarget as HTMLElement;
+    this.pendingAnchorRect = btn ? btn.getBoundingClientRect() : null;
+  }
+
+  /**
    * Execute a toolbar command
    */
   executeCommand(tool: ToolbarTool): void {
     if (tool.disabled || this.disabled) {
+      this.pendingAnchorRect = null;
       return;
     }
+
+    const params: Record<string, any> = {};
+    if (this.pendingAnchorRect) {
+      params['anchorRect'] = this.pendingAnchorRect;
+    }
+    this.pendingAnchorRect = null;
 
     const command: EditorCommand = {
       name: tool.command,
       options: {
         showUI: false,
-        preventDefault: true
+        preventDefault: true,
+        params
       }
     };
 

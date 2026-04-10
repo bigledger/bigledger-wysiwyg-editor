@@ -1,82 +1,99 @@
-.wysiwyg-table-size-picker {
-  margin-bottom: 16px;
-}
+.wysiwyg-table-popup {
+  position: fixed;
+  z-index: 1100;
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+  min-width: 218px;
 
-.wysiwyg-table-grid {
-  display: inline-block;
-  border: 1px solid #ddd;
-  padding: 4px;
-  background: #fff;
-  border-radius: 4px;
-}
-
-.wysiwyg-table-grid-row {
-  display: flex;
-  gap: 2px;
-  
-  &:not(:last-child) {
-    margin-bottom: 2px;
-  }
-}
-
-.wysiwyg-table-grid-cell {
-  width: 20px;
-  height: 20px;
-  border: 1px solid #ddd;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  background: #fff;
-
-  &:hover {
-    border-color: #4CAF50;
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e8e8e8;
+    background: #fafafa;
   }
 
-  &--active {
-    background: #4CAF50;
-    border-color: #4CAF50;
-  }
-}
-
-.wysiwyg-table-size-label {
-  margin-top: 8px;
-  font-size: 14px;
-  color: #666;
-  text-align: center;
-  font-weight: 500;
-}
-
-.wysiwyg-form-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-
-  .wysiwyg-form-group {
-    flex: 1;
-    margin-bottom: 0;
-  }
-}
-
-.wysiwyg-form-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-
-  input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+  &__back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
     cursor: pointer;
+    color: #555;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      background: #ebebeb;
+      color: #111;
+    }
+
+    svg {
+      display: block;
+    }
   }
 
-  span {
-    font-size: 14px;
-    color: #333;
+  &__size-input {
+    flex: 1;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #444;
+    background: #f5f5f5;
+    outline: none;
+    cursor: default;
+    text-align: center;
+    user-select: none;
   }
-}
 
-.wysiwyg-form-input-group {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  &__label {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+    padding: 8px 10px 4px;
+  }
+
+  &__grid {
+    padding: 6px 10px 10px;
+  }
+
+  &__grid-row {
+    display: flex;
+    gap: 3px;
+
+    & + & {
+      margin-top: 3px;
+    }
+  }
+
+  &__grid-cell {
+    width: 22px;
+    height: 22px;
+    border: 1px solid #d0d0d0;
+    border-radius: 3px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
+
+    &:hover {
+      border-color: #5b9cf6;
+    }
+
+    &--active {
+      background: #c7deff;
+      border-color: #5b9cf6;
+    }
+  }
 }
