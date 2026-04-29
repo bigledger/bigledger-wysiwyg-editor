@@ -132,7 +132,7 @@ export class NestedTableService {
     let html = '<table class="nested-table"';
 
     // Add styles for nested table
-    let styles = 'border-collapse: collapse; width: 100%; margin: 0;';
+    let styles = 'border-collapse: collapse; width: 100%; margin: 0; table-layout: fixed;';
     if (tableData.border) {
       styles += ` border: ${tableData.border}px solid #ddd;`;
     }
@@ -145,6 +145,9 @@ export class NestedTableService {
 
     html += '><tbody>';
 
+    // Calculate equal column width percentage
+    const colPct = parseFloat((100 / tableData.columns).toFixed(4)) + '%';
+
     // Create rows
     for (let i = 0; i < tableData.rows; i++) {
       html += '<tr>';
@@ -152,7 +155,7 @@ export class NestedTableService {
       // Create cells
       for (let j = 0; j < tableData.columns; j++) {
         const cellTag = tableData.hasHeader && i === 0 ? 'th' : 'td';
-        let cellStyle = 'border: 1px solid #ddd; padding: 4px; min-width: 30px;';
+        let cellStyle = `border: 1px solid #ddd; padding: 4px; width: ${colPct}; min-width: 30px; overflow: hidden; word-wrap: break-word;`;
 
         if (tableData.hasHeader && i === 0) {
           cellStyle += ' font-weight: bold; background-color: #f5f5f5;';

@@ -61,9 +61,16 @@ export class TableService {
 
     // Default styles
     table.style.borderCollapse = 'collapse';
+    table.style.tableLayout = 'fixed';
+    if (!table.style.width) {
+      table.style.width = '100%';
+    }
     if (!tableData.border) {
       table.style.border = '1px solid #ddd';
     }
+
+    // Calculate equal column width percentage
+    const colPct = parseFloat((100 / tableData.columns).toFixed(4)) + '%';
 
     // Create table body
     const tbody = document.createElement('tbody');
@@ -81,8 +88,10 @@ export class TableService {
         cell.innerHTML = '&nbsp;';
         cell.style.border = '1px solid #ddd';
         cell.style.padding = '8px';
+        cell.style.width = colPct;
         cell.style.minWidth = '50px';
-        cell.style.minHeight = '30px';
+        cell.style.overflow = 'hidden';
+        cell.style.wordWrap = 'break-word';
         
         if (tableData.hasHeader && i === 0) {
           cell.style.fontWeight = 'bold';
@@ -237,7 +246,9 @@ export class TableService {
         return false;
       }
 
-      const newRow = this.createRow(selection.row.cells.length);
+      const colCount = (selection.table.querySelector('tr') as HTMLTableRowElement | null)?.cells.length ?? selection.row.cells.length;
+      const colPct = parseFloat((100 / colCount).toFixed(4)) + '%';
+      const newRow = this.createRow(colCount, colPct);
       selection.row.parentNode!.insertBefore(newRow, selection.row);
       
       return true;
@@ -257,7 +268,9 @@ export class TableService {
         return false;
       }
 
-      const newRow = this.createRow(selection.row.cells.length);
+      const belowColCount = (selection.table.querySelector('tr') as HTMLTableRowElement | null)?.cells.length ?? selection.row.cells.length;
+      const belowColPct = parseFloat((100 / belowColCount).toFixed(4)) + '%';
+      const newRow = this.createRow(belowColCount, belowColPct);
       
       if (selection.row.nextSibling) {
         selection.row.parentNode!.insertBefore(newRow, selection.row.nextSibling);
@@ -275,16 +288,19 @@ export class TableService {
   /**
    * Create a new table row
    */
-  private createRow(cellCount: number): HTMLTableRowElement {
+  private createRow(cellCount: number, colPct?: string): HTMLTableRowElement {
     const row = document.createElement('tr');
+    const pct = colPct || (parseFloat((100 / cellCount).toFixed(4)) + '%');
     
     for (let i = 0; i < cellCount; i++) {
       const cell = document.createElement('td');
       cell.innerHTML = '&nbsp;';
       cell.style.border = '1px solid #ddd';
       cell.style.padding = '8px';
+      cell.style.width = pct;
       cell.style.minWidth = '50px';
-      cell.style.minHeight = '30px';
+      cell.style.overflow = 'hidden';
+      cell.style.wordWrap = 'break-word';
       row.appendChild(cell);
     }
     
@@ -338,7 +354,8 @@ export class TableService {
         newCell.style.border = '1px solid #ddd';
         newCell.style.padding = '8px';
         newCell.style.minWidth = '50px';
-        newCell.style.minHeight = '30px';
+        newCell.style.overflow = 'hidden';
+        newCell.style.wordWrap = 'break-word';
         
         if (row.cells[cellIndex]) {
           row.insertBefore(newCell, row.cells[cellIndex]);
@@ -346,6 +363,8 @@ export class TableService {
           row.appendChild(newCell);
         }
       });
+      // Rebalance column widths after structural change
+      this.applyFixedLayout(table);
       
       return true;
     } catch (error) {
@@ -375,7 +394,8 @@ export class TableService {
         newCell.style.border = '1px solid #ddd';
         newCell.style.padding = '8px';
         newCell.style.minWidth = '50px';
-        newCell.style.minHeight = '30px';
+        newCell.style.overflow = 'hidden';
+        newCell.style.wordWrap = 'break-word';
         
         if (row.cells[cellIndex + 1]) {
           row.insertBefore(newCell, row.cells[cellIndex + 1]);
@@ -383,6 +403,8 @@ export class TableService {
           row.appendChild(newCell);
         }
       });
+      // Rebalance column widths after structural change
+      this.applyFixedLayout(table);
       
       return true;
     } catch (error) {
@@ -417,6 +439,8 @@ export class TableService {
           row.deleteCell(cellIndex);
         }
       });
+      // Rebalance column widths after structural change
+      this.applyFixedLayout(table);
       
       return true;
     } catch (error) {
@@ -1022,5 +1046,29 @@ export class TableService {
       hasHeader,
       hasFooter
     };
+  }
+
+  /**
+   * Apply fixed table layout so cell widths are not driven by content.
+   * Sets table-layout:fixed on the table and distributes equal percentage
+   * widths across all cells in the first row.
+   */
+  applyFixedLayout(table: HTMLTableElement): void {
+    table.style.tableLayout = 'fixed';
+    if (!table.style.width) {
+      table.style.width = '100%';
+    }
+    const firstRow = table.querySelector('tr');
+    if (!firstRow) return;
+    const colCount = firstRow.cells.length;
+    if (colCount === 0) return;
+    const pct = parseFloat((100 / colCount).toFixed(4)) + '%';
+    // Apply to every cell in every row for consistency
+    const allRows = table.querySelectorAll('tr');
+    allRows.forEach(row => {
+      Array.from((row as HTMLTableRowElement).cells).forEach(cell => {
+        (cell as HTMLTableCellElement).style.width = pct;
+      });
+    });
   }
 }

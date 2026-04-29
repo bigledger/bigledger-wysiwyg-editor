@@ -1,9 +1,12 @@
 import { Injectable } from '@angular/core';
+import { TableService } from './table.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TableHandlerService {
+  constructor(private tableService: TableService) {}
+
   private selectedTable: HTMLTableElement | null = null;
   private resizing = false;
   private resizeHandle: string | null = null;
@@ -13,8 +16,6 @@ export class TableHandlerService {
   private startHeight = 0;
   private startMarginLeft = 0;
   private startMarginTop = 0;
-
-  constructor() { }
 
   /**
    * Initialize table handlers - make tables resizable
@@ -44,10 +45,16 @@ export class TableHandlerService {
     table.style.setProperty('position', 'relative', 'important');
     table.style.setProperty('display', 'table', 'important');
     table.style.isolation = 'isolate'; // Create new stacking context
+
+    // Apply fixed table layout for tables loaded from DB that don't have it yet
+    // (new tables always have table-layout: fixed set at creation time)
+    if (table.style.tableLayout !== 'fixed') {
+      this.tableService.applyFixedLayout(table);
+    }
     
-    // Add click handler for selection
-    table.addEventListener('click', (e) => {
-      e.stopPropagation();
+    // Add click handler for selection (no stopPropagation - must bubble up to
+    // EditorContentComponent.onClick() so the table context menu can handle cell clicks)
+    table.addEventListener('click', () => {
       this.selectTable(table);
     });
 

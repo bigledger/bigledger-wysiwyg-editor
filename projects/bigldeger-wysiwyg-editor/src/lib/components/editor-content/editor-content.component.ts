@@ -235,11 +235,24 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
 
     if (element.innerHTML !== sanitizedContent) {
       element.innerHTML = sanitizedContent;
+      // Strip any resize handles that were persisted in saved content, and
+      // reset data-resize-initialized so initializeTableHandlers re-attaches
+      // event listeners correctly on the freshly rendered DOM.
+      this.stripResizeHandles(element);
       this.initializeImageHandlers();
       // Only initialize tables once - they have __resizeInitialized flag
       // This prevents re-initialization when typing in cells
       this.initializeTableHandlers();
     }
+  }
+
+  /** Remove all .table-resize-handle elements from the DOM tree and clear the
+   *  data-resize-initialized attribute so table handlers re-initialize cleanly. */
+  private stripResizeHandles(root: HTMLElement): void {
+    root.querySelectorAll('.table-resize-handle').forEach(el => el.remove());
+    root.querySelectorAll('table[data-resize-initialized]').forEach(
+      el => el.removeAttribute('data-resize-initialized')
+    );
   }
 
   /**
@@ -249,7 +262,12 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     if (isHtmlMode) {
       // Switching to HTML mode - get content from contentArea and format it
       if (this.contentArea?.nativeElement) {
-        this.content = this.formatHtml(this.contentArea.nativeElement.innerHTML);
+        const clone = this.contentArea.nativeElement.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll('.table-resize-handle').forEach(el => el.remove());
+        clone.querySelectorAll('table[data-resize-initialized]').forEach(
+          el => el.removeAttribute('data-resize-initialized')
+        );
+        this.content = this.formatHtml(clone.innerHTML);
 
         // Force change detection and update textarea
         this.cdr.detectChanges();
@@ -393,6 +411,11 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     // Try to get HTML content first, then fall back to plain text
     if (clipboardData.types.includes('text/html')) {
       pastedContent = clipboardData.getData('text/html');
+      // When pasting inside a table cell, strip table structure so we never
+      // create a nested <td> inside an existing <td>.
+      if (this.isCursorInsideTableCell()) {
+        pastedContent = this.extractCellInnerContent(pastedContent);
+      }
     } else {
       const plainText = clipboardData.getData('text/plain');
       pastedContent = this.escapeHtml(plainText);
@@ -406,6 +429,42 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
 
     // Trigger content change
     this.updateContentFromDOM();
+  }
+
+  /** Returns true when the current cursor/selection is inside a TD or TH. */
+  private isCursorInsideTableCell(): boolean {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+    let node: Node | null = sel.getRangeAt(0).startContainer;
+    while (node) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = (node as Element).tagName;
+        if (tag === 'TD' || tag === 'TH') return true;
+        if (tag === 'TABLE' || node === this.contentArea?.nativeElement) return false;
+      }
+      node = node.parentNode;
+    }
+    return false;
+  }
+
+  /**
+   * Given HTML that may contain table markup (e.g. copied from a table cell),
+   * extract only the inner content of the cells so that pasting inside an
+   * existing cell never creates nested <td> elements.
+   */
+  private extractCellInnerContent(html: string): string {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const cells = div.querySelectorAll('td, th');
+    if (cells.length === 0) return html;
+    const parts: string[] = [];
+    cells.forEach(cell => {
+      const inner = (cell as HTMLElement).innerHTML.trim();
+      if (inner && inner !== '&nbsp;' && inner !== '\u00a0') {
+        parts.push(inner);
+      }
+    });
+    return parts.length > 0 ? parts.join(' ') : html;
   }
 
   onFocus(event: FocusEvent): void {
@@ -482,6 +541,13 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
 
     // Check if clicking inside a table cell - show context menu
     if (target.tagName === 'TD' || target.tagName === 'TH' || this.findParentElement(target as Node, 'TD') || this.findParentElement(target as Node, 'TH')) {
+      // If the user drag-selected text inside the cell, treat it as a normal
+      // text selection: clear cell highlight + hide menu so toolbar formatting works.
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) {
+        this.tableContextMenuService.hideMenu();
+        return;
+      }
       this.tableContextMenuService.handleCellClick(event as MouseEvent);
       // Also handle table selection for resize handles
       const tableParent = this.findParentElement(target as Node, 'TABLE');
@@ -705,7 +771,15 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
   private updateContentFromDOM(): void {
     if (!this.contentArea?.nativeElement) return;
 
-    const content = this.contentArea.nativeElement.innerHTML;
+    // Clone the DOM so we can strip internal UI elements (resize handles) without
+    // mutating the live editor, ensuring they are never persisted to the database.
+    const clone = this.contentArea.nativeElement.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('.table-resize-handle').forEach(el => el.remove());
+    clone.querySelectorAll('table[data-resize-initialized]').forEach(
+      el => el.removeAttribute('data-resize-initialized')
+    );
+
+    const content = clone.innerHTML;
     this.content = content;
     this.contentChangeSubject.next(content);
   }

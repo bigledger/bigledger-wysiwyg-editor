@@ -147,6 +147,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
   @Output() contentChange = new EventEmitter<string>();
   @Output() selectionChange = new EventEmitter<SelectionState>();
+  /** Emitted once after each new table is inserted (not when editing an existing table). */
+  @Output() tableInserted = new EventEmitter<void>();
 
   @ViewChild('dialogContainer', { read: ViewContainerRef }) dialogContainer!: ViewContainerRef;
   @ViewChild(EditorContentComponent) editorContent!: EditorContentComponent;
@@ -945,9 +947,14 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
               this.syncCharacterCount();
               this.onChange(this.content);
               this.contentChange.emit(this.content);
+              this.tableInserted.emit();
             }
           }, 10);
         }
+      }
+      // Notify listeners about new table insertion (not editing, not nested)
+      if (this.isHtmlMode) {
+        this.tableInserted.emit();
       }
     }
 
@@ -956,10 +963,6 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       this.updateSelectionState();
     }, 50);
   }
-
-  /**
-   * Append generated HTML directly into HTML mode content.
-   */
   private insertHtmlModeContent(html: string): void {
     const currentContent = this.content || '';
     const newContent = currentContent + (currentContent ? '\n' : '') + html;
@@ -1038,9 +1041,11 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     // Add styles
-    let styles = 'border-collapse: collapse;';
+    let styles = 'border-collapse: collapse; table-layout: fixed;';
     if (tableData.width) {
       styles += ` width: ${tableData.width};`;
+    } else {
+      styles += ' width: 100%;';
     }
     if (tableData.align) {
       if (tableData.align === 'center') {
@@ -1061,6 +1066,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
     html += '><tbody>';
 
+    // Calculate equal column width percentage
+    const colPct = parseFloat((100 / tableData.columns).toFixed(4)) + '%';
+
     // Create rows
     for (let i = 0; i < tableData.rows; i++) {
       html += '<tr>';
@@ -1068,7 +1076,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       // Create cells
       for (let j = 0; j < tableData.columns; j++) {
         const cellTag = tableData.hasHeader && i === 0 ? 'th' : 'td';
-        let cellStyle = 'border: 1px solid #ddd; padding: 8px; min-width: 50px; min-height: 30px;';
+        let cellStyle = `border: 1px solid #ddd; padding: 8px; width: ${colPct}; min-width: 50px; overflow: hidden; word-wrap: break-word;`;
 
         if (tableData.hasHeader && i === 0) {
           cellStyle += ' font-weight: bold; background-color: #f5f5f5;';
@@ -1447,6 +1455,24 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.content = value || '';
     this.lastKnownContent = this.content;
     this.syncCharacterCount();
+  }
+
+  /**
+   * Programmatically set the editor content, bypassing the focused-state guard
+   * so the DOM is updated immediately regardless of whether the editor is focused.
+   * Also notifies Angular's ngModel binding of the new value.
+   */
+  setContent(html: string): void {
+    this.content = html;
+    this.lastKnownContent = html;
+    this.syncCharacterCount();
+    // Force DOM update even if the contenteditable is currently focused
+    if (this.editorContent) {
+      this.editorContent.setContent(html);
+    }
+    // Notify ngModel/ControlValueAccessor binding
+    this.onChange(html);
+    this.contentChange.emit(html);
   }
 
   registerOnChange(fn: (value: string) => void): void {

@@ -115,7 +115,118 @@ export class TableContextMenuService {
    * Show the floating context menu near the active cell.
    * Uses hideMenuDOM (not hideMenu) so selectedCells are preserved.
    */
+  /**
+   * Injects the table context menu global styles into <head> once.
+   * Needed because the menu element is appended to document.body outside
+   * Angular's component tree, so ViewEncapsulation.Emulated styles don't apply.
+   */
+  private injectGlobalStyles(): void {
+    const styleId = 'wysiwyg-tcm-global-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+@keyframes tcm-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tcm-cell-selected {
+  box-shadow: inset 0 0 0 3px #1a73e8 !important;
+  background-color: rgba(26,115,232,0.18) !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+.table-context-menu {
+  position: absolute;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  user-select: none;
+  animation: tcm-fade-in 0.15s ease-out;
+}
+.table-context-menu .tcm-rows { display: flex; flex-direction: column; gap: 2px; }
+.table-context-menu .tcm-row { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.table-context-menu .tcm-group { display: flex; align-items: center; gap: 1px; }
+.table-context-menu .tcm-separator { width: 1px; height: 22px; background: #e0e0e0; margin: 0 4px; flex-shrink: 0; }
+.table-context-menu .tcm-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; margin: 0;
+  border: 1px solid transparent; border-radius: 4px;
+  background: transparent; color: #555; cursor: pointer;
+  transition: all 0.15s ease; flex-shrink: 0; position: relative;
+}
+.table-context-menu .tcm-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.table-context-menu .tcm-btn:hover { background: #f0f4ff; border-color: #c4d6f5; color: #2563eb; }
+.table-context-menu .tcm-btn:active { background: #dbeafe; }
+.table-context-menu .tcm-btn--active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+.table-context-menu .tcm-btn--active:hover { background: #bfdbfe; border-color: #60a5fa; }
+.table-context-menu .tcm-btn--danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+.table-context-menu .tcm-btn--danger:active { background: #fee2e2; }
+.table-context-menu .tcm-btn--has-dropdown::after {
+  content: ''; position: absolute; bottom: 2px; right: 2px;
+  width: 0; height: 0;
+  border-left: 3px solid transparent; border-right: 3px solid transparent;
+  border-top: 3px solid currentColor; opacity: 0.5;
+}
+.tcm-submenu {
+  position: absolute; z-index: 10002; min-width: 140px; padding: 4px;
+  background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+  animation: tcm-fade-in 0.12s ease-out;
+}
+.tcm-submenu .tcm-submenu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 10px; margin: 0; border: none; border-radius: 4px;
+  background: transparent; color: #333; font-size: 13px; cursor: pointer;
+  text-align: left; transition: background 0.12s ease; white-space: nowrap;
+}
+.tcm-submenu .tcm-submenu-item svg { width: 16px; height: 16px; flex-shrink: 0; color: #555; }
+.tcm-submenu .tcm-submenu-item span { flex: 1; }
+.tcm-submenu .tcm-submenu-item:hover { background: #f0f4ff; }
+.tcm-submenu .tcm-submenu-item--active { background: #eff6ff; color: #2563eb; font-weight: 500; }
+.tcm-submenu .tcm-submenu-item--active svg { color: #2563eb; }
+.tcm-submenu .tcm-submenu-item--clear { color: #dc2626; border-top: 1px solid #f0f0f0; margin-top: 4px; padding-top: 8px; border-radius: 0 0 4px 4px; }
+.tcm-submenu .tcm-submenu-item--clear:hover { background: #fef2f2; }
+.tcm-submenu .tcm-submenu-item--danger { color: #dc2626; }
+.tcm-submenu .tcm-submenu-item--danger svg { color: #dc2626; }
+.tcm-submenu .tcm-submenu-item--danger:hover { background: #fef2f2; }
+.tcm-submenu .tcm-submenu-item--disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.tcm-color-picker { width: 180px; padding: 8px; }
+.tcm-color-picker .tcm-color-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 3px; margin-bottom: 6px; }
+.tcm-color-picker .tcm-color-swatch { width: 24px; height: 24px; border: 2px solid transparent; border-radius: 3px; cursor: pointer; padding: 0; margin: 0; transition: all 0.12s ease; }
+.tcm-color-picker .tcm-color-swatch:hover { transform: scale(1.2); border-color: #999; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+.tcm-color-picker .tcm-color-swatch--border { border-color: #ddd; }
+.tcm-color-picker .tcm-color-clear { display: block; width: 100%; padding: 5px 8px; margin: 0; border: none; border-top: 1px solid #f0f0f0; border-radius: 0; background: transparent; color: #dc2626; font-size: 12px; cursor: pointer; text-align: center; transition: background 0.12s ease; }
+.tcm-color-picker .tcm-color-clear:hover { background: #fef2f2; }
+.tcm-style-preview { display: inline-block; width: 16px; height: 16px; border: 1px solid #ddd; border-radius: 2px; flex-shrink: 0; }
+.tcm-settings-panel { min-width: 200px; padding: 8px 12px; }
+.tcm-settings-panel .tcm-settings-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+.tcm-settings-panel .tcm-settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.tcm-settings-panel .tcm-settings-row label { font-size: 12px; color: #555; min-width: 80px; flex-shrink: 0; }
+.tcm-settings-panel .tcm-settings-input,
+.tcm-settings-panel .tcm-settings-select { flex: 1; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; color: #333; background: #fff; outline: none; transition: border-color 0.15s ease; }
+.tcm-settings-panel .tcm-settings-input:focus,
+.tcm-settings-panel .tcm-settings-select:focus { border-color: #2563eb; }
+.tcm-settings-panel .tcm-settings-input { width: 60px; min-width: 0; }
+.tcm-settings-panel .tcm-settings-apply { display: block; width: 100%; padding: 6px 12px; margin-top: 8px; border: none; border-radius: 4px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.15s ease; }
+.tcm-settings-panel .tcm-settings-apply:hover { background: #1d4ed8; }
+@media (max-width: 480px) {
+  .table-context-menu .tcm-row { flex-wrap: wrap; max-width: 220px; }
+  .table-context-menu .tcm-separator { display: none; }
+}
+    `;
+    document.head.appendChild(style);
+  }
+
   private showMenu(cell: HTMLTableCellElement): void {
+    this.injectGlobalStyles();
     // Tear down previous menu DOM without clearing cell selections
     this.hideMenuDOM();
 
