@@ -13,7 +13,8 @@ export class LazyLoaderService {
    * Lazy load a dialog component
    */
   async loadDialogComponent(
-    componentName: 'link' | 'image' | 'video' | 'color' | 'table',
+    componentName: 'link' | 'image' | 'video' | 'color' | 'table'
+      | 'emoticons' | 'specialChars' | 'embeds' | 'fileUpload' | 'bookmark',
     viewContainer: ViewContainerRef
   ): Promise<ComponentRef<any> | null> {
     try {
@@ -36,6 +37,21 @@ export class LazyLoaderService {
         } else if (componentName === 'table') {
           const { TableDialogComponent } = await import('../components/dialogs/table-dialog/table-dialog.component');
           componentType = TableDialogComponent;
+        } else if (componentName === 'emoticons') {
+          const { EmoticonsDialogComponent } = await import('../components/dialogs/emoticons-dialog/emoticons-dialog.component');
+          componentType = EmoticonsDialogComponent;
+        } else if (componentName === 'specialChars') {
+          const { SpecialCharsDialogComponent } = await import('../components/dialogs/special-chars-dialog/special-chars-dialog.component');
+          componentType = SpecialCharsDialogComponent;
+        } else if (componentName === 'embeds') {
+          const { EmbedsDialogComponent } = await import('../components/dialogs/embeds-dialog/embeds-dialog.component');
+          componentType = EmbedsDialogComponent;
+        } else if (componentName === 'fileUpload') {
+          const { FileUploadDialogComponent } = await import('../components/dialogs/file-upload-dialog/file-upload-dialog.component');
+          componentType = FileUploadDialogComponent;
+        } else if (componentName === 'bookmark') {
+          const { BookmarkDialogComponent } = await import('../components/dialogs/bookmark-dialog/bookmark-dialog.component');
+          componentType = BookmarkDialogComponent;
         }
 
         if (componentType) {

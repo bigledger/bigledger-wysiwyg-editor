@@ -17,6 +17,8 @@ export interface VideoData {
   height?: number;
   /** Optional provider override when the host already knows the source */
   provider?: VideoProvider;
+  /** Raw embed HTML (e.g. pasted iframe code) — takes precedence over url when set */
+  embedHtml?: string;
 }
 
 /**

@@ -179,6 +179,11 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   private videoDialogRef: ComponentRef<any> | null = null;
   private colorPickerDialogRef: ComponentRef<any> | null = null;
   private tableDialogRef: ComponentRef<any> | null = null;
+  private emoticonsDialogRef: ComponentRef<any> | null = null;
+  private specialCharsDialogRef: ComponentRef<any> | null = null;
+  private embedsDialogRef: ComponentRef<any> | null = null;
+  private fileUploadDialogRef: ComponentRef<any> | null = null;
+  private bookmarkDialogRef: ComponentRef<any> | null = null;
   private currentLinkData: LinkData | null = null;
   private isEditingLink = false;
   private currentImageData: ImageData | null = null;
@@ -260,6 +265,11 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.closeVideoDialog();
     this.closeColorPickerDialog();
     this.closeTableDialog();
+    this.closeEmoticonsDialog();
+    this.closeSpecialCharsDialog();
+    this.closeEmbedsDialog();
+    this.closeFileUploadDialog();
+    this.closeBookmarkDialog();
 
     // Remove nested table event listener
     document.removeEventListener('insert-nested-table', this.handleNestedTableRequest.bind(this));
@@ -320,6 +330,24 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         break;
       case 'fullscreen':
         this.toggleFullscreen();
+        break;
+      case 'insertHR':
+        this.executeInsertHR();
+        break;
+      case 'emoticons':
+        this.showEmoticonsDialog();
+        break;
+      case 'insertBookmark':
+        this.showBookmarkDialog();
+        break;
+      case 'specialCharacters':
+        this.showSpecialCharsDialog();
+        break;
+      case 'embeds':
+        this.showEmbedsDialog();
+        break;
+      case 'uploadFile':
+        this.showFileUploadDialog();
         break;
       default:
         this.executeCommand(command);
@@ -1549,5 +1577,212 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       .replace(/<[^>]+>/g, '')
       .replace(/&nbsp;/gi, ' ')
       .trim();
+  }
+
+  // ─────────────────────── Insert HR ───────────────────────
+
+  private executeInsertHR(): void {
+    this.restoreEditorSelection();
+    this.commandService.executeCommand({ name: 'insertHR' });
+    this.updateSelectionState();
+    this.emitContentChange();
+  }
+
+  // ─────────────────────── Emoticons dialog ─────────────────
+
+  private async showEmoticonsDialog(): Promise<void> {
+    if (this.emoticonsDialogRef) { return; }
+    try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+
+      this.emoticonsDialogRef = await this.lazyLoaderService.loadDialogComponent('emoticons', this.dialogContainer);
+      if (this.emoticonsDialogRef) {
+        this.emoticonsDialogRef.instance.visible = true;
+        this.emoticonsDialogRef.instance.emojiSelected.subscribe((emoji: string) => {
+          this.onEmojiSelected(emoji);
+        });
+        this.emoticonsDialogRef.instance.dialogClosed.subscribe(() => {
+          this.closeEmoticonsDialog();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load emoticons dialog:', error);
+    }
+  }
+
+  private onEmojiSelected(emoji: string): void {
+    this.restoreEditorSelection(this.pendingDialogSelection);
+    this.commandService.insertTextAtCursor(emoji);
+    this.updateSelectionState();
+    this.emitContentChange();
+    this.closeEmoticonsDialog();
+  }
+
+  private closeEmoticonsDialog(): void {
+    if (this.emoticonsDialogRef) {
+      this.emoticonsDialogRef.destroy();
+      this.emoticonsDialogRef = null;
+    }
+    this.pendingDialogSelection = null;
+  }
+
+  // ─────────────────────── Special chars dialog ─────────────
+
+  private async showSpecialCharsDialog(): Promise<void> {
+    if (this.specialCharsDialogRef) { return; }
+    try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+
+      this.specialCharsDialogRef = await this.lazyLoaderService.loadDialogComponent('specialChars', this.dialogContainer);
+      if (this.specialCharsDialogRef) {
+        this.specialCharsDialogRef.instance.visible = true;
+        this.specialCharsDialogRef.instance.charSelected.subscribe((char: string) => {
+          this.onSpecialCharSelected(char);
+        });
+        this.specialCharsDialogRef.instance.dialogClosed.subscribe(() => {
+          this.closeSpecialCharsDialog();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load special chars dialog:', error);
+    }
+  }
+
+  private onSpecialCharSelected(char: string): void {
+    this.restoreEditorSelection(this.pendingDialogSelection);
+    this.commandService.insertTextAtCursor(char);
+    this.updateSelectionState();
+    this.emitContentChange();
+    this.closeSpecialCharsDialog();
+  }
+
+  private closeSpecialCharsDialog(): void {
+    if (this.specialCharsDialogRef) {
+      this.specialCharsDialogRef.destroy();
+      this.specialCharsDialogRef = null;
+    }
+    this.pendingDialogSelection = null;
+  }
+
+  // ─────────────────────── Embeds dialog ────────────────────
+
+  private async showEmbedsDialog(): Promise<void> {
+    if (this.embedsDialogRef) { return; }
+    try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+
+      this.embedsDialogRef = await this.lazyLoaderService.loadDialogComponent('embeds', this.dialogContainer);
+      if (this.embedsDialogRef) {
+        this.embedsDialogRef.instance.visible = true;
+        this.embedsDialogRef.instance.embedInserted.subscribe((url: string) => {
+          this.onEmbedInserted(url);
+        });
+        this.embedsDialogRef.instance.dialogClosed.subscribe(() => {
+          this.closeEmbedsDialog();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load embeds dialog:', error);
+    }
+  }
+
+  private onEmbedInserted(url: string): void {
+    const html = `<div class="wysiwyg-embed"><iframe src="${url}" frameborder="0" allowfullscreen></iframe></div>`;
+    this.restoreEditorSelection(this.pendingDialogSelection);
+    this.commandService.insertHtmlAtCursor(html);
+    this.updateSelectionState();
+    this.emitContentChange();
+    this.closeEmbedsDialog();
+  }
+
+  private closeEmbedsDialog(): void {
+    if (this.embedsDialogRef) {
+      this.embedsDialogRef.destroy();
+      this.embedsDialogRef = null;
+    }
+    this.pendingDialogSelection = null;
+  }
+
+  // ─────────────────────── File upload dialog ───────────────
+
+  private async showFileUploadDialog(): Promise<void> {
+    if (this.fileUploadDialogRef) { return; }
+    try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+
+      this.fileUploadDialogRef = await this.lazyLoaderService.loadDialogComponent('fileUpload', this.dialogContainer);
+      if (this.fileUploadDialogRef) {
+        this.fileUploadDialogRef.instance.visible = true;
+        this.fileUploadDialogRef.instance.fileInserted.subscribe((data: { url: string; filename: string }) => {
+          this.onFileInserted(data);
+        });
+        this.fileUploadDialogRef.instance.dialogClosed.subscribe(() => {
+          this.closeFileUploadDialog();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load file upload dialog:', error);
+    }
+  }
+
+  private onFileInserted(data: { url: string; filename: string }): void {
+    const html = `<a href="${data.url}" download>${data.filename}</a>`;
+    this.restoreEditorSelection(this.pendingDialogSelection);
+    this.commandService.insertHtmlAtCursor(html);
+    this.updateSelectionState();
+    this.emitContentChange();
+    this.closeFileUploadDialog();
+  }
+
+  private closeFileUploadDialog(): void {
+    if (this.fileUploadDialogRef) {
+      this.fileUploadDialogRef.destroy();
+      this.fileUploadDialogRef = null;
+    }
+    this.pendingDialogSelection = null;
+  }
+
+  // ─────────────────────── Bookmark dialog ──────────────────
+
+  private async showBookmarkDialog(): Promise<void> {
+    if (this.bookmarkDialogRef) { return; }
+    try {
+      const savedSelection = this.getEditorSelectionSnapshot();
+      this.pendingDialogSelection = savedSelection;
+
+      this.bookmarkDialogRef = await this.lazyLoaderService.loadDialogComponent('bookmark', this.dialogContainer);
+      if (this.bookmarkDialogRef) {
+        this.bookmarkDialogRef.instance.visible = true;
+        this.bookmarkDialogRef.instance.bookmarkInserted.subscribe((id: string) => {
+          this.onBookmarkInserted(id);
+        });
+        this.bookmarkDialogRef.instance.dialogClosed.subscribe(() => {
+          this.closeBookmarkDialog();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load bookmark dialog:', error);
+    }
+  }
+
+  private onBookmarkInserted(id: string): void {
+    const html = `<a id="${id}" name="${id}"></a>`;
+    this.restoreEditorSelection(this.pendingDialogSelection);
+    this.commandService.insertHtmlAtCursor(html);
+    this.updateSelectionState();
+    this.emitContentChange();
+    this.closeBookmarkDialog();
+  }
+
+  private closeBookmarkDialog(): void {
+    if (this.bookmarkDialogRef) {
+      this.bookmarkDialogRef.destroy();
+      this.bookmarkDialogRef = null;
+    }
+    this.pendingDialogSelection = null;
   }
 }

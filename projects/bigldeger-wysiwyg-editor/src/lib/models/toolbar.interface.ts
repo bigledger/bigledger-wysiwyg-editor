@@ -15,7 +15,7 @@ export interface ToolbarConfig {
  */
 export interface ToolbarTool {
   /** Type of toolbar tool */
-  type: 'button' | 'dropdown' | 'dialog';
+  type: 'button' | 'dropdown' | 'dialog' | 'group';
   /** Command to execute when tool is activated */
   command: string;
   /** Icon identifier for the tool */
@@ -28,6 +28,8 @@ export interface ToolbarTool {
   ariaLabel?: string;
   /** Options for dropdown tools */
   options?: ToolOption[];
+  /** Child tools for group type — shown in an expandable second row */
+  tools?: ToolbarTool[];
   /** Whether the tool is disabled */
   disabled?: boolean;
   /** Custom CSS classes for the tool */

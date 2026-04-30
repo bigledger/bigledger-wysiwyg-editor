@@ -412,6 +412,29 @@
   }
 }
 
+// Group row — second toolbar row revealed when a group toggle is activated
+.wysiwyg-toolbar__group-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 0 2px;
+  border-top: 1px solid var(--wysiwyg-border-primary);
+  animation: wysiwyg-group-row-open 0.15s ease;
+}
+
+@keyframes wysiwyg-group-row-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 // Screen reader only content
 .sr-only {
   @include wysiwyg-sr-only;

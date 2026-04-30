@@ -38,7 +38,19 @@ const toolbarIcons: Record<string, string> = {
   redo: strokeIcon('<path d="M15 7h5v5"/><path d="M20 12a8 8 0 1 0-2.3 5.7l2.3-2.3"/>'),
   chevronDown: strokeIcon('<polyline points="6 9 12 15 18 9"/>'),
   check: strokeIcon('<polyline points="5 13 9 17 19 7"/>'),
-  dialog: fillIcon('<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>')
+  dialog: fillIcon('<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>'),
+  moreText: strokeIcon('<path d="M3 20L10 4l7 16"/><line x1="6" y1="14" x2="14" y2="14"/><circle cx="20" cy="9" r="1.6" fill="currentColor" stroke="none"/><circle cx="20" cy="16" r="1.6" fill="currentColor" stroke="none"/>'),
+  inlineClass: strokeIcon('<path d="M4 20L10 4l6 16"/><line x1="6.5" y1="14" x2="13.5" y2="14"/><rect x="15" y="8" width="7" height="6" rx="1.5" fill="none"/><line x1="17" y1="11" x2="20" y2="11"/>'),
+  inlineStyle: strokeIcon('<path d="M3 20L9 4l6 16"/><line x1="5.5" y1="14" x2="12.5" y2="14"/><path d="M18.5 4l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="currentColor" stroke="none"/>'),
+
+  // ── More Rich group icons ────────────────────────────────────────────────
+  moreRich: strokeIcon('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="6" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="6" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/>'),
+  insertHR: strokeIcon('<line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/><line x1="3" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21" y2="12"/>'),
+  emoticons: strokeIcon('<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none"/><path d="M8.5 15c1 1.5 5.5 1.5 7 0"/>'),
+  insertBookmark: strokeIcon('<line x1="9" y1="3" x2="9" y2="21"/><path d="M9 3l8 4.5-8 4.5"/>'),
+  specialCharacters: strokeIcon('<path d="M12 4c-2 0-5 1.5-5 5.5 0 2.5 1.5 4.5 4 5.5H7v2h10v-2h-4c2.5-1 4-3 4-5.5C17 5.5 14 4 12 4z"/><line x1="8" y1="21" x2="16" y2="21"/>'),
+  embeds: strokeIcon('<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><line x1="8.4" y1="10.9" x2="15.6" y2="6.1"/><line x1="8.4" y1="13.1" x2="15.6" y2="17.9"/>'),
+  uploadFile: strokeIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="12 18 12 12"/><polyline points="9 15 12 12 15 15"/>')
 };
 
 toolbarIcons['link'] = toolbarIcons['createLink'];

@@ -56,6 +56,26 @@ export class CommandService {
         );
       }
 
+      if (commandName === 'insertHR') {
+        return this.insertHorizontalRule();
+      }
+
+      if (commandName === 'insertEmoji' || commandName === 'insertSpecialChar') {
+        return this.insertTextAtCursor(value || '');
+      }
+
+      if (commandName === 'insertEmbed') {
+        return this.insertHtmlAtCursor(value || '');
+      }
+
+      if (commandName === 'insertBookmarkAnchor') {
+        return this.insertHtmlAtCursor(value || '');
+      }
+
+      if (commandName === 'insertFileLink') {
+        return this.insertHtmlAtCursor(value || '');
+      }
+
       if (commandName === 'formatOLSimple') {
         commandName = 'insertOrderedList';
       }
@@ -292,6 +312,70 @@ export class CommandService {
     const currentTag = currentBlock ? this.normalizeBlockTag(currentBlock.tagName) : 'p';
 
     return this.applyBlockFormat(currentTag === 'blockquote' ? 'p' : 'blockquote');
+  }
+
+  /**
+   * Insert a horizontal rule (<hr>) at the cursor position.
+   */
+  private insertHorizontalRule(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const hr = document.createElement('hr');
+    range.insertNode(hr);
+    // Move cursor after the <hr>
+    const newRange = document.createRange();
+    newRange.setStartAfter(hr);
+    newRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+    return true;
+  }
+
+  /**
+   * Insert a plain text character (emoji, special char) at the cursor.
+   */
+  insertTextAtCursor(text: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const textNode = document.createTextNode(text);
+    range.insertNode(textNode);
+    const newRange = document.createRange();
+    newRange.setStartAfter(textNode);
+    newRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+    return true;
+  }
+
+  /**
+   * Insert arbitrary HTML at the cursor position.
+   */
+  insertHtmlAtCursor(html: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const fragment = range.createContextualFragment(html);
+    const lastNode = fragment.lastChild;
+    range.insertNode(fragment);
+    if (lastNode) {
+      const newRange = document.createRange();
+      newRange.setStartAfter(lastNode);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+    return true;
   }
 
   /**

@@ -183,6 +183,31 @@ import { getToolbarIconMarkup } from './toolbar-icons';
             </div>
           </div>
 
+          <!-- Group Tool (expandable second row) -->
+          <ng-container *ngIf="tool.type === 'group'">
+            <button
+              type="button"
+              class="wysiwyg-toolbar__button wysiwyg-toolbar__button--group-toggle"
+              [class.wysiwyg-toolbar__button--active]="isGroupExpanded(tool)"
+              [disabled]="tool.disabled || disabled"
+              [attr.data-tooltip]="getToolTitle(tool)"
+              [attr.aria-label]="getGroupAriaLabel(tool)"
+              [attr.aria-expanded]="isGroupExpanded(tool)"
+              [attr.tabindex]="i === 0 ? '0' : '-1'"
+              (mousedown)="preserveSelectionOnMouseDown($event)"
+              (click)="toggleGroup(tool)"
+              (keydown)="handleToolKeydown($event, tool)"
+              (focus)="onToolFocus($event)">
+              <span
+                *ngIf="tool.icon"
+                class="wysiwyg-toolbar__icon"
+                [innerHTML]="getSafeToolIcon(tool)"
+                aria-hidden="true">
+              </span>
+              <span *ngIf="tool.label && !tool.icon" class="wysiwyg-toolbar__label">{{ tool.label }}</span>
+            </button>
+          </ng-container>
+
           <!-- Dialog Tool -->
           <button
             *ngIf="tool.type === 'dialog'"
@@ -223,6 +248,179 @@ import { getToolbarIconMarkup } from './toolbar-icons';
 
         </ng-container>
       </div>
+
+      <!-- Group expanded rows -->
+      <ng-container *ngFor="let tool of config?.tools">
+        <div
+          *ngIf="tool.type === 'group' && isGroupExpanded(tool) && tool.tools?.length"
+          class="wysiwyg-toolbar__group-row"
+          role="toolbar"
+          [attr.aria-label]="(tool.label || 'More') + ' tools'">
+          <ng-container *ngFor="let subTool of tool.tools; trackBy: trackByTool; let si = index">
+            <span
+              *ngIf="subTool.separatorBefore && si > 0"
+              class="wysiwyg-toolbar__divider"
+              aria-hidden="true">
+            </span>
+
+            <!-- Sub-Button -->
+            <button
+              *ngIf="subTool.type === 'button'"
+              type="button"
+              class="wysiwyg-toolbar__button"
+              [class.wysiwyg-toolbar__button--active]="isToolActive(subTool)"
+              [class.wysiwyg-toolbar__button--disabled]="subTool.disabled || disabled"
+              [disabled]="subTool.disabled || disabled"
+              [attr.data-tooltip]="getToolTitle(subTool)"
+              [attr.aria-label]="getToolAriaLabel(subTool)"
+              [attr.aria-pressed]="isToolActive(subTool)"
+              [attr.tabindex]="si === 0 ? '0' : '-1'"
+              (mousedown)="preserveSelectionOnMouseDown($event)"
+              (click)="executeCommand(subTool)"
+              (focus)="onToolFocus($event)">
+              <span
+                *ngIf="subTool.icon"
+                class="wysiwyg-toolbar__icon"
+                [innerHTML]="getSafeToolIcon(subTool)"
+                aria-hidden="true">
+              </span>
+              <span *ngIf="subTool.label && !subTool.icon" class="wysiwyg-toolbar__label">{{ subTool.label }}</span>
+            </button>
+
+            <!-- Sub-Dropdown -->
+            <div
+              *ngIf="subTool.type === 'dropdown'"
+              class="wysiwyg-toolbar__dropdown"
+              [attr.data-command]="subTool.command"
+              [class.wysiwyg-toolbar__dropdown--disabled]="subTool.disabled || disabled">
+              <button
+                type="button"
+                class="wysiwyg-toolbar__dropdown-trigger"
+                [class.wysiwyg-toolbar__dropdown-trigger--active]="isDropdownOpen(subTool)"
+                [disabled]="subTool.disabled || disabled"
+                [attr.data-tooltip]="getToolTitle(subTool)"
+                [attr.aria-label]="getDropdownAriaLabel(subTool)"
+                [attr.aria-expanded]="isDropdownOpen(subTool)"
+                [attr.aria-haspopup]="'menu'"
+                [attr.aria-controls]="getDropdownMenuId(subTool)"
+                [id]="getDropdownTriggerId(subTool)"
+                [attr.tabindex]="si === 0 ? '0' : '-1'"
+                (mousedown)="preserveSelectionOnMouseDown($event)"
+                (click)="toggleDropdown(subTool)"
+                (focus)="onToolFocus($event)">
+                <span
+                  *ngIf="subTool.icon"
+                  class="wysiwyg-toolbar__icon"
+                  [innerHTML]="getSafeToolIcon(subTool)"
+                  aria-hidden="true">
+                </span>
+                <span
+                  *ngIf="subTool.label"
+                  class="wysiwyg-toolbar__label"
+                  [style.font-family]="getDropdownPreviewFont(subTool)">
+                  {{ getDropdownDisplayLabel(subTool) }}
+                </span>
+                <span
+                  class="wysiwyg-toolbar__dropdown-arrow"
+                  [innerHTML]="getSafeUtilityIcon('chevronDown')"
+                  aria-hidden="true">
+                </span>
+              </button>
+              <div
+                *ngIf="isDropdownOpen(subTool)"
+                class="wysiwyg-toolbar__dropdown-menu"
+                [class.wysiwyg-toolbar__dropdown-menu--above]="getDropdownPlacement(subTool) === 'above'"
+                [class.wysiwyg-toolbar__dropdown-menu--align-end]="getDropdownAlignment(subTool) === 'end'"
+                [id]="getDropdownMenuId(subTool)"
+                role="menu"
+                [attr.aria-labelledby]="getDropdownTriggerId(subTool)"
+                (click)="$event.stopPropagation()"
+                (keydown)="handleDropdownMenuKeydown($event, subTool)">
+                <div class="wysiwyg-toolbar__dropdown-menu-header">
+                  <span class="wysiwyg-toolbar__dropdown-menu-title">{{ subTool.label || subTool.command }}</span>
+                  <span
+                    *ngIf="getDropdownCurrentLabel(subTool) as currentLabel"
+                    class="wysiwyg-toolbar__dropdown-menu-current"
+                    [style.font-family]="getDropdownCurrentFont(subTool)">
+                    {{ currentLabel }}
+                  </span>
+                </div>
+                <div class="wysiwyg-toolbar__dropdown-menu-body">
+                  <button
+                    *ngFor="let option of subTool.options; trackBy: trackByOption; let optionIndex = index"
+                    type="button"
+                    class="wysiwyg-toolbar__dropdown-option"
+                    [class.wysiwyg-toolbar__dropdown-option--disabled]="option.disabled"
+                    [class.wysiwyg-toolbar__dropdown-option--selected]="isOptionSelected(subTool, option)"
+                    [disabled]="option.disabled"
+                    role="menuitem"
+                    [attr.aria-selected]="isOptionSelected(subTool, option)"
+                    [attr.tabindex]="optionIndex === 0 ? '0' : '-1'"
+                    (mousedown)="preserveSelectionOnMouseDown($event)"
+                    (click)="executeDropdownCommand(subTool, option)"
+                    (focus)="onDropdownOptionFocus($event)">
+                    <span
+                      *ngIf="option.icon"
+                      class="wysiwyg-toolbar__icon"
+                      [innerHTML]="getSafeOptionIcon(option)"
+                      aria-hidden="true">
+                    </span>
+                    <span
+                      *ngIf="!option.icon && subTool.command === 'fontFamily'"
+                      class="wysiwyg-toolbar__option-preview"
+                      [style.font-family]="option.value"
+                      aria-hidden="true">
+                      Aa
+                    </span>
+                    <span
+                      class="wysiwyg-toolbar__label"
+                      [ngStyle]="getOptionPreviewStyles(subTool, option)"
+                      [ngClass]="option.previewClass"
+                      [style.font-family]="subTool.command === 'fontFamily' ? option.value : null">
+                      {{ option.label }}
+                    </span>
+                    <span
+                      *ngIf="isOptionSelected(subTool, option)"
+                      class="wysiwyg-toolbar__selected-indicator"
+                      [innerHTML]="getSafeUtilityIcon('check')"
+                      aria-hidden="true">
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-Dialog -->
+            <button
+              *ngIf="subTool.type === 'dialog'"
+              type="button"
+              class="wysiwyg-toolbar__button wysiwyg-toolbar__button--dialog"
+              [class.wysiwyg-toolbar__button--active]="isToolActive(subTool)"
+              [class.wysiwyg-toolbar__button--disabled]="subTool.disabled || disabled"
+              [disabled]="subTool.disabled || disabled"
+              [attr.data-tooltip]="getToolTitle(subTool)"
+              [attr.aria-label]="getDialogAriaLabel(subTool)"
+              [attr.aria-haspopup]="'dialog'"
+              [attr.tabindex]="si === 0 ? '0' : '-1'"
+              (mousedown)="onDialogButtonMousedown(subTool, $event)"
+              (click)="executeCommand(subTool)"
+              (focus)="onToolFocus($event)">
+              <span
+                *ngIf="subTool.icon"
+                class="wysiwyg-toolbar__icon"
+                [innerHTML]="getSafeToolIcon(subTool)"
+                aria-hidden="true">
+              </span>
+              <span *ngIf="subTool.label && !subTool.icon" class="wysiwyg-toolbar__label">{{ subTool.label }}</span>
+              <span
+                class="wysiwyg-toolbar__dialog-indicator"
+                [innerHTML]="getSafeUtilityIcon('dialog')"
+                aria-hidden="true">
+              </span>
+            </button>
+          </ng-container>
+        </div>
+      </ng-container>
     </div>
   `,
   styleUrls: ['./toolbar.component.scss']
@@ -240,6 +438,7 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   private openDropdowns = new Set<string>();
   private dropdownPlacements = new Map<string, 'below' | 'above'>();
   private dropdownAlignments = new Map<string, 'start' | 'end'>();
+  private expandedGroups = new Set<string>();
   toolbarId: string;
   private pendingAnchorRect: DOMRect | null = null;
   private boundDocumentClickHandler!: (event: MouseEvent) => void;
@@ -366,6 +565,34 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
     this.openDropdowns.clear();
     this.dropdownPlacements.clear();
     this.dropdownAlignments.clear();
+  }
+
+  /**
+   * Check if a group is currently expanded
+   */
+  isGroupExpanded(tool: ToolbarTool): boolean {
+    return this.expandedGroups.has(tool.command);
+  }
+
+  /**
+   * Toggle a group expanded/collapsed
+   */
+  toggleGroup(tool: ToolbarTool): void {
+    if (this.expandedGroups.has(tool.command)) {
+      this.expandedGroups.delete(tool.command);
+    } else {
+      this.expandedGroups.add(tool.command);
+    }
+    // Close any open dropdowns when toggling group
+    this.closeAllDropdowns();
+  }
+
+  /**
+   * Get ARIA label for group toggle button
+   */
+  getGroupAriaLabel(tool: ToolbarTool): string {
+    const label = tool.ariaLabel || tool.label || 'More';
+    return this.isGroupExpanded(tool) ? `Collapse ${label}` : `Expand ${label}`;
   }
 
   /**
