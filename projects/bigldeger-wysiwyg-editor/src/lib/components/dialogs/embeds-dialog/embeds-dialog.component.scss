@@ -1,0 +1,76 @@
+@import '../../../styles/themes.scss';
+
+.wysiwyg-embeds-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--wysiwyg-bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--wysiwyg-z-modal);
+  padding: var(--wysiwyg-spacing-lg);
+  animation: wysiwyg-fade-in 0.2s ease-out;
+}
+
+.wysiwyg-embeds-dialog {
+  @include wysiwyg-card;
+  width: 100%;
+  max-width: 460px;
+  animation: wysiwyg-slide-down 0.2s ease-out;
+}
+
+.wysiwyg-embeds-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-lg);
+  border-bottom: 1px solid var(--wysiwyg-border-primary);
+
+  h3 {
+    margin: 0;
+    font-size: var(--wysiwyg-font-size-xl);
+    font-weight: var(--wysiwyg-font-weight-semibold);
+    color: var(--wysiwyg-text-primary);
+  }
+}
+
+.wysiwyg-embeds-close {
+  @include wysiwyg-button-base;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: var(--wysiwyg-font-size-xl);
+  color: var(--wysiwyg-text-secondary);
+  &:hover { background: var(--wysiwyg-bg-tertiary); color: var(--wysiwyg-text-primary); }
+}
+
+.wysiwyg-embeds-body {
+  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-xxl);
+}
+
+.wysiwyg-embeds-input {
+  width: 100%;
+  padding: var(--wysiwyg-spacing-sm) var(--wysiwyg-spacing-md);
+  border: 1px solid var(--wysiwyg-border-primary);
+  border-radius: var(--wysiwyg-radius-md);
+  font-size: var(--wysiwyg-font-size-md);
+  color: var(--wysiwyg-text-primary);
+  background: var(--wysiwyg-bg-primary);
+  box-sizing: border-box;
+
+  &:focus { outline: none; border-color: var(--wysiwyg-accent-color, #2563eb); }
+}
+
+.wysiwyg-embeds-actions {
+  display: flex;
+  gap: var(--wysiwyg-spacing-md);
+  justify-content: flex-end;
+  padding-top: var(--wysiwyg-spacing-lg);
+  border-top: 1px solid var(--wysiwyg-border-primary);
+  margin-top: var(--wysiwyg-spacing-lg);
+}
+
+.wysiwyg-btn {
+  &--primary { @include wysiwyg-button-primary; }
+  &--secondary { @include wysiwyg-button-secondary; }
+}

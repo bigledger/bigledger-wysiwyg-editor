@@ -11,7 +11,24 @@
       </button>
     </div>
 
-    <form [formGroup]="videoForm" (ngSubmit)="onSubmit()" class="wysiwyg-video-dialog-form">
+    <!-- Tab strip -->
+    <div class="wysiwyg-video-dialog-tabs">
+      <button type="button"
+        class="wysiwyg-video-dialog-tab"
+        [class.wysiwyg-video-dialog-tab--active]="activeTab === 'url'"
+        (click)="setTab('url')">By URL</button>
+      <button type="button"
+        class="wysiwyg-video-dialog-tab"
+        [class.wysiwyg-video-dialog-tab--active]="activeTab === 'embed'"
+        (click)="setTab('embed')">Embedded Code</button>
+      <button type="button"
+        class="wysiwyg-video-dialog-tab"
+        [class.wysiwyg-video-dialog-tab--active]="activeTab === 'upload'"
+        (click)="setTab('upload')">Upload Video</button>
+    </div>
+
+    <!-- Tab: By URL -->
+    <form *ngIf="activeTab === 'url'" [formGroup]="videoForm" (ngSubmit)="onSubmit()" class="wysiwyg-video-dialog-form">
       <div class="wysiwyg-form-group">
         <label for="videoUrl">Video URL *</label>
         <input
@@ -28,59 +45,67 @@
       </div>
 
       <div class="wysiwyg-form-group">
-        <label for="videoTitle">Title (optional)</label>
-        <input
-          id="videoTitle"
-          type="text"
-          formControlName="title"
-          placeholder="Accessible title for the embedded video">
-      </div>
-
-      <div class="wysiwyg-video-dialog-grid">
-        <div class="wysiwyg-form-group">
-          <label for="videoWidth">Width</label>
-          <input
-            id="videoWidth"
-            type="number"
-            formControlName="width"
-            min="1"
-            max="3840"
-            [class.error]="hasFieldError('width')">
-          <div class="wysiwyg-error-message" *ngIf="hasFieldError('width')">
-            {{ getFieldError('width') }}
-          </div>
-        </div>
-
-        <div class="wysiwyg-form-group">
-          <label for="videoHeight">Height</label>
-          <input
-            id="videoHeight"
-            type="number"
-            formControlName="height"
-            min="1"
-            max="2160"
-            [class.error]="hasFieldError('height')">
-          <div class="wysiwyg-error-message" *ngIf="hasFieldError('height')">
-            {{ getFieldError('height') }}
-          </div>
-        </div>
+        <label class="wysiwyg-video-dialog-checkbox-label">
+          <input type="checkbox" formControlName="autoplay"> Autoplay
+        </label>
       </div>
 
       <div class="wysiwyg-video-dialog-actions">
-        <button
-          type="button"
-          class="wysiwyg-btn wysiwyg-btn-secondary"
-          (click)="onCancel()">
-          Cancel
-        </button>
-
-        <button
-          type="submit"
-          class="wysiwyg-btn wysiwyg-btn-primary"
-          [disabled]="!videoForm.valid">
+        <button type="button" class="wysiwyg-btn wysiwyg-btn-secondary" (click)="onCancel()">Cancel</button>
+        <button type="submit" class="wysiwyg-btn wysiwyg-btn-primary" [disabled]="!videoForm.get('url')?.valid">
           {{ isEditing ? 'Update Video' : 'Insert Video' }}
         </button>
       </div>
     </form>
+
+    <!-- Tab: Embedded Code -->
+    <div *ngIf="activeTab === 'embed'" class="wysiwyg-video-dialog-form">
+      <div class="wysiwyg-form-group">
+        <label for="videoEmbedCode">Embedded Code *</label>
+        <textarea
+          id="videoEmbedCode"
+          class="wysiwyg-video-dialog-embed-textarea"
+          [(ngModel)]="embedCode"
+          placeholder="Paste your &lt;iframe&gt; or embed code here...">
+        </textarea>
+      </div>
+      <div class="wysiwyg-video-dialog-actions">
+        <button type="button" class="wysiwyg-btn wysiwyg-btn-secondary" (click)="onCancel()">Cancel</button>
+        <button type="button" class="wysiwyg-btn wysiwyg-btn-primary"
+          [disabled]="!embedCode.trim()"
+          (click)="onSubmitEmbed()">
+          Insert Video
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab: Upload Video -->
+    <div *ngIf="activeTab === 'upload'" class="wysiwyg-video-dialog-form">
+      <div
+        class="wysiwyg-video-dialog-dropzone"
+        [class.wysiwyg-video-dialog-dropzone--over]="isDragOver"
+        (click)="videoFileInput.click()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="isDragOver = false"
+        (drop)="onFileDrop($event)">
+        <input #videoFileInput type="file" accept="video/*" style="display:none" (change)="onFileChange($event)">
+        <div *ngIf="!uploadedFileName" class="wysiwyg-video-dialog-dropzone-hint">
+          Drop video (or click)
+        </div>
+        <div *ngIf="uploadedFileName" class="wysiwyg-video-dialog-dropzone-filename">
+          {{ uploadedFileName }}
+        </div>
+      </div>
+      <div *ngIf="uploadError" class="wysiwyg-error-message">{{ uploadError }}</div>
+      <div class="wysiwyg-video-dialog-actions">
+        <button type="button" class="wysiwyg-btn wysiwyg-btn-secondary" (click)="onCancel()">Cancel</button>
+        <button type="button" class="wysiwyg-btn wysiwyg-btn-primary"
+          [disabled]="!uploadedVideoUrl || isUploading"
+          (click)="onSubmitUpload()">
+          {{ isUploading ? 'Uploading...' : 'Insert Video' }}
+        </button>
+      </div>
+    </div>
+
   </div>
 </div>

@@ -66,6 +66,86 @@
   padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-xxl);
 }
 
+// ── Tab strip ──────────────────────────────────────────────────────────────
+.wysiwyg-video-dialog-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--wysiwyg-border-primary);
+  padding: 0 var(--wysiwyg-spacing-xxl);
+}
+
+.wysiwyg-video-dialog-tab {
+  @include wysiwyg-button-base;
+  padding: var(--wysiwyg-spacing-sm) var(--wysiwyg-spacing-md);
+  font-size: var(--wysiwyg-font-size-sm);
+  color: var(--wysiwyg-text-secondary);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  margin-bottom: -1px;
+
+  &:hover { color: var(--wysiwyg-text-primary); }
+
+  &--active {
+    color: var(--wysiwyg-accent-color, #2563eb);
+    border-bottom-color: var(--wysiwyg-accent-color, #2563eb);
+    font-weight: var(--wysiwyg-font-weight-semibold);
+  }
+}
+
+// ── Embed textarea ─────────────────────────────────────────────────────────
+.wysiwyg-video-dialog-embed-textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: var(--wysiwyg-spacing-sm);
+  border: 1px solid var(--wysiwyg-border-primary);
+  border-radius: var(--wysiwyg-radius-md);
+  font-family: monospace;
+  font-size: var(--wysiwyg-font-size-sm);
+  color: var(--wysiwyg-text-primary);
+  background: var(--wysiwyg-bg-primary);
+  box-sizing: border-box;
+
+  &:focus { outline: none; border-color: var(--wysiwyg-accent-color, #2563eb); }
+}
+
+// ── Drop zone ──────────────────────────────────────────────────────────────
+.wysiwyg-video-dialog-dropzone {
+  border: 2px dashed var(--wysiwyg-border-primary);
+  border-radius: var(--wysiwyg-radius-md);
+  padding: var(--wysiwyg-spacing-xxl);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover, &--over {
+    border-color: var(--wysiwyg-accent-color, #2563eb);
+    background: var(--wysiwyg-bg-secondary);
+  }
+}
+
+.wysiwyg-video-dialog-dropzone-hint {
+  color: var(--wysiwyg-text-secondary);
+  font-size: var(--wysiwyg-font-size-sm);
+}
+
+.wysiwyg-video-dialog-dropzone-filename {
+  color: var(--wysiwyg-text-primary);
+  font-size: var(--wysiwyg-font-size-sm);
+  font-weight: var(--wysiwyg-font-weight-medium);
+  word-break: break-all;
+}
+
+// ── Checkbox ───────────────────────────────────────────────────────────────
+.wysiwyg-video-dialog-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--wysiwyg-spacing-sm);
+  font-size: var(--wysiwyg-font-size-sm);
+  color: var(--wysiwyg-text-primary);
+  cursor: pointer;
+}
+
 .wysiwyg-video-dialog-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

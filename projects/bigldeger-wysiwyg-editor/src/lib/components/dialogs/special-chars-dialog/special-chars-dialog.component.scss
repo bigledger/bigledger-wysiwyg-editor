@@ -1,0 +1,68 @@
+@import '../../../styles/themes.scss';
+
+.wysiwyg-sc-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--wysiwyg-bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--wysiwyg-z-modal);
+  padding: var(--wysiwyg-spacing-lg);
+  animation: wysiwyg-fade-in 0.2s ease-out;
+}
+
+.wysiwyg-sc-dialog {
+  @include wysiwyg-card;
+  width: 340px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: wysiwyg-slide-down 0.2s ease-out;
+}
+
+.wysiwyg-sc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--wysiwyg-spacing-md) var(--wysiwyg-spacing-lg);
+  border-bottom: 1px solid var(--wysiwyg-border-primary);
+}
+
+.wysiwyg-sc-title {
+  font-size: var(--wysiwyg-font-size-md);
+  font-weight: var(--wysiwyg-font-weight-semibold);
+  color: var(--wysiwyg-text-primary);
+}
+
+.wysiwyg-sc-close {
+  @include wysiwyg-button-base;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: var(--wysiwyg-font-size-xl);
+  color: var(--wysiwyg-text-secondary);
+  &:hover { background: var(--wysiwyg-bg-tertiary); color: var(--wysiwyg-text-primary); }
+}
+
+.wysiwyg-sc-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: var(--wysiwyg-spacing-sm);
+  overflow-y: auto;
+  @include wysiwyg-scrollbar;
+}
+
+.wysiwyg-sc-char {
+  @include wysiwyg-button-base;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 16px;
+  border-radius: var(--wysiwyg-radius-sm);
+  color: var(--wysiwyg-text-primary);
+  transition: background 0.1s;
+
+  &:hover { background: var(--wysiwyg-bg-secondary); }
+}
