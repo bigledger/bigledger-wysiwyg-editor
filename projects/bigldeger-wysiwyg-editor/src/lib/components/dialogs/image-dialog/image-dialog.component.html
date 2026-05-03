@@ -2,17 +2,9 @@
   <div class="wysiwyg-image-dialog" (click)="$event.stopPropagation()">
     <form [formGroup]="imageForm" (ngSubmit)="onSubmit()">
       
-      <!-- Modern Dialog Header -->
+      <!-- Dialog Header -->
       <div class="wysiwyg-image-dialog-header">
-        <div class="wysiwyg-header-icon-wrapper">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <div class="wysiwyg-header-content">
-          <h3>{{ isEditing ? 'Edit Image' : 'Insert Image' }}</h3>
-          <p>Add images from URL or upload from your device</p>
-        </div>
+        <h3>{{ isEditing ? 'Edit Image' : 'Insert Image' }}</h3>
         <button 
           type="button" 
           class="wysiwyg-close-btn"
@@ -24,316 +16,171 @@
         </button>
       </div>
 
-      <!-- Elegant Tabs -->
+      <!-- Tabs -->
       <div class="wysiwyg-tabs-container" *ngIf="!isEditing && hasMultipleInputModes">
         <div class="wysiwyg-tabs">
           <button 
             type="button"
             class="wysiwyg-tab"
-            [class.active]="activeTab === 'url'"
-            (click)="switchTab('url')">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            <span>From URL</span>
+            [class.active]="activeTab === 'upload'"
+            (click)="switchTab('upload')">
+            <span>UPLOAD</span>
           </button>
           <button 
             type="button"
             class="wysiwyg-tab"
-            [class.active]="activeTab === 'upload'"
-            (click)="switchTab('upload')">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <span>Upload</span>
+            [class.active]="activeTab === 'url'"
+            (click)="switchTab('url')">
+            <span>BY URL</span>
           </button>
         </div>
       </div>
 
       <div class="wysiwyg-dialog-body">
 
-        <!-- URL Tab Content -->
-        <div class="wysiwyg-tab-content" *ngIf="activeTab === 'url' && allowUrlInput">
-          <div class="wysiwyg-url-section">
-            <div class="wysiwyg-form-group">
-              <label for="imageUrl">
-                <span class="wysiwyg-label-text">Image URL</span>
-                <span class="wysiwyg-label-required">*</span>
-              </label>
-              <div class="wysiwyg-input-wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                <input 
-                  id="imageUrl"
-                  type="url" 
-                  formControlName="src"
-                  placeholder="https://example.com/image.jpg"
-                  [class.error]="hasFieldError('src')"
-                  (input)="onUrlChange()">
-              </div>
-              <p class="wysiwyg-field-hint">Enter a direct link to an image (HTTPS recommended)</p>
-              <div class="wysiwyg-error-message" *ngIf="hasFieldError('src')">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                </svg>
-                {{ getFieldError('src') }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Upload Tab Content -->
+        <!-- Upload Tab Content (First Tab) -->
         <div class="wysiwyg-tab-content" *ngIf="activeTab === 'upload' && allowFileUpload">
-          <div class="wysiwyg-upload-container">
-            
-            <!-- Hidden File Input -->
-            <input 
-              #fileInput
-              type="file"
-              [attr.accept]="fileAccept"
-              (change)="onFileSelected($event)"
-              style="display: none">
+          
+          <!-- Hidden File Input -->
+          <input 
+            #fileInput
+            type="file"
+            [attr.accept]="fileAccept"
+            (change)="onFileSelected($event)"
+            style="display: none">
 
-            <!-- Upload Area -->
-            <div class="wysiwyg-upload-area">
-              
-              <!-- Main Upload Button -->
-              <button 
-                type="button" 
-                class="wysiwyg-primary-upload-btn"
-                (click)="triggerFileInput()"
-                [disabled]="isUploading">
-                <div class="wysiwyg-btn-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                </div>
-                <div class="wysiwyg-btn-content">
-                  <span class="wysiwyg-btn-title">Choose Image</span>
-                  <span class="wysiwyg-btn-subtitle">Browse your computer</span>
-                </div>
-              </button>
-
-              <!-- Divider -->
-              <div class="wysiwyg-divider">
-                <span>or</span>
-              </div>
-
-              <!-- Drop Zone -->
-              <div 
-                class="wysiwyg-drop-area"
-                [class.active]="isDragOver"
-                [class.disabled]="isUploading"
-                (dragover)="onDragOver($event)"
-                (dragleave)="onDragLeave($event)"
-                (drop)="onDrop($event)">
-                <div class="wysiwyg-drop-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
-                <p class="wysiwyg-drop-title">Drag & drop your image here</p>
-                <p class="wysiwyg-drop-formats">Supports JPG, PNG, GIF, WebP • Max 5MB</p>
-              </div>
-
-            </div>
-
-            <!-- File Status -->
-            <div class="wysiwyg-file-status" *ngIf="selectedFile || isUploading || uploadError || hasFileError()">
-              
-              <!-- Selected File Info -->
-              <div class="wysiwyg-file-card" *ngIf="selectedFile && !isUploading">
-                <div class="wysiwyg-file-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div class="wysiwyg-file-details">
-                  <span class="wysiwyg-file-name">{{ selectedFile.name }}</span>
-                  <span class="wysiwyg-file-size">{{ formatFileSize(selectedFile.size) }}</span>
-                </div>
-                <div class="wysiwyg-file-badge">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-
-              <!-- Upload Progress -->
-              <div class="wysiwyg-progress-card" *ngIf="isUploading">
-                <div class="wysiwyg-progress-info">
-                  <span class="wysiwyg-progress-label">Uploading...</span>
-                  <span class="wysiwyg-progress-percent">{{ uploadProgress }}%</span>
-                </div>
-                <div class="wysiwyg-progress-track">
-                  <div class="wysiwyg-progress-bar" [style.width.%]="uploadProgress"></div>
-                </div>
-              </div>
-
-              <!-- Error Messages -->
-              <div class="wysiwyg-error-card" *ngIf="uploadError || hasFileError()">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          <!-- Simple Drop Zone (Froala Style) -->
+          <div 
+            class="wysiwyg-froala-drop-zone"
+            [class.active]="isDragOver"
+            [class.disabled]="isUploading"
+            (click)="triggerFileInput()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)">
+            <div class="wysiwyg-drop-content">
+              <div class="wysiwyg-drop-icon-simple">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span>{{ uploadError || getFileError() }}</span>
               </div>
+              <p class="wysiwyg-drop-text">Drop image</p>
+              <p class="wysiwyg-drop-or">or click</p>
+            </div>
+          </div>
 
+          <!-- File Status -->
+          <div class="wysiwyg-file-status-simple" *ngIf="selectedFile || isUploading || uploadError">
+            
+            <!-- Selected File Info -->
+            <div class="wysiwyg-file-info-simple" *ngIf="selectedFile && !isUploading && !uploadError">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>{{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})</span>
             </div>
 
+            <!-- Upload Progress -->
+            <div class="wysiwyg-progress-simple" *ngIf="isUploading">
+              <div class="wysiwyg-progress-bar-simple">
+                <div class="wysiwyg-progress-fill" [style.width.%]="uploadProgress"></div>
+              </div>
+              <span class="wysiwyg-progress-text">Uploading... {{ uploadProgress }}%</span>
+            </div>
+
+            <!-- Error Message -->
+            <div class="wysiwyg-error-simple" *ngIf="uploadError">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+              </svg>
+              <span>{{ uploadError }}</span>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- URL Tab Content (Second Tab) -->
+        <div class="wysiwyg-tab-content" *ngIf="activeTab === 'url' && allowUrlInput">
+          <div class="wysiwyg-url-input-simple">
+            <input 
+              type="url" 
+              formControlName="src"
+              placeholder="http://"
+              [class.error]="hasFieldError('src')"
+              (input)="onUrlChange()">
+            <div class="wysiwyg-error-simple" *ngIf="hasFieldError('src')">
+              {{ getFieldError('src') }}
+            </div>
           </div>
         </div>
 
-        <!-- Image Preview -->
-        <div class="wysiwyg-preview-section" *ngIf="previewUrl">
-          <div class="wysiwyg-section-label">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            <span>Preview</span>
-          </div>
-          <div class="wysiwyg-preview-wrapper">
+        <!-- Image Properties (Simplified) -->
+        <div class="wysiwyg-properties-section-simple" *ngIf="previewUrl || selectedFile">
+          
+          <!-- Image Preview -->
+          <div class="wysiwyg-preview-simple" *ngIf="previewUrl">
             <img [src]="previewUrl" [alt]="imageForm.get('alt')?.value || 'Image preview'" />
           </div>
-        </div>
 
-        <!-- Image Properties -->
-        <div class="wysiwyg-properties-section">
-          <div class="wysiwyg-section-label">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span>Properties</span>
+          <!-- Alt Text -->
+          <div class="wysiwyg-form-group-simple">
+            <label for="imageAlt">Alternate Text</label>
+            <input 
+              id="imageAlt"
+              type="text" 
+              formControlName="alt"
+              placeholder="Image description"
+              [class.error]="hasFieldError('alt')">
+            <div class="wysiwyg-error-simple" *ngIf="hasFieldError('alt')">
+              {{ getFieldError('alt') }}
+            </div>
           </div>
 
-          <div class="wysiwyg-properties-grid">
-            
-            <!-- Alt Text -->
-            <div class="wysiwyg-form-group wysiwyg-full-width">
-              <label for="imageAlt">
-                <span class="wysiwyg-label-text">Alt Text</span>
-                <span class="wysiwyg-label-required">*</span>
-              </label>
+          <!-- Dimensions -->
+          <div class="wysiwyg-dimensions-simple">
+            <div class="wysiwyg-form-group-simple">
+              <label for="imageWidth">Width</label>
               <input 
-                id="imageAlt"
-                type="text" 
-                formControlName="alt"
-                placeholder="Describe the image for accessibility"
-                [class.error]="hasFieldError('alt')">
-              <p class="wysiwyg-field-hint">Important for screen readers and SEO</p>
-              <div class="wysiwyg-error-message" *ngIf="hasFieldError('alt')">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                </svg>
-                {{ getFieldError('alt') }}
-              </div>
+                id="imageWidth"
+                type="number" 
+                formControlName="width"
+                placeholder="Auto"
+                min="1"
+                max="2000">
             </div>
 
-            <!-- Title -->
-            <div class="wysiwyg-form-group wysiwyg-full-width">
-              <label for="imageTitle">
-                <span class="wysiwyg-label-text">Title</span>
-                <span class="wysiwyg-label-optional">optional</span>
-              </label>
+            <div class="wysiwyg-form-group-simple">
+              <label for="imageHeight">Height</label>
               <input 
-                id="imageTitle"
-                type="text" 
-                formControlName="title"
-                placeholder="Appears on hover">
-              <p class="wysiwyg-field-hint">Shows as tooltip when hovering</p>
+                id="imageHeight"
+                type="number" 
+                formControlName="height"
+                placeholder="Auto"
+                min="1"
+                max="2000">
             </div>
-
-            <!-- Dimensions -->
-            <div class="wysiwyg-dimensions-row">
-              <div class="wysiwyg-form-group">
-                <label for="imageWidth">
-                  <span class="wysiwyg-label-text">Width</span>
-                  <span class="wysiwyg-label-optional">optional</span>
-                </label>
-                <div class="wysiwyg-input-with-unit">
-                  <input 
-                    id="imageWidth"
-                    type="number" 
-                    formControlName="width"
-                    placeholder="Auto"
-                    min="1"
-                    max="2000"
-                    [class.error]="hasFieldError('width')">
-                  <span class="wysiwyg-unit">px</span>
-                </div>
-                <div class="wysiwyg-error-message" *ngIf="hasFieldError('width')">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                  </svg>
-                  {{ getFieldError('width') }}
-                </div>
-              </div>
-
-              <span class="wysiwyg-dimension-separator">×</span>
-
-              <div class="wysiwyg-form-group">
-                <label for="imageHeight">
-                  <span class="wysiwyg-label-text">Height</span>
-                  <span class="wysiwyg-label-optional">optional</span>
-                </label>
-                <div class="wysiwyg-input-with-unit">
-                  <input 
-                    id="imageHeight"
-                    type="number" 
-                    formControlName="height"
-                    placeholder="Auto"
-                    min="1"
-                    max="2000"
-                    [class.error]="hasFieldError('height')">
-                  <span class="wysiwyg-unit">px</span>
-                </div>
-                <div class="wysiwyg-error-message" *ngIf="hasFieldError('height')">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                  </svg>
-                  {{ getFieldError('height') }}
-                </div>
-              </div>
-            </div>
-
           </div>
+
         </div>
 
       </div>
 
-      <!-- Dialog Footer Actions -->
-      <div class="wysiwyg-dialog-footer">
+      <!-- Dialog Footer -->
+      <div class="wysiwyg-dialog-footer-simple">
         <button 
           type="button" 
-          class="wysiwyg-btn wysiwyg-btn-secondary"
+          class="wysiwyg-btn-simple wysiwyg-btn-cancel"
           (click)="onCancel()">
           Cancel
         </button>
         
-        <div class="wysiwyg-footer-right">
-          <button 
-            *ngIf="isEditing"
-            type="button" 
-            class="wysiwyg-btn wysiwyg-btn-danger"
-            (click)="onRemoveImage()">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Remove
-          </button>
-          
-          <button 
-            type="submit" 
-            class="wysiwyg-btn wysiwyg-btn-primary"
-            [disabled]="!isFormValid()">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            {{ isEditing ? 'Update Image' : 'Insert Image' }}
-          </button>
-        </div>
+        <button 
+          type="submit" 
+          class="wysiwyg-btn-simple wysiwyg-btn-insert"
+          [disabled]="!isFormValid()">
+          Insert
+        </button>
       </div>
 
     </form>

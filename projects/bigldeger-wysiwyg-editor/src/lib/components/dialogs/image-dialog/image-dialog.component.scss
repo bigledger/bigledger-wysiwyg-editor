@@ -1,7 +1,7 @@
 @import '../../../styles/themes.scss';
 
 // ========================================
-// Modern Image Dialog Styles
+// Froala-Style Image Dialog
 // ========================================
 
 // Overlay
@@ -11,8 +11,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,115 +22,80 @@
 // Main Dialog Container
 .wysiwyg-image-dialog {
   background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   width: 90%;
-  max-width: 650px;
-  max-height: 85vh;
+  max-width: 600px;
+  max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease-out;
+  animation: slideIn 0.2s ease-out;
 
   form {
     display: flex;
     flex-direction: column;
-    max-height: 85vh;
+    max-height: 90vh;
     overflow: hidden;
   }
 }
 
 // ========================================
-// Header
+// Header (Froala Style)
 // ========================================
 .wysiwyg-image-dialog-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 24px 28px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  position: relative;
+  justify-content: space-between;
+  padding: 15px 20px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
 
-  .wysiwyg-header-icon-wrapper {
-    width: 48px;
-    height: 48px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    svg {
-      width: 28px;
-      height: 28px;
-      stroke-width: 2.5;
-    }
-  }
-
-  .wysiwyg-header-content {
-    flex: 1;
-
-    h3 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 600;
-      line-height: 1.2;
-    }
-
-    p {
-      margin: 4px 0 0;
-      font-size: 13px;
-      opacity: 0.9;
-      font-weight: 400;
-    }
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
   }
 
   .wysiwyg-close-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.15);
+    width: 28px;
+    height: 28px;
+    border-radius: 3px;
+    background: transparent;
     border: none;
-    color: white;
+    color: #666;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    flex-shrink: 0;
+    padding: 0;
 
     svg {
-      width: 20px;
-      height: 20px;
-      stroke-width: 2.5;
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
     }
 
     &:hover {
-      background: rgba(255, 255, 255, 0.25);
-      transform: scale(1.05);
-    }
-
-    &:active {
-      transform: scale(0.95);
+      background: #e0e0e0;
+      color: #333;
     }
   }
 }
 
 // ========================================
-// Tabs
+// Tabs (Froala Style)
 // ========================================
 .wysiwyg-tabs-container {
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  padding: 0 28px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
 }
 
 .wysiwyg-tabs {
   display: flex;
-  gap: 8px;
-  margin: 0 -4px;
+  gap: 0;
 }
 
 .wysiwyg-tab {
@@ -139,37 +103,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 14px 20px;
-  background: transparent;
+  padding: 12px 20px;
+  background: #f5f5f5;
   border: none;
   border-bottom: 3px solid transparent;
-  color: #6c757d;
+  color: #666;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   transition: all 0.2s;
-  position: relative;
-
-  svg {
-    width: 18px;
-    height: 18px;
-    stroke-width: 2;
-  }
+  font-family: inherit;
 
   &:hover:not(.active) {
-    color: #495057;
-    background: rgba(0, 0, 0, 0.02);
+    background: #ebebeb;
+    color: #333;
   }
 
   &.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
-    background: white;
+    background: #fff;
+    color: #0098f7;
+    border-bottom-color: #0098f7;
+  }
 
-    svg {
-      stroke-width: 2.5;
-    }
+  &:first-child {
+    border-right: 1px solid #ddd;
   }
 }
 
@@ -180,15 +139,16 @@
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 28px;
-  min-height: 0; // Critical for flex scrolling
+  padding: 20px;
+  min-height: 0;
+  background: #fff;
   
   &::-webkit-scrollbar {
     width: 8px;
   }
 
   &::-webkit-scrollbar-track {
-    background: #f1f3f4;
+    background: #f1f1f1;
   }
 
   &::-webkit-scrollbar-thumb {
@@ -196,573 +156,286 @@
     border-radius: 4px;
 
     &:hover {
-      background: #aaa;
+      background: #999;
     }
   }
 }
 
 .wysiwyg-tab-content {
-  animation: fadeIn 0.25s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 // ========================================
-// URL Section
+// Upload Tab - Froala Style Drop Zone
 // ========================================
-.wysiwyg-url-section {
-  .wysiwyg-form-group {
-    margin-bottom: 0;
-  }
-
-  .wysiwyg-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-
-    svg {
-      position: absolute;
-      left: 14px;
-      width: 20px;
-      height: 20px;
-      color: #6c757d;
-      pointer-events: none;
-    }
-
-    input {
-      padding-left: 44px;
-    }
-  }
-}
-
-// ========================================
-// Upload Section
-// ========================================
-.wysiwyg-upload-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.wysiwyg-upload-area {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-// Primary Upload Button
-.wysiwyg-primary-upload-btn {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 12px;
-  color: white;
+.wysiwyg-froala-drop-zone {
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  padding: 60px 20px;
+  text-align: center;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s;
+  background: #fafafa;
 
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  &:hover:not(.disabled) {
+    border-color: #0098f7;
+    background: #f0f8ff;
   }
 
-  &:active:not(:disabled) {
-    transform: translateY(0);
+  &.active {
+    border-color: #0098f7;
+    background: #e6f4ff;
+    border-style: solid;
   }
 
-  &:disabled {
+  &.disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
 
-  .wysiwyg-btn-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    svg {
-      width: 26px;
-      height: 26px;
-      stroke-width: 2;
-    }
-  }
-
-  .wysiwyg-btn-content {
-    flex: 1;
-    text-align: left;
+  .wysiwyg-drop-content {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-
-    .wysiwyg-btn-title {
-      font-size: 16px;
-      font-weight: 600;
-      line-height: 1.2;
-    }
-
-    .wysiwyg-btn-subtitle {
-      font-size: 13px;
-      opacity: 0.9;
-    }
-  }
-}
-
-// Divider
-.wysiwyg-divider {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  color: #adb5bd;
-  font-size: 13px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #dee2e6, transparent);
-  }
-}
-
-// Drop Area
-.wysiwyg-drop-area {
-  padding: 32px 24px;
-  border: 2px dashed #ced4da;
-  border-radius: 12px;
-  background: #f8f9fa;
-  text-align: center;
-  transition: all 0.3s;
-  cursor: pointer;
-
-  .wysiwyg-drop-icon {
-    width: 60px;
-    height: 60px;
-    margin: 0 auto 16px;
-    background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
-    border-radius: 50%;
-    display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
+  }
+
+  .wysiwyg-drop-icon-simple {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 8px;
 
     svg {
-      width: 32px;
-      height: 32px;
-      color: #667eea;
-      stroke-width: 2;
-    }
-  }
-
-  .wysiwyg-drop-title {
-    margin: 0 0 8px;
-    font-size: 15px;
-    font-weight: 500;
-    color: #495057;
-  }
-
-  .wysiwyg-drop-formats {
-    margin: 0;
-    font-size: 13px;
-    color: #6c757d;
-  }
-
-  &:hover:not(.disabled) {
-    border-color: #667eea;
-    background: #f0f4ff;
-
-    .wysiwyg-drop-icon {
-      transform: scale(1.05);
-    }
-  }
-
-  &.active {
-    border-color: #667eea;
-    border-width: 3px;
-    background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
-
-    .wysiwyg-drop-icon {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-  }
-
-  &.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-// ========================================
-// File Status
-// ========================================
-.wysiwyg-file-status {
-  animation: slideIn 0.3s ease-out;
-}
-
-// File Card
-.wysiwyg-file-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  background: #f0f4ff;
-  border: 2px solid #d0dcff;
-  border-radius: 12px;
-
-  .wysiwyg-file-icon {
-    width: 44px;
-    height: 44px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    svg {
-      width: 24px;
-      height: 24px;
-      color: white;
-      stroke-width: 2;
-    }
-  }
-
-  .wysiwyg-file-details {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    .wysiwyg-file-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: #212529;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .wysiwyg-file-size {
-      font-size: 13px;
-      color: #6c757d;
-    }
-  }
-
-  .wysiwyg-file-badge {
-    width: 28px;
-    height: 28px;
-    background: #28a745;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    svg {
-      width: 18px;
-      height: 18px;
-      color: white;
-    }
-  }
-}
-
-// Progress Card
-.wysiwyg-progress-card {
-  padding: 16px 20px;
-  background: #f0f4ff;
-  border: 2px solid #d0dcff;
-  border-radius: 12px;
-
-  .wysiwyg-progress-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-
-    .wysiwyg-progress-label {
-      font-size: 14px;
-      font-weight: 500;
-      color: #212529;
-    }
-
-    .wysiwyg-progress-percent {
-      font-size: 14px;
-      font-weight: 600;
-      color: #667eea;
-    }
-  }
-
-  .wysiwyg-progress-track {
-    height: 8px;
-    background: #e9ecef;
-    border-radius: 4px;
-    overflow: hidden;
-
-    .wysiwyg-progress-bar {
+      width: 100%;
       height: 100%;
-      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-      border-radius: 4px;
-      transition: width 0.3s ease;
-      animation: progressPulse 1.5s ease-in-out infinite;
+      color: #999;
+      stroke-width: 1.5;
     }
   }
-}
 
-// Error Card
-.wysiwyg-error-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: #fff5f5;
-  border: 2px solid #feb2b2;
-  border-radius: 12px;
-  color: #c53030;
-
-  svg {
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-  }
-
-  span {
-    font-size: 14px;
+  .wysiwyg-drop-text {
+    margin: 0;
+    font-size: 16px;
     font-weight: 500;
-    flex: 1;
+    color: #333;
+  }
+
+  .wysiwyg-drop-or {
+    margin: 0;
+    font-size: 14px;
+    color: #999;
   }
 }
 
-// ========================================
-// Preview Section
-// ========================================
-.wysiwyg-preview-section {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e9ecef;
+// File Status (Simple)
+.wysiwyg-file-status-simple {
+  margin-top: 15px;
 }
 
-.wysiwyg-section-label {
+.wysiwyg-file-info-simple {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
-  color: #495057;
+  padding: 10px 15px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+  color: #2e7d32;
   font-size: 14px;
-  font-weight: 600;
 
   svg {
     width: 20px;
     height: 20px;
-    color: #667eea;
+    flex-shrink: 0;
     stroke-width: 2;
   }
-}
 
-.wysiwyg-preview-wrapper {
-  background: #f8f9fa;
-  border: 2px dashed #dee2e6;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-
-  img {
-    max-width: 100%;
-    max-height: 300px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
-// ========================================
-// Properties Section
-// ========================================
-.wysiwyg-properties-section {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e9ecef;
-}
-
-.wysiwyg-properties-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-// Form Groups
-.wysiwyg-form-group {
+.wysiwyg-progress-simple {
   display: flex;
   flex-direction: column;
   gap: 8px;
 
-  &.wysiwyg-full-width {
-    width: 100%;
-  }
+  .wysiwyg-progress-bar-simple {
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    overflow: hidden;
 
-  label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #212529;
-
-    .wysiwyg-label-text {
-      flex: 1;
-    }
-
-    .wysiwyg-label-required {
-      color: #dc3545;
-      font-size: 16px;
-    }
-
-    .wysiwyg-label-optional {
-      font-size: 12px;
-      font-weight: 400;
-      color: #6c757d;
+    .wysiwyg-progress-fill {
+      height: 100%;
+      background: #0098f7;
+      transition: width 0.3s ease;
     }
   }
 
-  input {
-    padding: 12px 14px;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    font-size: 14px;
-    font-family: inherit;
-    transition: all 0.2s;
-    background: white;
-
-    &:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    &.error {
-      border-color: #dc3545;
-
-      &:focus {
-        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
-      }
-    }
-
-    &::placeholder {
-      color: #adb5bd;
-    }
-  }
-
-  .wysiwyg-field-hint {
-    font-size: 12px;
-    color: #6c757d;
-    margin: 0;
-  }
-}
-
-// Dimensions Row
-.wysiwyg-dimensions-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-
-  .wysiwyg-form-group {
-    flex: 1;
-  }
-
-  .wysiwyg-dimension-separator {
-    font-size: 20px;
-    font-weight: 600;
-    color: #adb5bd;
-    margin-top: 32px;
-  }
-}
-
-.wysiwyg-input-with-unit {
-  position: relative;
-  display: flex;
-  align-items: center;
-
-  input {
-    flex: 1;
-    padding-right: 44px;
-  }
-
-  .wysiwyg-unit {
-    position: absolute;
-    right: 14px;
+  .wysiwyg-progress-text {
     font-size: 13px;
-    font-weight: 500;
-    color: #6c757d;
-    pointer-events: none;
+    color: #666;
+    text-align: center;
   }
 }
 
-// Error Messages
-.wysiwyg-error-message {
+.wysiwyg-error-simple {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: #fff5f5;
-  border-radius: 6px;
-  color: #c53030;
+  padding: 10px 15px;
+  background: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 4px;
+  color: #c62828;
   font-size: 13px;
-  font-weight: 500;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
   }
 }
 
 // ========================================
-// Dialog Footer
+// URL Tab - Simple Input
 // ========================================
-.wysiwyg-dialog-footer {
+.wysiwyg-url-input-simple {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 20px 28px;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+  flex-direction: column;
+  gap: 10px;
 
-  .wysiwyg-footer-right {
-    display: flex;
-    gap: 12px;
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: #0098f7;
+      box-shadow: 0 0 0 2px rgba(0, 152, 247, 0.1);
+    }
+
+    &.error {
+      border-color: #f44336;
+
+      &:focus {
+        box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.1);
+      }
+    }
+
+    &::placeholder {
+      color: #999;
+    }
   }
 }
 
-// Buttons
-.wysiwyg-btn {
+// ========================================
+// Properties Section (Simplified)
+// ========================================
+.wysiwyg-properties-section-simple {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.wysiwyg-preview-simple {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
+  padding: 15px;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  min-height: 150px;
+
+  img {
+    max-width: 100%;
+    max-height: 250px;
+    border-radius: 4px;
+  }
+}
+
+.wysiwyg-form-group-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+  }
+
+  input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: #0098f7;
+      box-shadow: 0 0 0 2px rgba(0, 152, 247, 0.1);
+    }
+
+    &.error {
+      border-color: #f44336;
+    }
+
+    &::placeholder {
+      color: #999;
+    }
+  }
+}
+
+.wysiwyg-dimensions-simple {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+// ========================================
+// Dialog Footer (Froala Style)
+// ========================================
+.wysiwyg-dialog-footer-simple {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  background: #f5f5f5;
+  border-top: 1px solid #ddd;
+}
+
+.wysiwyg-btn-simple {
+  padding: 8px 20px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   transition: all 0.2s;
+  background: #fff;
+  color: #333;
 
-  svg {
-    width: 18px;
-    height: 18px;
-    stroke-width: 2;
+  &:hover:not(:disabled) {
+    background: #f5f5f5;
   }
 
   &:disabled {
@@ -771,48 +444,29 @@
   }
 }
 
-.wysiwyg-btn-secondary {
-  background: white;
-  color: #495057;
-  border: 2px solid #dee2e6;
+.wysiwyg-btn-cancel {
+  background: #fff;
+  color: #666;
 
   &:hover:not(:disabled) {
-    background: #f8f9fa;
-    border-color: #ced4da;
-  }
-
-  &:active:not(:disabled) {
-    background: #e9ecef;
+    background: #f5f5f5;
+    border-color: #999;
   }
 }
 
-.wysiwyg-btn-danger {
-  background: #dc3545;
-  color: white;
+.wysiwyg-btn-insert {
+  background: #0098f7;
+  color: #fff;
+  border-color: #0098f7;
 
   &:hover:not(:disabled) {
-    background: #c82333;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    background: #0082d1;
+    border-color: #0082d1;
   }
 
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-}
-
-.wysiwyg-btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
+  &:disabled {
+    background: #b3d9f2;
+    border-color: #b3d9f2;
   }
 }
 
@@ -828,34 +482,14 @@
   }
 }
 
-@keyframes slideUp {
+@keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(-20px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes progressPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
   }
 }
 
@@ -865,87 +499,39 @@
 @media (max-width: 640px) {
   .wysiwyg-image-dialog {
     width: 95%;
-    max-height: 90vh;
+    max-height: 95vh;
 
     form {
-      max-height: 90vh;
+      max-height: 95vh;
     }
-  }
-
-  .wysiwyg-image-dialog-header {
-    padding: 20px;
-
-    .wysiwyg-header-icon-wrapper {
-      width: 40px;
-      height: 40px;
-
-      svg {
-        width: 24px;
-        height: 24px;
-      }
-    }
-
-    .wysiwyg-header-content h3 {
-      font-size: 18px;
-    }
-
-    .wysiwyg-header-content p {
-      font-size: 12px;
-    }
-  }
-
-  .wysiwyg-tabs-container {
-    padding: 0 20px;
   }
 
   .wysiwyg-dialog-body {
-    padding: 20px;
+    padding: 15px;
   }
 
-  .wysiwyg-dimensions-row {
+  .wysiwyg-froala-drop-zone {
+    padding: 40px 15px;
+
+    .wysiwyg-drop-icon-simple {
+      width: 48px;
+      height: 48px;
+    }
+
+    .wysiwyg-drop-text {
+      font-size: 14px;
+    }
+  }
+
+  .wysiwyg-dimensions-simple {
+    grid-template-columns: 1fr;
+  }
+
+  .wysiwyg-dialog-footer-simple {
     flex-direction: column;
-    gap: 12px;
 
-    .wysiwyg-dimension-separator {
-      display: none;
-    }
-  }
-
-  .wysiwyg-dialog-footer {
-    flex-direction: column;
-    padding: 16px 20px;
-
-    .wysiwyg-footer-right {
+    .wysiwyg-btn-simple {
       width: 100%;
-      flex-direction: column;
-    }
-
-    .wysiwyg-btn {
-      width: 100%;
-    }
-  }
-
-  .wysiwyg-primary-upload-btn {
-    padding: 16px 20px;
-
-    .wysiwyg-btn-icon {
-      width: 40px;
-      height: 40px;
-
-      svg {
-        width: 22px;
-        height: 22px;
-      }
-    }
-
-    .wysiwyg-btn-content {
-      .wysiwyg-btn-title {
-        font-size: 15px;
-      }
-
-      .wysiwyg-btn-subtitle {
-        font-size: 12px;
-      }
     }
   }
 }

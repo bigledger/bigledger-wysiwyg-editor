@@ -36,7 +36,7 @@ export class ImageDialogComponent implements OnInit, OnChanges {
   imageForm: FormGroup;
 
   /** Current tab: 'upload' or 'url' */
-  activeTab: 'upload' | 'url' = 'url';
+  activeTab: 'upload' | 'url' = 'upload';
 
   /** Selected file for upload */
   selectedFile: File | null = null;
@@ -165,7 +165,7 @@ export class ImageDialogComponent implements OnInit, OnChanges {
     } else if (!this.allowFileUpload && this.allowUrlInput) {
       this.activeTab = 'url';
     } else if (!this.allowUrlInput && !this.allowFileUpload) {
-      this.activeTab = 'url';
+      this.activeTab = 'upload';
     }
 
     if (this.imageData) {
@@ -538,7 +538,7 @@ export class ImageDialogComponent implements OnInit, OnChanges {
     this.imageForm.reset();
     this.selectedFile = null;
     this.previewUrl = null;
-    this.activeTab = this.allowUrlInput ? 'url' : 'upload';
+    this.activeTab = this.allowFileUpload ? 'upload' : 'url';
     this.uploadProgress = 0;
     this.isUploading = false;
     this.uploadError = null;
