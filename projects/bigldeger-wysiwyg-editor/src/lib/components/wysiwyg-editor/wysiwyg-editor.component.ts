@@ -214,12 +214,14 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     private assetOptimizer: AssetOptimizerService,
     private sanitizer: DomSanitizer
   ) {
-    // Initialize debounced content change handler
+    // Initialize debounced content change handler.
+    // Keep at 150 ms — short enough to feel responsive, long enough to avoid
+    // flooding parent components on every keystroke.
     this.debouncedContentChange = this.debounceService.debounce(
       (content: string) => {
         this.contentChange.emit(content);
       },
-      300
+      150
     );
   }
 
@@ -230,14 +232,11 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     // Set up keyboard shortcuts
     this.setupKeyboardShortcuts();
 
-    // Subscribe to debounced content changes
-    this.debounceService.debouncedContentChange$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(content => {
-        this.performanceMonitor.startBenchmark('contentChange');
-        this.contentChange.emit(content);
-        this.performanceMonitor.endBenchmark('contentChange');
-      });
+    // NOTE: The debouncedContentChange function (created in the constructor) already
+    // emits contentChange after 150 ms. The debounceService.debouncedContentChange$
+    // subscription was removed to prevent the event from being emitted twice — once
+    // via debouncedContentChange and once via the service subject — causing double
+    // updates and extra latency for consumers.
 
     // Preload critical assets
     this.preloadCriticalAssets();
@@ -835,6 +834,17 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
     this.closeColorPickerDialog();
     this.updateSelectionState();
+
+    // wrapSelectionWithStyle modifies the DOM directly without firing an input event,
+    // so we must read the fresh content from the DOM before emitting the change.
+    // This ensures both the Angular form control and the parent component receive
+    // the updated HTML with the applied color style.
+    if (this.editorContent) {
+      const freshContent = this.editorContent.readCurrentContent();
+      this.content = freshContent;
+      this.onChange(freshContent);
+    }
+
     this.emitContentChange();
   }
 
@@ -1339,26 +1349,26 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
   /**
    * Set up keyboard shortcuts
+   *
+   * NOTE: Bold (Ctrl+B), Italic (Ctrl+I) and Underline (Ctrl+U) are intentionally
+   * NOT handled here. They are already handled by EditorContentComponent.onKeydown
+   * which fires first (element-level listener). Adding them here too would cause the
+   * command to run twice — toggling the formatting on and then immediately off.
+   * Only shortcuts that require actions at the outer shell level (link dialog,
+   * undo/redo) are registered on the document.
    */
   private setupKeyboardShortcuts(): void {
     document.addEventListener('keydown', (event) => {
+      // Only handle shortcuts when this editor instance is focused.
+      if (!this.editorContent?.isFocused) {
+        return;
+      }
+
       if (event.ctrlKey || event.metaKey) {
         switch (event.key.toLowerCase()) {
           case 'k':
             event.preventDefault();
             this.showLinkDialog();
-            break;
-          case 'b':
-            event.preventDefault();
-            this.executeCommand({ name: 'bold' });
-            break;
-          case 'i':
-            event.preventDefault();
-            this.executeCommand({ name: 'italic' });
-            break;
-          case 'u':
-            event.preventDefault();
-            this.executeCommand({ name: 'underline' });
             break;
           case 'z':
             if (event.shiftKey) {

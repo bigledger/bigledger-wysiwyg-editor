@@ -6,6 +6,7 @@ import {
   ElementRef,
   ViewChild,
   OnInit,
+  AfterViewInit,
   OnDestroy,
   OnChanges,
   SimpleChanges,
@@ -92,7 +93,7 @@ import { TableContextMenuService } from '../../services/table-context-menu.servi
     }
   ]
 })
-export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, ControlValueAccessor {
+export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy, OnChanges, ControlValueAccessor {
   @ViewChild('contentArea', { static: false }) contentArea!: ElementRef<HTMLDivElement>;
   @ViewChild('htmlTextarea', { static: false }) htmlTextarea!: ElementRef<HTMLTextAreaElement>;
 
@@ -144,10 +145,12 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     private cdr: ChangeDetectorRef,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    // Debounce content changes to avoid excessive emissions
+    // Debounce content changes to avoid excessive emissions.
+    // 50 ms keeps the ngModel / ControlValueAccessor value snappy while still
+    // batching rapid keystrokes so we don't flood Angular change detection.
     this.contentChangeSubject
       .pipe(
-        debounceTime(100),
+        debounceTime(50),
         takeUntil(this.destroy$)
       )
       .subscribe(content => {
@@ -167,6 +170,17 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
   }
 
   ngOnInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      this.initializeContent();
+    }
+  }
+
+  ngAfterViewInit(): void {
+    // initializeContent() called from ngOnInit is a no-op because @ViewChild({ static: false })
+    // is not resolved until after view creation. ngOnChanges also skips firstChange, so any
+    // content set synchronously before this component rendered (e.g. via [formControl] on the
+    // parent WysiwygEditorComponent) would never reach the DOM. Call initializeContent() again
+    // here when the contentArea element is finally available.
     if (isPlatformBrowser(this.platformId)) {
       this.initializeContent();
     }
@@ -411,6 +425,10 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
     // Try to get HTML content first, then fall back to plain text
     if (clipboardData.types.includes('text/html')) {
       pastedContent = clipboardData.getData('text/html');
+      // Normalize external-source HTML (Word, Google Docs, web pages) so that
+      // the pasted content uses clean, semantic markup rather than vendor-specific
+      // inline styles and proprietary elements.
+      pastedContent = this.normalizeExternalPasteContent(pastedContent);
       // When pasting inside a table cell, strip table structure so we never
       // create a nested <td> inside an existing <td>.
       if (this.isCursorInsideTableCell()) {
@@ -429,6 +447,133 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
 
     // Trigger content change
     this.updateContentFromDOM();
+  }
+
+  /**
+   * Normalizes HTML pasted from external sources (Microsoft Word, Google Docs,
+   * web pages) into clean, semantic markup equivalent to what Froala produced.
+   *
+   * Steps performed:
+   *  1. Strip Word/Office conditional comments and XML namespaced elements.
+   *  2. Remove <head>, <style>, <script> and <meta> blocks that browsers sometimes
+   *     include in clipboard HTML.
+   *  3. Convert bold/italic/underline expressed via inline CSS styles on <span>
+   *     elements to the corresponding semantic tags.
+   *  4. Unwrap Google-Docs-specific <b id="docs-internal-guid-…"> wrappers.
+   *  5. Strip mso-* and vendor-prefixed junk from style attributes.
+   *  6. Remove empty paragraph / span elements left behind after cleaning.
+   */
+  private normalizeExternalPasteContent(html: string): string {
+    if (!html) return html;
+
+    // 1. Strip Word XML / Office conditional comments
+    let cleaned = html
+      .replace(/<!--\[if[^\]]*\]>[\s\S]*?<!\[endif\]-->/gi, '')
+      .replace(/<xml[\s\S]*?<\/xml>/gi, '')
+      .replace(/<o:[^>]*>[\s\S]*?<\/o:[^>]*>/gi, '')
+      .replace(/<o:[^>]*\/>/gi, '');
+
+    // 2. Strip <head>, <style>, <script>, <meta> blocks
+    cleaned = cleaned
+      .replace(/<head[\s\S]*?<\/head>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<meta[^>]*>/gi, '');
+
+    // Parse into DOM for structural transformations
+    const tmp = document.createElement('div');
+    tmp.innerHTML = cleaned;
+
+    // 3. Convert inline-style bold/italic/underline spans to semantic tags
+    tmp.querySelectorAll('span[style], b[style], em[style], i[style], p[style], div[style], li[style]').forEach(el => {
+      const style = (el as HTMLElement).style;
+
+      const isBold = style.fontWeight === 'bold' || style.fontWeight === '700' || parseInt(style.fontWeight) >= 700;
+      const isItalic = style.fontStyle === 'italic' || style.fontStyle === 'oblique';
+      const isUnderline = style.textDecoration?.includes('underline') ||
+                          style.textDecorationLine?.includes('underline');
+
+      if (!isBold && !isItalic && !isUnderline) return; // nothing to convert
+
+      // Move children (not clone) so nested styled elements remain in the live DOM
+      // and will still be processed when the querySelectorAll iterator reaches them.
+      let inner: Node = document.createDocumentFragment();
+      Array.from(el.childNodes).forEach(child => inner.appendChild(child));
+
+      if (isUnderline) {
+        const u = document.createElement('u');
+        u.appendChild(inner);
+        inner = document.createDocumentFragment();
+        inner.appendChild(u);
+        // Strip the redundant underline property so the wrapper <u> is the sole source of truth
+        (el as HTMLElement).style.removeProperty('text-decoration');
+        (el as HTMLElement).style.removeProperty('text-decoration-line');
+      }
+      if (isItalic) {
+        const em = document.createElement('em');
+        em.appendChild(inner);
+        inner = document.createDocumentFragment();
+        inner.appendChild(em);
+        // Strip the redundant font-style so the wrapper <em> is the sole source of truth
+        (el as HTMLElement).style.removeProperty('font-style');
+      }
+      if (isBold && el.tagName !== 'B' && el.tagName !== 'STRONG') {
+        const strong = document.createElement('strong');
+        strong.appendChild(inner);
+        inner = document.createDocumentFragment();
+        inner.appendChild(strong);
+        // Strip the redundant font-weight so the wrapper <strong> is the sole source of truth
+        (el as HTMLElement).style.removeProperty('font-weight');
+      }
+
+      // Children were already moved out; just append the (possibly wrapped) content back.
+      el.appendChild(inner);
+    });
+
+    // 4. Unwrap Google Docs root wrapper: <b id="docs-internal-guid-…">
+    tmp.querySelectorAll('b[id^="docs-internal-guid-"]').forEach(el => {
+      const parent = el.parentNode;
+      if (!parent) return;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    });
+
+    // 5. Strip mso-* and vendor junk from all style attributes
+    tmp.querySelectorAll('[style]').forEach(el => {
+      const raw = (el as HTMLElement).getAttribute('style') || '';
+      const cleaned5 = raw
+        .split(';')
+        .map(rule => rule.trim())
+        .filter(rule => {
+          if (!rule) return false;
+          const prop = rule.split(':')[0].trim().toLowerCase();
+          // Drop Word/Office-specific and layout-breaking properties
+          return !(
+            prop.startsWith('mso-') ||
+            prop === 'tab-stops' ||
+            prop === 'margin' ||
+            prop === 'margin-top' ||
+            prop === 'margin-bottom' ||
+            prop === 'margin-left' ||
+            prop === 'margin-right'
+          );
+        })
+        .join('; ');
+      if (cleaned5) {
+        (el as HTMLElement).setAttribute('style', cleaned5);
+      } else {
+        (el as HTMLElement).removeAttribute('style');
+      }
+    });
+
+    // 6. Remove empty <p>, <span>, <div> elements (common Word artefacts)
+    tmp.querySelectorAll('p, span, div').forEach(el => {
+      if (!el.textContent?.trim() && !el.querySelector('img, table, br')) {
+        el.remove();
+      }
+    });
+
+    return tmp.innerHTML;
   }
 
   /** Returns true when the current cursor/selection is inside a TD or TH. */
@@ -824,6 +969,23 @@ export class EditorContentComponent implements OnInit, OnDestroy, OnChanges, Con
   }
 
   getContent(): string {
+    return this.content;
+  }
+
+  /**
+   * Reads the current content directly from the live DOM.
+   * Use this after direct DOM modifications (e.g. color commands via wrapSelectionWithStyle)
+   * that bypass the normal input-event-driven content update pipeline.
+   * Also updates the internal content cache so subsequent getContent() calls are accurate.
+   */
+  readCurrentContent(): string {
+    if (!this.contentArea?.nativeElement) return this.content;
+    const clone = this.contentArea.nativeElement.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('.table-resize-handle').forEach(el => el.remove());
+    clone.querySelectorAll('table[data-resize-initialized]').forEach(
+      el => el.removeAttribute('data-resize-initialized')
+    );
+    this.content = clone.innerHTML;
     return this.content;
   }
 
