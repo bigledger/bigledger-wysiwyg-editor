@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, forwardRef, ViewContainerRef, ComponentRef, ViewChild } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, forwardRef, ViewContainerRef, ComponentRef, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -195,6 +195,10 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   private isEditingTable = false;
   private isInsertingNestedTable = false;
   private pendingDialogSelection: SelectionState | null = null;
+  // Persists the last non-collapsed (actual text) selection across blur/focus events.
+  // Used as a final fallback in nested Material Dialog scenarios where CDK focus
+  // management may clear the active browser selection before command handlers run.
+  private lastNonCollapsedSelection: SelectionState | null = null;
   private previousBodyOverflow = '';
   private boundFullscreenKeydownHandler!: (event: KeyboardEvent) => void;
 
@@ -781,6 +785,7 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     try {
       const savedSelection = this.getEditorSelectionSnapshot();
       this.pendingDialogSelection = savedSelection;
+      this.restoreEditorSelection(savedSelection);
 
       // Set dialog visibility state
       this.colorPickerDialogVisible = true;
@@ -1196,6 +1201,35 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   }
 
   /**
+   * Synchronously captures the live browser selection on every left-button mousedown
+   * inside this editor component.  Running in the bubble phase — after the toolbar's
+   * `preserveSelectionOnMouseDown` has called `event.preventDefault()` — guarantees
+   * that focus has not yet moved away and the browser selection is still valid.
+   *
+   * This is the primary defence for nested Angular Material Dialog scenarios where
+   * CDK focus-trap mechanics would otherwise clear the active selection before the
+   * `click` / `handleCommand()` handler fires.
+   */
+  @HostListener('mousedown', ['$event'])
+  _syncCaptureSelectionOnMousedown(event: MouseEvent): void {
+    if (this.isHtmlMode || event.button !== 0) {
+      return;
+    }
+
+    const liveSnapshot = this.cloneSelectionState(this.selectionService.saveSelection());
+    if (liveSnapshot?.range) {
+      this.currentSelection = {
+        ...liveSnapshot,
+        htmlMode: this.isHtmlMode,
+        fullscreenMode: this.isFullscreen
+      };
+      if (!liveSnapshot.collapsed) {
+        this.lastNonCollapsedSelection = this.cloneSelectionState(this.currentSelection);
+      }
+    }
+  }
+
+  /**
    * Handle selection changes from editor
    */
   onSelectionChange(selection: SelectionState): void {
@@ -1205,6 +1239,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
       htmlMode: this.isHtmlMode,
       fullscreenMode: this.isFullscreen
     };
+    // Track the last actual text selection (non-collapsed) as a persistent fallback.
+    // Used by getEditorSelectionSnapshot() when the live selection has been cleared
+    // by nested-dialog focus management before a command handler fires.
+    if (this.currentSelection.range && !this.currentSelection.collapsed) {
+      this.lastNonCollapsedSelection = this.cloneSelectionState(this.currentSelection);
+    }
     if (this.currentSelection) {
       this.selectionChange.emit(this.currentSelection);
     }
@@ -1277,7 +1317,15 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     }
 
     const liveSelection = this.cloneSelectionState(this.selectionService.saveSelection());
-    return liveSelection?.range ? liveSelection : null;
+    if (liveSelection?.range) {
+      return liveSelection;
+    }
+
+    // Final fallback: use the last known non-collapsed (actual text) selection.
+    // This covers nested Material Dialog scenarios where the CDK focus trap or
+    // backdrop logic clears the active browser selection before the command handler
+    // fires, leaving both currentSelection.range and the live selection as null.
+    return this.lastNonCollapsedSelection;
   }
 
   /**

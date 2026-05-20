@@ -2,9 +2,10 @@
   <div class="color-picker-dialog" (click)="$event.stopPropagation()">
     <div class="color-picker-header">
       <h3>{{ type === 'text' ? 'Text Color' : 'Background Color' }}</h3>
-      <button 
-        type="button" 
+      <button
+        type="button"
         class="close-button" 
+        (mousedown)="$event.preventDefault()"
         (click)="onCancel()"
         aria-label="Close color picker">
         ✕
@@ -37,6 +38,7 @@
             [style.border]="color === '#FFFFFF' ? '1px solid #E0E0E0' : 'none'"
             [attr.aria-label]="'Select color ' + color"
             [title]="color"
+            (mousedown)="$event.preventDefault()"
             (click)="selectColor(color)">
             <span class="check-mark" *ngIf="isColorSelected(color)">✓</span>
           </button>
@@ -56,6 +58,7 @@
               [ngStyle]="getColorStyle(color)"
               [attr.aria-label]="'Select color ' + color"
               [title]="color"
+              (mousedown)="$event.preventDefault()"
               (click)="selectColor(color)">
               <span class="check-mark" *ngIf="isColorSelected(color)">✓</span>
             </button>
@@ -70,6 +73,7 @@
           <button 
             type="button" 
             class="toggle-custom-button"
+            (mousedown)="$event.preventDefault()"
             (click)="toggleCustomInput()">
             {{ showCustomInput ? 'Hide' : 'Show' }}
           </button>
@@ -97,6 +101,7 @@
       <button 
         type="button" 
         class="btn btn-secondary"
+        (mousedown)="$event.preventDefault()"
         (click)="removeColor()">
         {{ type === 'text' ? 'Reset to Default' : 'Remove Color' }}
       </button>
@@ -104,12 +109,14 @@
         <button 
           type="button" 
           class="btn btn-cancel"
+          (mousedown)="$event.preventDefault()"
           (click)="onCancel()">
           Cancel
         </button>
         <button 
           type="button" 
           class="btn btn-primary"
+          (mousedown)="$event.preventDefault()"
           (click)="applyColor()">
           Apply
         </button>
