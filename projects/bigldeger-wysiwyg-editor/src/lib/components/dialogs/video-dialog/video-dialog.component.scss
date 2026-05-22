@@ -1,188 +1,352 @@
-@import '../../../styles/themes.scss';
+// ─────────────────────────────────────────────────────────────────────────────
+// Video-dialog — Froala-style popup panel
+// ─────────────────────────────────────────────────────────────────────────────
 
-.wysiwyg-video-dialog-overlay {
+// ── Overlay (transparent — used only for click-outside detection) ─────────────
+.vd-overlay {
   position: fixed;
   inset: 0;
-  background-color: var(--wysiwyg-bg-overlay);
+  z-index: 2100;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: var(--wysiwyg-z-modal);
-  padding: var(--wysiwyg-spacing-lg);
-  animation: wysiwyg-fade-in 0.2s ease-out;
-
-  @include wysiwyg-mobile {
-    padding: var(--wysiwyg-spacing-sm);
-    align-items: flex-start;
-    padding-top: 10vh;
-  }
+  // No dark backdrop so it feels like an inline popup
+  background: transparent;
 }
 
-.wysiwyg-video-dialog {
-  @include wysiwyg-card;
-  width: 100%;
-  max-width: 540px;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: wysiwyg-slide-down 0.2s ease-out;
-
-  @include wysiwyg-scrollbar;
+// ── Popup card ────────────────────────────────────────────────────────────────
+.vd-popup {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.08);
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  animation: vd-slide-in 0.15s ease-out;
 }
 
-.wysiwyg-video-dialog-header {
+@keyframes vd-slide-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+// ── Icon tab strip ────────────────────────────────────────────────────────────
+.vd-tabs {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-lg);
-  border-bottom: 1px solid var(--wysiwyg-border-primary);
-
-  h3 {
-    margin: 0;
-    font-size: var(--wysiwyg-font-size-xl);
-    font-weight: var(--wysiwyg-font-weight-semibold);
-    color: var(--wysiwyg-text-primary);
-  }
+  padding: 0 14px;
+  gap: 2px;
 }
 
-.wysiwyg-video-dialog-close {
-  @include wysiwyg-button-base;
-  width: 32px;
-  height: 32px;
+.vd-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 46px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;   // sit on top of the divider
+  cursor: pointer;
+  color: #757575;
+  border-radius: 4px 4px 0 0;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.12s ease;
   padding: 0;
-  font-size: var(--wysiwyg-font-size-xl);
-  color: var(--wysiwyg-text-secondary);
+
+  svg { display: block; }
 
   &:hover {
-    background-color: var(--wysiwyg-bg-tertiary);
-    color: var(--wysiwyg-text-primary);
+    color: #1565c0;
+    background: rgba(21, 101, 192, 0.06);
   }
-
-  &:focus {
-    @include wysiwyg-focus-ring;
-  }
-}
-
-.wysiwyg-video-dialog-form {
-  padding: var(--wysiwyg-spacing-xl) var(--wysiwyg-spacing-xxl) var(--wysiwyg-spacing-xxl);
-}
-
-// ── Tab strip ──────────────────────────────────────────────────────────────
-.wysiwyg-video-dialog-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--wysiwyg-border-primary);
-  padding: 0 var(--wysiwyg-spacing-xxl);
-}
-
-.wysiwyg-video-dialog-tab {
-  @include wysiwyg-button-base;
-  padding: var(--wysiwyg-spacing-sm) var(--wysiwyg-spacing-md);
-  font-size: var(--wysiwyg-font-size-sm);
-  color: var(--wysiwyg-text-secondary);
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  margin-bottom: -1px;
-
-  &:hover { color: var(--wysiwyg-text-primary); }
 
   &--active {
-    color: var(--wysiwyg-accent-color, #2563eb);
-    border-bottom-color: var(--wysiwyg-accent-color, #2563eb);
-    font-weight: var(--wysiwyg-font-weight-semibold);
+    color: #1976d2;
+    border-bottom-color: #1976d2;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1976d2;
+    outline-offset: -2px;
   }
 }
 
-// ── Embed textarea ─────────────────────────────────────────────────────────
-.wysiwyg-video-dialog-embed-textarea {
-  width: 100%;
-  min-height: 120px;
-  resize: vertical;
-  padding: var(--wysiwyg-spacing-sm);
-  border: 1px solid var(--wysiwyg-border-primary);
-  border-radius: var(--wysiwyg-radius-md);
-  font-family: monospace;
-  font-size: var(--wysiwyg-font-size-sm);
-  color: var(--wysiwyg-text-primary);
-  background: var(--wysiwyg-bg-primary);
-  box-sizing: border-box;
-
-  &:focus { outline: none; border-color: var(--wysiwyg-accent-color, #2563eb); }
+// Thin separator between tabs and body
+.vd-tabs-divider {
+  height: 1px;
+  background: #e0e0e0;
 }
 
-// ── Drop zone ──────────────────────────────────────────────────────────────
-.wysiwyg-video-dialog-dropzone {
-  border: 2px dashed var(--wysiwyg-border-primary);
-  border-radius: var(--wysiwyg-radius-md);
-  padding: var(--wysiwyg-spacing-xxl);
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-
-  &:hover, &--over {
-    border-color: var(--wysiwyg-accent-color, #2563eb);
-    background: var(--wysiwyg-bg-secondary);
-  }
-}
-
-.wysiwyg-video-dialog-dropzone-hint {
-  color: var(--wysiwyg-text-secondary);
-  font-size: var(--wysiwyg-font-size-sm);
-}
-
-.wysiwyg-video-dialog-dropzone-filename {
-  color: var(--wysiwyg-text-primary);
-  font-size: var(--wysiwyg-font-size-sm);
-  font-weight: var(--wysiwyg-font-weight-medium);
-  word-break: break-all;
-}
-
-// ── Checkbox ───────────────────────────────────────────────────────────────
-.wysiwyg-video-dialog-checkbox-label {
+// ── Shared dimensions row ─────────────────────────────────────────────────────
+.vd-dimensions {
   display: flex;
   align-items: center;
-  gap: var(--wysiwyg-spacing-sm);
-  font-size: var(--wysiwyg-font-size-sm);
-  color: var(--wysiwyg-text-primary);
-  cursor: pointer;
+  gap: 6px;
+  padding: 8px 16px 10px;
+  border-top: 1px solid #f0f0f0;
 }
 
-.wysiwyg-video-dialog-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--wysiwyg-spacing-md);
-
-  @include wysiwyg-mobile {
-    grid-template-columns: 1fr;
-  }
+.vd-dim-sep {
+  color: #9e9e9e;
+  font-size: 14px;
+  line-height: 1;
 }
 
-.wysiwyg-video-dialog-hint {
-  margin-top: var(--wysiwyg-spacing-xs);
-  font-size: var(--wysiwyg-font-size-sm);
-  color: var(--wysiwyg-text-secondary);
-}
-
-.wysiwyg-error-message {
-  color: var(--wysiwyg-danger-color);
-  font-size: var(--wysiwyg-font-size-sm);
-  margin-top: var(--wysiwyg-spacing-xs);
-  display: block;
-}
-
-.wysiwyg-video-dialog-actions {
+.vd-dim-field {
   display: flex;
-  gap: var(--wysiwyg-spacing-md);
-  justify-content: flex-end;
-  padding-top: var(--wysiwyg-spacing-lg);
-  border-top: 1px solid var(--wysiwyg-border-primary);
+  align-items: center;
+  gap: 4px;
+  flex: 1;
 }
 
-.wysiwyg-btn {
-  &--primary {
-    @include wysiwyg-button-primary;
+.vd-dim-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #757575;
+  min-width: 14px;
+}
+
+.vd-dim-input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #333;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:focus {
+    border-color: #1976d2;
   }
 
-  &--secondary {
-    @include wysiwyg-button-secondary;
+  // Remove spinner arrows
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  -moz-appearance: textfield;
+}
+
+.vd-dim-unit {
+  font-size: 11px;
+  color: #9e9e9e;
+  white-space: nowrap;
+}
+
+// ── Close button (top-right corner) ──────────────────────────────────────────
+.vd-close-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #9e9e9e;
+  padding: 0;
+  transition: color 0.15s, background 0.12s;
+
+  &:hover {
+    color: #424242;
+    background: #f5f5f5;
   }
+
+  &:focus-visible {
+    outline: 2px solid #1976d2;
+    outline-offset: 1px;
+  }
+
+  svg { display: block; }
+}
+
+// ── Content body ──────────────────────────────────────────────────────────────
+.vd-body {
+  padding: 18px 18px 14px;
+}
+
+// ── Floating-label outlined input (Material-style) ────────────────────────────
+.vd-field {
+  position: relative;
+  margin-bottom: 6px;
+
+  &--textarea { /* textarea gets taller label shift below */ }
+}
+
+.vd-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1.5px solid #bdbdbd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #212121;
+  background: transparent;
+  outline: none;
+  transition: border-color 0.2s ease;
+  resize: none;
+
+  &:focus {
+    border-color: #1976d2;
+
+    & + .vd-label {
+      color: #1976d2;
+      font-size: 11px;
+      top: -8px;
+      padding: 0 4px;
+      background: #ffffff;
+    }
+  }
+
+  // Float label when field has a value (placeholder=" " trick)
+  &:not(:placeholder-shown) + .vd-label {
+    font-size: 11px;
+    top: -8px;
+    padding: 0 4px;
+    background: #ffffff;
+  }
+
+  &--error { border-color: #d32f2f; }
+
+  &--textarea {
+    min-height: 120px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+}
+
+.vd-label {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  font-size: 14px;
+  color: #9e9e9e;
+  pointer-events: none;
+  transition: font-size 0.15s ease, top 0.15s ease, color 0.15s ease;
+  background: transparent;
+}
+
+// ── Error message ──────────────────────────────────────────────────────────────
+.vd-error-msg {
+  font-size: 12px;
+  color: #d32f2f;
+  margin-top: 4px;
+  line-height: 1.4;
+
+  &--mt { margin-top: 8px; }
+}
+
+// ── Footer row ────────────────────────────────────────────────────────────────
+.vd-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+
+  &--end { justify-content: flex-end; }
+  &--mt  { margin-top: 12px; padding-top: 0; }
+}
+
+// ── Autoplay checkbox label ────────────────────────────────────────────────────
+.vd-autoplay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #212121;
+  user-select: none;
+}
+
+.vd-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #1976d2;
+  flex-shrink: 0;
+}
+
+// ── Insert button (Froala-style — blue text, no background) ───────────────────
+.vd-btn-insert {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1976d2;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(25, 118, 210, 0.08);
+    color: #1565c0;
+  }
+
+  &:active:not(:disabled) {
+    background: rgba(25, 118, 210, 0.16);
+  }
+
+  &:disabled {
+    color: #bdbdbd;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1976d2;
+    outline-offset: 1px;
+  }
+}
+
+// ── Drag-and-drop upload zone ──────────────────────────────────────────────────
+.vd-dropzone {
+  border: 2px dashed #bdbdbd;
+  border-radius: 6px;
+  padding: 36px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover,
+  &--over {
+    border-color: #1976d2;
+    background: rgba(25, 118, 210, 0.04);
+  }
+}
+
+.vd-drop-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #212121;
+  margin: 0 0 4px;
+  line-height: 1.4;
+
+  &--file {
+    font-weight: 500;
+    word-break: break-all;
+    font-size: 13px;
+    color: #424242;
+  }
+}
+
+.vd-drop-hint {
+  font-size: 14px;
+  color: #757575;
+  margin: 0;
+  line-height: 1.4;
 }

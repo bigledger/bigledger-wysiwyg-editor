@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -8,6 +8,9 @@ import {
   detectVideoProvider,
   normalizeVideoUrl
 } from '../../../models/video.interface';
+
+/** Zero-arg handler that opens a media library and resolves with a video URL. */
+export type VideoMediaLibraryHandler = () => Promise<string>;
 
 /**
  * Dialog component for inserting embedded videos.
@@ -30,8 +33,12 @@ export class VideoDialogComponent implements OnInit {
   /** Whether we are editing an existing video */
   @Input() isEditing = false;
 
-  /** Optional upload handler for the Upload tab */
-  @Input() uploadHandler?: (file: File) => Promise<string>;
+  /**
+   * Optional media-library handler for the Upload tab.
+   * When set, clicking the upload zone calls this function instead of the
+   * native file picker. The resolved URL is inserted as a video URL.
+   */
+  @Input() uploadHandler?: VideoMediaLibraryHandler;
 
   /** Event emitted when a video should be inserted */
   @Output() videoCreated = new EventEmitter<VideoData>();
@@ -46,6 +53,10 @@ export class VideoDialogComponent implements OnInit {
   // Embed tab state
   embedCode = '';
 
+  // Shared dimensions
+  videoWidth: number = DEFAULT_VIDEO_WIDTH;
+  videoHeight: number = DEFAULT_VIDEO_HEIGHT;
+
   // Upload tab state
   uploadedFileName = '';
   uploadedVideoUrl = '';
@@ -53,7 +64,10 @@ export class VideoDialogComponent implements OnInit {
   isUploading = false;
   uploadError: string | null = null;
 
-  constructor(private formBuilder: FormBuilder) {
+  constructor(
+    private formBuilder: FormBuilder,
+    public cdr: ChangeDetectorRef
+  ) {
     this.videoForm = this.createForm();
   }
 
@@ -66,6 +80,8 @@ export class VideoDialogComponent implements OnInit {
         this.populateForm(this.videoData);
       }
     }
+    // Trigger change detection so *ngIf="visible" resolves after dynamic load
+    this.cdr.detectChanges();
   }
 
   setTab(tab: 'url' | 'embed' | 'upload'): void {
@@ -95,8 +111,8 @@ export class VideoDialogComponent implements OnInit {
     const formValue = this.videoForm.getRawValue();
     const videoData: VideoData = {
       url: normalizeVideoUrl(formValue.url),
-      width: DEFAULT_VIDEO_WIDTH,
-      height: DEFAULT_VIDEO_HEIGHT
+      width: this.videoWidth,
+      height: this.videoHeight
     };
     if (formValue.autoplay) {
       videoData.url = this.appendAutoplay(videoData.url);
@@ -111,22 +127,56 @@ export class VideoDialogComponent implements OnInit {
     if (!code) { return; }
     const videoData: VideoData = {
       url: '',
-      embedHtml: code
+      embedHtml: code,
+      width: this.videoWidth,
+      height: this.videoHeight
     };
     this.videoCreated.emit(videoData);
     this.closeDialog();
   }
 
-  /** Handle Upload tab submission */
+  /** Handle Upload tab submission (fallback for drag-drop / file-picker path) */
   onSubmitUpload(): void {
     if (!this.uploadedVideoUrl) { return; }
     const videoData: VideoData = {
       url: this.uploadedVideoUrl,
-      width: DEFAULT_VIDEO_WIDTH,
-      height: DEFAULT_VIDEO_HEIGHT
+      width: this.videoWidth,
+      height: this.videoHeight
     };
     this.videoCreated.emit(videoData);
     this.closeDialog();
+  }
+
+  /**
+   * Open the media-library handler (Upload tab primary action).
+   * Resolves with a URL and immediately inserts the video — same flow as URL tab.
+   */
+  async pickFromMediaLibrary(): Promise<void> {
+    if (!this.uploadHandler) { return; }
+    this.isUploading = true;
+    this.uploadError = null;
+    this.cdr.detectChanges();
+    try {
+      const url = await this.uploadHandler();
+      if (!url) {
+        this.isUploading = false;
+        this.cdr.detectChanges();
+        return;
+      }
+      // Use a <video> element for direct cloud/file URLs so the browser can
+      // play the file inline instead of triggering a download.
+      const videoHtml = `<video src="${url}" width="${this.videoWidth}" height="${this.videoHeight}" controls></video>`;
+      const videoData: VideoData = {
+        url: '',
+        embedHtml: videoHtml
+      };
+      this.videoCreated.emit(videoData);
+      this.closeDialog();
+    } catch {
+      this.uploadError = 'No video selected.';
+      this.isUploading = false;
+      this.cdr.detectChanges();
+    }
   }
 
   onDragOver(event: DragEvent): void {
@@ -137,6 +187,7 @@ export class VideoDialogComponent implements OnInit {
   onFileDrop(event: DragEvent): void {
     event.preventDefault();
     this.isDragOver = false;
+    if (this.uploadHandler) { return; } // media-library mode — ignore drops
     const file = event.dataTransfer?.files[0];
     if (file) { this.handleVideoFile(file); }
   }
@@ -150,19 +201,15 @@ export class VideoDialogComponent implements OnInit {
   private async handleVideoFile(file: File): Promise<void> {
     this.uploadError = null;
     this.uploadedFileName = file.name;
-    if (this.uploadHandler) {
-      this.isUploading = true;
-      try {
-        this.uploadedVideoUrl = await this.uploadHandler(file);
-      } catch {
-        this.uploadError = 'Upload failed. Please try again.';
-        this.uploadedVideoUrl = '';
-      } finally {
-        this.isUploading = false;
-      }
-    } else {
-      // Fallback: use object URL for local preview/insert
+    this.isUploading = true;
+    try {
+      // Fallback: object URL for local preview/insert when no handler provided
       this.uploadedVideoUrl = URL.createObjectURL(file);
+    } catch {
+      this.uploadError = 'Could not read the selected file.';
+      this.uploadedVideoUrl = '';
+    } finally {
+      this.isUploading = false;
     }
   }
 
@@ -173,6 +220,8 @@ export class VideoDialogComponent implements OnInit {
     this.uploadedVideoUrl = '';
     this.uploadError = null;
     this.activeTab = 'url';
+    this.videoWidth = DEFAULT_VIDEO_WIDTH;
+    this.videoHeight = DEFAULT_VIDEO_HEIGHT;
     this.dialogClosed.emit();
   }
 

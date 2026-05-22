@@ -4,6 +4,23 @@
 export type VideoProvider = 'youtube' | 'vimeo' | 'direct';
 
 /**
+ * Configuration for a custom video upload / media-library handler.
+ * Pass this to `[videoUpload]` on `<wysiwyg-editor>`.
+ *
+ * When configured, the Upload tab in the video dialog will call `handler()`
+ * (e.g. to open a media-library picker) and use the resolved URL to insert
+ * the video — exactly the same as typing a URL in the "By URL" tab.
+ */
+export interface VideoUploadConfig {
+  /**
+   * Opens a media-library or picker dialog.
+   * Resolves with the video URL to insert, or rejects / resolves with empty
+   * string to indicate that no video was chosen.
+   */
+  handler: () => Promise<string>;
+}
+
+/**
  * Data used to insert a video into the editor.
  */
 export interface VideoData {
@@ -166,6 +183,12 @@ export function resolveVideoData(videoData: VideoData): ResolvedVideoData | null
  * Create the HTML inserted into the editor for a given video.
  */
 export function buildVideoEmbedHtml(videoData: VideoData): string {
+  // Handle raw embed HTML (e.g. pasted <iframe> code) — takes priority over URL
+  if (videoData.embedHtml) {
+    const html = videoData.embedHtml.trim();
+    return `<div class="wysiwyg-video-embed" contenteditable="false">${html}</div><p><br></p>`;
+  }
+
   const resolved = resolveVideoData(videoData);
 
   if (!resolved) {

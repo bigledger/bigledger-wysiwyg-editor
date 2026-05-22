@@ -332,3 +332,80 @@
 
 // Content styles are now handled by global styles
 // This ensures consistency across all editor instances
+
+// ── Video resize popup ────────────────────────────────────────────────────────
+.wysiwyg-video-resize-popup {
+  position: absolute;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  white-space: nowrap;
+  pointer-events: all;
+
+  .wvr-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #757575;
+  }
+
+  .wvr-input {
+    width: 62px;
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+    outline: none;
+    text-align: center;
+    transition: border-color 0.15s;
+
+    &:focus { border-color: #1976d2; }
+
+    /* Remove spinner arrows */
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    -moz-appearance: textfield;
+  }
+
+  .wvr-sep {
+    font-size: 13px;
+    color: #9e9e9e;
+  }
+
+  .wvr-unit {
+    font-size: 11px;
+    color: #9e9e9e;
+  }
+
+  .wvr-btn {
+    height: 28px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &--apply {
+      background: #1976d2;
+      color: #fff;
+      &:hover { background: #1565c0; }
+    }
+
+    &--cancel {
+      background: #f5f5f5;
+      color: #757575;
+      font-size: 11px;
+      padding: 0 8px;
+      &:hover { background: #e0e0e0; }
+    }
+  }
+}

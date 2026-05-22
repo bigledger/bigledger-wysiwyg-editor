@@ -1,5 +1,6 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, forwardRef, ViewContainerRef, ComponentRef, ViewChild, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, forwardRef, ViewContainerRef, ComponentRef, ViewChild, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -15,7 +16,7 @@ import {
   createImageUploadHandler,
   validateImageUploadConfig
 } from '../../models/image.interface';
-import { VideoData, buildVideoEmbedHtml } from '../../models/video.interface';
+import { VideoData, VideoUploadConfig, buildVideoEmbedHtml } from '../../models/video.interface';
 import { ColorData } from '../dialogs/color-picker-dialog/color-picker-dialog.component';
 import { TableData } from '../../models/table.interface';
 import { LazyLoaderService } from '../../services/lazy-loader.service';
@@ -36,7 +37,7 @@ import { getToolbarIconMarkup } from '../toolbar/toolbar-icons';
 @Component({
   selector: 'wysiwyg-editor',
   standalone: true,
-  imports: [CommonModule, ToolbarComponent, EditorContentComponent],
+  imports: [CommonModule, FormsModule, ToolbarComponent, EditorContentComponent],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -112,6 +113,24 @@ import { getToolbarIconMarkup } from '../toolbar/toolbar-icons';
 
       <!-- Dynamic dialog container -->
       <ng-container #dialogContainer></ng-container>
+
+      <!-- Video resize popup -->
+      <div
+        *ngIf="videoResizePopup.visible"
+        class="wysiwyg-video-resize-popup"
+        [style.top.px]="videoResizePopup.top"
+        [style.left.px]="videoResizePopup.left"
+        (click)="$event.stopPropagation()"
+        (mousedown)="$event.stopPropagation()">
+        <span class="wvr-label">W</span>
+        <input class="wvr-input" type="number" [(ngModel)]="videoResizePopup.width" min="1">
+        <span class="wvr-sep">×</span>
+        <span class="wvr-label">H</span>
+        <input class="wvr-input" type="number" [(ngModel)]="videoResizePopup.height" min="1">
+        <span class="wvr-unit">px</span>
+        <button type="button" class="wvr-btn wvr-btn--apply" (click)="applyVideoResize()">Apply</button>
+        <button type="button" class="wvr-btn wvr-btn--cancel" (click)="closeVideoResizePopup()" aria-label="Close">✕</button>
+      </div>
     </div>
   `,
   styleUrls: ['./wysiwyg-editor.component.scss']
@@ -145,6 +164,9 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     return this._imageUpload;
   }
 
+  /** Optional media-library handler for the video Upload tab. */
+  @Input() videoUpload?: VideoUploadConfig | null;
+
   @Output() contentChange = new EventEmitter<string>();
   @Output() selectionChange = new EventEmitter<SelectionState>();
   /** Emitted once after each new table is inserted (not when editing an existing table). */
@@ -162,6 +184,18 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   isFullscreen = false;
   visibleToolbarConfig: ToolbarConfig = this.createVisibleToolbarConfig(this._toolbarConfig);
   showModeToggleInChrome = this.hasModeToggleTool(this._toolbarConfig);
+
+  // Video resize popup state
+  videoResizePopup: {
+    visible: boolean;
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+    targetElement: HTMLElement | null;
+  } = { visible: false, top: 0, left: 0, width: 640, height: 360, targetElement: null };
+  private _boundVideoClick!: (e: MouseEvent) => void;
+  private _boundCloseResize!: (e: MouseEvent) => void;
 
   // Content change detection
   private lastKnownContent = '';
@@ -256,6 +290,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
 
     this.boundFullscreenKeydownHandler = this.handleFullscreenKeydown.bind(this);
     document.addEventListener('keydown', this.boundFullscreenKeydownHandler);
+
+    // Set up video-click listener for the resize popup (delegated on document)
+    this._boundVideoClick = this.onEditorVideoClick.bind(this);
+    this._boundCloseResize = this.onDocumentClickCloseResize.bind(this);
+    document.addEventListener('click', this._boundVideoClick, true);
+    document.addEventListener('click', this._boundCloseResize);
   }
 
   ngOnDestroy(): void {
@@ -277,6 +317,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     // Remove nested table event listener
     document.removeEventListener('insert-nested-table', this.handleNestedTableRequest.bind(this));
     document.removeEventListener('keydown', this.boundFullscreenKeydownHandler);
+    document.removeEventListener('click', this._boundVideoClick, true);
+    document.removeEventListener('click', this._boundCloseResize);
 
     this.applyFullscreenState(false);
 
@@ -300,6 +342,84 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     
     // Mark that this is for a nested table
     this.isInsertingNestedTable = true;
+  }
+
+  // ─── Video resize popup ─────────────────────────────────────────────────────
+
+  /**
+   * Capture-phase click listener: detects clicks on .wysiwyg-video-embed elements
+   * that live inside the editor content area, then shows the resize popup.
+   */
+  private onEditorVideoClick(e: MouseEvent): void {
+    const target = e.target as HTMLElement;
+    // Walk up to find the closest .wysiwyg-video-embed wrapper
+    const embed = target.closest('.wysiwyg-video-embed') as HTMLElement | null;
+    if (!embed) { return; }
+
+    // Make sure it belongs to this editor instance
+    const editorEl = this.editorContent?.contentArea?.nativeElement as HTMLElement | undefined;
+    if (!editorEl || !editorEl.contains(embed)) { return; }
+
+    // Read current size from the inner media element (<video> or <iframe>)
+    const media = embed.querySelector('video, iframe') as HTMLElement | null;
+    const currentW = media ? (parseInt(media.getAttribute('width') || '0', 10) || media.offsetWidth || 640) : 640;
+    const currentH = media ? (parseInt(media.getAttribute('height') || '0', 10) || media.offsetHeight || 360) : 360;
+
+    // Position the popup just below the embed element
+    const rect = embed.getBoundingClientRect();
+    const editorRect = (this.editorContent.contentArea.nativeElement as HTMLElement)
+      .closest('.wysiwyg-editor')!.getBoundingClientRect();
+
+    this.videoResizePopup = {
+      visible: true,
+      top: rect.bottom - editorRect.top + 6,
+      left: Math.max(0, rect.left - editorRect.left),
+      width: currentW,
+      height: currentH,
+      targetElement: embed
+    };
+
+    e.stopPropagation();
+  }
+
+  /** Close the resize popup when clicking anywhere outside it. */
+  private onDocumentClickCloseResize(e: MouseEvent): void {
+    if (!this.videoResizePopup.visible) { return; }
+    const popup = (e.target as HTMLElement).closest('.wysiwyg-video-resize-popup');
+    if (!popup) { this.closeVideoResizePopup(); }
+  }
+
+  closeVideoResizePopup(): void {
+    this.videoResizePopup = { ...this.videoResizePopup, visible: false, targetElement: null };
+  }
+
+  /**
+   * Apply the new width/height to the selected video element in the DOM
+   * and sync the editor content.
+   */
+  applyVideoResize(): void {
+    const embed = this.videoResizePopup.targetElement;
+    if (!embed) { return; }
+
+    const w = Math.max(1, this.videoResizePopup.width);
+    const h = Math.max(1, this.videoResizePopup.height);
+    const media = embed.querySelector('video, iframe') as HTMLElement | null;
+    if (media) {
+      media.setAttribute('width', String(w));
+      media.setAttribute('height', String(h));
+      (media as any).style.width = `${w}px`;
+      (media as any).style.height = `${h}px`;
+    }
+
+    // Sync updated HTML back to the editor model
+    if (this.editorContent?.contentArea?.nativeElement) {
+      this.content = this.editorContent.contentArea.nativeElement.innerHTML;
+      this.syncCharacterCount();
+      this.onChange(this.content);
+      this.contentChange.emit(this.content);
+    }
+
+    this.closeVideoResizePopup();
   }
 
   /**
@@ -639,6 +759,16 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         this.videoDialogRef.instance.visible = true;
         this.videoDialogRef.instance.videoData = this.currentVideoData;
         this.videoDialogRef.instance.isEditing = this.isEditingVideo;
+        // Pass the media-library handler if configured
+        if (this.videoUpload?.handler) {
+          this.videoDialogRef.instance.uploadHandler = this.videoUpload.handler;
+        }
+
+        // Force change detection so the *ngIf="visible" renders immediately
+        // after the component is dynamically inserted into the view.
+        if (this.videoDialogRef.instance.cdr) {
+          this.videoDialogRef.instance.cdr.detectChanges();
+        }
 
         this.videoDialogRef.instance.videoCreated.subscribe((videoData: VideoData) => {
           this.onVideoCreated(videoData);

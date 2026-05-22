@@ -326,6 +326,21 @@
     overflow: hidden;
     background: #000;
     box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    cursor: pointer;
+    position: relative;
+
+    &:hover::after {
+      content: '✎ Resize';
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
 
     iframe,
     video {
