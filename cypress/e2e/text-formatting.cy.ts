@@ -157,37 +157,37 @@ describe('WYSIWYG Editor - Text Formatting', () => {
       cy.get('.wysiwyg-content').click().type('Colored text');
       cy.selectEditorText(0, 7); // Select "Colored"
       
-      cy.get('[data-command="foreColor"]').click();
-      cy.get('.color-picker [data-color="#ff0000"]').click(); // Red color
-      
-      cy.getEditorContent().should('contain', 'color: #ff0000');
+      cy.get('[data-cp-trigger="fontColor"]').click();
+      cy.get('.wysiwyg-color-picker .cp-swatch[data-color="#e53935"]').click(); // Red color
+
+      cy.getEditorContent().should('contain', 'color: #e53935');
     });
 
     it('should change background color', () => {
       cy.get('.wysiwyg-content').click().type('Highlighted text');
       cy.selectEditorText(0, 11); // Select "Highlighted"
-      
-      cy.get('[data-command="backColor"]').click();
-      cy.get('.color-picker [data-color="#ffff00"]').click(); // Yellow background
-      
-      cy.getEditorContent().should('contain', 'background-color: #ffff00');
+
+      cy.get('[data-cp-trigger="backgroundColor"]').click();
+      cy.get('.wysiwyg-color-picker .cp-swatch[data-color="#fdd835"]').click(); // Yellow background
+
+      cy.getEditorContent().should('contain', 'background-color: #fdd835');
     });
 
     it('should combine text and background colors', () => {
       cy.get('.wysiwyg-content').click().type('Colorful text');
       cy.selectEditorText(0, 8); // Select "Colorful"
-      
+
       // Set text color
-      cy.get('[data-command="foreColor"]').click();
-      cy.get('.color-picker [data-color="#0000ff"]').click(); // Blue text
-      
+      cy.get('[data-cp-trigger="fontColor"]').click();
+      cy.get('.wysiwyg-color-picker .cp-swatch[data-color="#1e88e5"]').click(); // Blue text
+
       // Keep selection and set background color
       cy.selectEditorText(0, 8);
-      cy.get('[data-command="backColor"]').click();
-      cy.get('.color-picker [data-color="#ffff00"]').click(); // Yellow background
-      
-      cy.getEditorContent().should('contain', 'color: #0000ff');
-      cy.getEditorContent().should('contain', 'background-color: #ffff00');
+      cy.get('[data-cp-trigger="backgroundColor"]').click();
+      cy.get('.wysiwyg-color-picker .cp-swatch[data-color="#fdd835"]').click(); // Yellow background
+
+      cy.getEditorContent().should('contain', 'color: #1e88e5');
+      cy.getEditorContent().should('contain', 'background-color: #fdd835');
     });
   });
 

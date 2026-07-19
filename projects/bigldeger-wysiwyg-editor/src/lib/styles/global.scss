@@ -101,14 +101,40 @@
   outline: none;
   background: transparent;
   color: inherit;
-  font-family: inherit;
+  // Default font is Georgia. Matches Froala's default behaviour for content
+  // typed or pasted without an explicit font-family: the editor surface
+  // provides the fallback face, and any pasted font-family is stripped on
+  // paste (see editor-content.component.ts::normalizeExternalPasteContent).
+  font-family: Georgia, 'Times New Roman', Times, serif;
   font-size: inherit;
   line-height: inherit;
   overflow-y: auto;
   min-height: 120px;
   resize: vertical;
-  
+
   @include wysiwyg-scrollbar;
+
+  // Default font is Georgia for every block-level descendant that doesn't
+  // explicitly set its own font-family. Using descendant selectors (not just
+  // `>`) means pasted content wrapped in <div> containers still gets Georgia
+  // as a fallback — but pasted content that *does* bring a font-family
+  // (because the source page styled it) keeps it. We never override the
+  // user's choices, only fill gaps.
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  pre,
+  ul,
+  ol,
+  li,
+  div {
+    font-family: Georgia, 'Times New Roman', Times, serif;
+  }
   
   // Placeholder styling
   &:empty:before {

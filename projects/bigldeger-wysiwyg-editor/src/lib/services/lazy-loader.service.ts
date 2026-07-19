@@ -13,7 +13,7 @@ export class LazyLoaderService {
    * Lazy load a dialog component
    */
   async loadDialogComponent(
-    componentName: 'link' | 'image' | 'video' | 'color' | 'table'
+    componentName: 'link' | 'image' | 'video' | 'table'
       | 'emoticons' | 'specialChars' | 'embeds' | 'fileUpload' | 'bookmark',
     viewContainer: ViewContainerRef
   ): Promise<ComponentRef<any> | null> {
@@ -31,9 +31,6 @@ export class LazyLoaderService {
         } else if (componentName === 'video') {
           const { VideoDialogComponent } = await import('../components/dialogs/video-dialog/video-dialog.component');
           componentType = VideoDialogComponent;
-        } else if (componentName === 'color') {
-          const { ColorPickerDialogComponent } = await import('../components/dialogs/color-picker-dialog/color-picker-dialog.component');
-          componentType = ColorPickerDialogComponent;
         } else if (componentName === 'table') {
           const { TableDialogComponent } = await import('../components/dialogs/table-dialog/table-dialog.component');
           componentType = TableDialogComponent;

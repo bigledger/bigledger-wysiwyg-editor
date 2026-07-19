@@ -29,6 +29,7 @@ import { ContentEditableDirective } from '../../directives/content-editable.dire
 import { TableHandlerService } from '../../services/table-handler.service';
 import { NestedTableService } from '../../services/nested-table.service';
 import { TableContextMenuService } from '../../services/table-context-menu.service';
+import { PasteConfig } from '../../models/editor-config.interface';
 
 @Component({
   selector: 'wysiwyg-editor-content',
@@ -106,7 +107,15 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
   @Input() spellCheck: boolean = true;
   @Input() ariaLabel: string = '';
 
-  private _htmlMode: boolean = false;
+  /**
+   * Optional paste configuration. Controls which inline styles / classes are
+   * preserved when content is pasted from external sources (web pages, Word,
+   * Google Docs). When omitted, the editor keeps colors, background-colors,
+   * font-size and font-family so the pasted block looks like the source.
+   */
+  @Input() pasteConfig?: PasteConfig | null;
+
+  private _htmlMode = false;
   @Input()
   set htmlMode(value: boolean) {
     const oldValue = this._htmlMode;
@@ -435,8 +444,10 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
         pastedContent = this.extractCellInnerContent(pastedContent);
       }
     } else {
+      // Plain-text paste: convert newlines to <p>/<br> so the new text picks up
+      // the editor's default font-family (Georgia) and behaves like typed text.
       const plainText = clipboardData.getData('text/plain');
-      pastedContent = this.escapeHtml(plainText);
+      pastedContent = this.wrapPlainTextAsParagraphs(plainText);
     }
 
     // Sanitize the pasted content
@@ -450,18 +461,52 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
   }
 
   /**
+   * Wraps plain text from the clipboard in <p>…</p> blocks (with <br> for
+   * intra-paragraph newlines) so it picks up the editor's default font-family
+   * (Georgia) and renders as cleanly as text the user typed themselves.
+   * Mirrors Froala's behaviour for plain-text pastes.
+   */
+  private wrapPlainTextAsParagraphs(plainText: string): string {
+    if (!plainText) return '';
+    const normalized = plainText.replace(/\r\n?/g, '\n');
+    const blocks = normalized.split(/\n{2,}/);
+    return blocks
+      .map(block => {
+        const safe = this.escapeHtml(block).replace(/\n/g, '<br>');
+        return `<p>${safe}</p>`;
+      })
+      .join('');
+  }
+
+  /**
    * Normalizes HTML pasted from external sources (Microsoft Word, Google Docs,
-   * web pages) into clean, semantic markup equivalent to what Froala produced.
+   * web pages) into clean, semantic markup that looks as close as possible to
+   * the source — Froala-style fidelity. The previous version of this function
+   * stripped every `background-*`, every color, every font-size and every
+   * `class` from pasted content, which collapsed coloured headings and dark
+   * backgrounds into a flat blob of overlapping text.
    *
    * Steps performed:
    *  1. Strip Word/Office conditional comments and XML namespaced elements.
-   *  2. Remove <head>, <style>, <script> and <meta> blocks that browsers sometimes
-   *     include in clipboard HTML.
-   *  3. Convert bold/italic/underline expressed via inline CSS styles on <span>
-   *     elements to the corresponding semantic tags.
-   *  4. Unwrap Google-Docs-specific <b id="docs-internal-guid-…"> wrappers.
-   *  5. Strip mso-* and vendor-prefixed junk from style attributes.
-   *  6. Remove empty paragraph / span elements left behind after cleaning.
+   *  2. Remove <head>, <style>, <script> and <meta> blocks that browsers
+   *     sometimes include in clipboard HTML.
+   *  3. Unwrap <font> tags (the size attribute is meaningless in HTML5; the
+   *     face attribute carries the external font that overrides our default
+   *     Georgia — but we let consumers decide via `pasteConfig.stripColors`).
+   *  4. Convert bold/italic/underline expressed via inline CSS styles on
+   *     <span> elements to the corresponding semantic tags.
+   *  5. Strip only the genuinely-bad inline-style properties (background-
+   *     image, fixed widths/heights, mso-*, vendor prefixes, position,
+   *     animations). Keep `background-color`, `color`, `font-size`,
+   *     `font-family`, `letter-spacing`, `padding`, `border*` so a coloured
+   *     heading on a coloured background survives paste.
+   *  6. Unwrap Google-Docs-specific <b id="docs-internal-guid-…"> wrappers.
+   *  7. Remove empty paragraph / span elements left behind after cleaning.
+   *  8. Drop layout-only attributes (dir, lang, id, align). Keep `class`
+   *     only when it matches the consumer-supplied `pasteConfig.classAllowlist`.
+   *  9. Cap insanely-large pasted heading font-sizes via
+   *     `pasteConfig.maxHeadingFontSizePx` so external `font-size: 96px`
+   *     headings don't visually overwhelm the editor.
    */
   private normalizeExternalPasteContent(html: string): string {
     if (!html) return html;
@@ -469,22 +514,46 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
     // 1. Strip Word XML / Office conditional comments
     let cleaned = html
       .replace(/<!--\[if[^\]]*\]>[\s\S]*?<!\[endif\]-->/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
       .replace(/<xml[\s\S]*?<\/xml>/gi, '')
       .replace(/<o:[^>]*>[\s\S]*?<\/o:[^>]*>/gi, '')
-      .replace(/<o:[^>]*\/>/gi, '');
+      .replace(/<o:[^>]*\/>/gi, '')
+      .replace(/<w:[^>]*>[\s\S]*?<\/w:[^>]*>/gi, '')
+      .replace(/<w:[^>]*\/>/gi, '');
 
-    // 2. Strip <head>, <style>, <script>, <meta> blocks
+    // 2. Strip <head>, <style>, <script>, <meta>, <link> blocks
     cleaned = cleaned
       .replace(/<head[\s\S]*?<\/head>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
       .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<meta[^>]*>/gi, '');
+      .replace(/<meta[^>]*>/gi, '')
+      .replace(/<link[^>]*>/gi, '');
 
     // Parse into DOM for structural transformations
     const tmp = document.createElement('div');
     tmp.innerHTML = cleaned;
 
-    // 3. Convert inline-style bold/italic/underline spans to semantic tags
+    // 3. Unwrap <font face="…">…</font> tags — they carry the external font that
+    //    overrides the editor's default Georgia. The child nodes are preserved.
+    tmp.querySelectorAll('font').forEach(el => {
+      const parent = el.parentNode;
+      if (!parent) return;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    });
+
+    // 3b. Unwrap empty <span> wrappers (Word emits dozens of these)
+    tmp.querySelectorAll('span').forEach(el => {
+      const has = el.getAttribute('style');
+      if (!has && el.attributes.length === 0 && el.childNodes.length > 0) {
+        const parent = el.parentNode;
+        if (!parent) return;
+        while (el.firstChild) parent.insertBefore(el.firstChild, el);
+        parent.removeChild(el);
+      }
+    });
+
+    // 4. Convert inline-style bold/italic/underline spans to semantic tags
     tmp.querySelectorAll('span[style], b[style], em[style], i[style], p[style], div[style], li[style]').forEach(el => {
       const style = (el as HTMLElement).style;
 
@@ -530,7 +599,101 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
       el.appendChild(inner);
     });
 
-    // 4. Unwrap Google Docs root wrapper: <b id="docs-internal-guid-…">
+    // 5. Strip pasted-style junk from inline style attributes — but only the
+    //    genuinely-bad properties. Froala's philosophy: keep what the user
+    //    chose (text-align, color, background-color, font-size, font-weight,
+    //    borders, …) so a coloured heading on a coloured background survives
+    //    a paste; drop only the things that always break inside a different
+    //    host page (vendor prefixes, mso-* hacks, position/transform hacks,
+    //    animations, transitions, opacity/cursor, background-image which is
+    //    a tracking-pixel XSS vector).
+    //
+    //    IMPORTANT: do NOT drop `background`, `background-color`, `font-size`,
+    //    `font-family`, `color`, `letter-spacing`, `word-spacing`, `padding`,
+    //    `border*`, `text-align`, `line-height` — these are how the source
+    //    page communicates visual identity (e.g. a green-coloured finance
+    //    heading on a dark-green background). Stripping them collapses the
+    //    paste into a default-typed-text blob with severe visual overlap.
+    //
+    //    Editor defaults (Georgia, transparent background) are applied via CSS
+    //    only when an element has no font-family / background of its own — see
+    //    editor-content.component.scss and global.scss — so we don't have to
+    //    strip them here.
+    // Opt-in color stripping: when a consumer explicitly wants the editor's
+    // default colour palette (pasteConfig.stripColors === true), drop every
+    // background-*, colour- and font-*-colour property so the host's typography
+    // wins. By default (no pasteConfig), we keep colours.
+    const stylePropsToDropExtra = new Set<string>();
+    const stripColors = this.pasteConfig?.stripColors === true;
+    if (stripColors) {
+      stylePropsToDropExtra.add('background');
+      stylePropsToDropExtra.add('background-color');
+      stylePropsToDropExtra.add('background-position');
+      stylePropsToDropExtra.add('background-repeat');
+      stylePropsToDropExtra.add('background-attachment');
+      stylePropsToDropExtra.add('background-size');
+      stylePropsToDropExtra.add('background-origin');
+      stylePropsToDropExtra.add('background-clip');
+      stylePropsToDropExtra.add('color');
+    }
+
+    const stylePropsToDrop = new Set<string>([
+      // Backgrounds — only `background-image` is stripped (XSS vector: tracking
+      // pixels, `url(javascript:…)`, remote leaks). Solid `background-color`
+      // and the longhand `background-*` positioning properties are kept so a
+      // coloured fill on a heading / paragraph survives paste.
+      'background-image',
+      // Fixed pixel widths/heights — Word/Docs put `width: 300px` on paragraphs
+      // and `display: inline-block` on inner spans, which would squeeze the
+      // pasted content into a narrow column inside our wider editor surface.
+      'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+      'animation', 'animation-name', 'animation-duration', 'animation-delay',
+      'animation-fill-mode', 'animation-iteration-count', 'animation-direction',
+      'animation-play-state', 'animation-timing-function',
+      'transition', 'transition-property', 'transition-duration',
+      'transition-delay', 'transition-timing-function',
+      'filter', 'backdrop-filter', 'mix-blend-mode', 'opacity', 'cursor',
+      // Word/Office vendor junk that no host page wants.
+      'mso-', 'tab-stops', 'layout-grid', 'layout-grid-mode',
+      'layout-grid-type', 'layout-grid-line', 'layout-grid-char',
+      'text-align-last', 'text-autospace', 'punctuation-trim',
+      'text-justify', 'text-kashida-space', 'text-kashida',
+      // Position — Word nests positioned paragraphs for its layout.
+      'position', 'top', 'right', 'bottom', 'left', 'z-index',
+      'float', 'clear', 'transform', 'transform-origin'
+    ]);
+
+    const stylePropsToDropSet = new Set<string>([...stylePropsToDrop, ...stylePropsToDropExtra]);
+
+tmp.querySelectorAll('[style]').forEach(el => {
+      const raw = (el as HTMLElement).getAttribute('style') || '';
+      const cleanedStyle = raw
+        .split(';')
+        .map(rule => rule.trim())
+        .filter(rule => {
+          if (!rule) return false;
+          const prop = rule.split(':')[0].trim().toLowerCase();
+          if (!prop) return false;
+
+          if (stylePropsToDropSet.has(prop)) return false;
+          // Drop any vendor-prefixed property (-webkit-*, -moz-*, -ms-*, -o-*)
+          if (prop.startsWith('-')) return false;
+          // Drop mso-* properties (not caught by exact match above in some browsers)
+          if (prop.startsWith('mso-')) return false;
+          // Drop Word layout-grid-* properties
+          if (prop.startsWith('layout-grid')) return false;
+
+          return true;
+        })
+        .join('; ');
+      if (cleanedStyle) {
+        (el as HTMLElement).setAttribute('style', cleanedStyle);
+      } else {
+        (el as HTMLElement).removeAttribute('style');
+      }
+    });
+
+    // 6. Unwrap Google Docs root wrapper: <b id="docs-internal-guid-…">
     tmp.querySelectorAll('b[id^="docs-internal-guid-"]').forEach(el => {
       const parent = el.parentNode;
       if (!parent) return;
@@ -538,39 +701,68 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
       parent.removeChild(el);
     });
 
-    // 5. Strip mso-* and vendor junk from all style attributes
-    tmp.querySelectorAll('[style]').forEach(el => {
-      const raw = (el as HTMLElement).getAttribute('style') || '';
-      const cleaned5 = raw
-        .split(';')
-        .map(rule => rule.trim())
-        .filter(rule => {
-          if (!rule) return false;
-          const prop = rule.split(':')[0].trim().toLowerCase();
-          // Drop Word/Office-specific and layout-breaking properties
-          return !(
-            prop.startsWith('mso-') ||
-            prop === 'tab-stops' ||
-            prop === 'margin' ||
-            prop === 'margin-top' ||
-            prop === 'margin-bottom' ||
-            prop === 'margin-left' ||
-            prop === 'margin-right'
-          );
-        })
-        .join('; ');
-      if (cleaned5) {
-        (el as HTMLElement).setAttribute('style', cleaned5);
-      } else {
-        (el as HTMLElement).removeAttribute('style');
-      }
-    });
-
-    // 6. Remove empty <p>, <span>, <div> elements (common Word artefacts)
+    // 7. Remove empty <p>, <span>, <div> elements (common Word artefacts)
     tmp.querySelectorAll('p, span, div').forEach(el => {
       if (!el.textContent?.trim() && !el.querySelector('img, table, br')) {
         el.remove();
       }
+    });
+
+    // 8. Drop layout-only attributes that often come along with pasted
+    //    content from rich editors (Word, Docs, web pages). We do not strip
+    //    `class` from h1-h6 / blockquote — an external `<h1 class="wise-…">`
+    //    can still convey semantic meaning and the inline `style` we kept
+    //    in step 5 already carries the visual identity.
+    const attributeBlacklist: Record<string, string[]> = {
+      'p': ['dir', 'lang', 'id', 'align'],
+      'span': ['dir', 'lang', 'id'],
+      'div': ['dir', 'lang', 'id', 'align'],
+      'li': ['dir', 'lang', 'id'],
+      'a': ['id']
+    };
+    Object.keys(attributeBlacklist).forEach(tag => {
+      tmp.querySelectorAll(tag).forEach(el => {
+        attributeBlacklist[tag].forEach(attr => {
+          if (el.hasAttribute(attr)) {
+            el.removeAttribute(attr);
+          }
+        });
+      });
+    });
+
+    // 8b. Class allowlist enforcement. If `pasteConfig.classAllowlist` is set,
+    //     keep only those classes (matched exactly or by prefix) on every
+    //     element. Without an allowlist, strip classes from every tag to
+    //     avoid leaking external framework classes (Tailwind, Bootstrap, …).
+    const classAllowlist = this.pasteConfig?.classAllowlist;
+    tmp.querySelectorAll('[class]').forEach(el => {
+      if (classAllowlist && classAllowlist.length > 0) {
+        const classes = (el.getAttribute('class') || '')
+          .split(/\s+/)
+          .filter(Boolean)
+          .filter(c => classAllowlist.some(rule => c === rule || c.startsWith(rule)));
+        if (classes.length > 0) {
+          el.setAttribute('class', classes.join(' '));
+        } else {
+          el.removeAttribute('class');
+        }
+      } else {
+        el.removeAttribute('class');
+      }
+    });
+
+    // 9. Cap insanely-large pasted heading font-sizes. External sources
+    //    occasionally use `font-size: 80px` or `120px` on h1 / h2 which
+    //    visually overwhelms the editor body. Default cap is 64px.
+    const maxHeadingPx = this.pasteConfig?.maxHeadingFontSizePx ?? 64;
+    ['H1', 'H2', 'H3'].forEach(tag => {
+      tmp.querySelectorAll(tag.toLowerCase()).forEach(el => {
+        const htmlEl = el as HTMLElement;
+        const fs = parseFloat(htmlEl.style.fontSize || '');
+        if (!Number.isNaN(fs) && fs > maxHeadingPx) {
+          htmlEl.style.fontSize = `${maxHeadingPx}px`;
+        }
+      });
     });
 
     return tmp.innerHTML;
@@ -764,23 +956,252 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
     }
   }
 
+  /**
+   * Handle Enter key with Froala-style behavior.
+   *
+   * - **Shift+Enter**: insert a `<br>` line break inside the current block.
+   * - **Enter inside a list item**: delegated to `handleEnterInList` (which
+   *   handles empty-list exit and shift-Enter line break).
+   * - **Enter at end of block**: insert a new `<p><br></p>` after the
+   *   current block, place the caret in the new block.
+   * - **Enter at start of block**: split the current block — text before the
+   *   caret stays in the current block, text after the caret moves into a
+   *   new `<p>` before it.
+   * - **Enter in the middle of a block**: same as "at start" but the
+   *   current block is also empty after the split, so it gets a `<br>` to
+   *   stay focusable.
+   * - **Enter inside an empty block**: ensure the block is `<p><br></p>`
+   *   so the caret stays visible, then insert a new `<p><br></p>` after.
+   *
+   * Without this handling the editor falls back to the browser default,
+   * which inserts `<div>` (not `<p>`) blocks in a `<div contenteditable>`.
+   * After the first Enter a `<div>` lands next to a `<p>`, the next Enter
+   * either gets swallowed by the editor's paragraph-normalizing cleanup
+   * (the bug "first Enter works, second Enter doesn't") or it duplicates
+   * the caret, making the editor feel broken. This handler always emits
+   * `<p><br></p>` blocks so every subsequent Enter behaves the same as the
+   * first one, which is exactly what Froala does.
+   */
   private handleEnterKey(event: KeyboardEvent): void {
-    // Handle Enter key behavior in different contexts
+    if (this.readonly) return;
+
     const selection = this.selectionService.getSelection();
-    if (!selection || !selection.rangeCount) return;
+    if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
     const container = range.commonAncestorContainer;
 
-    // Check if we're in a list item
+    // List item handling stays unchanged: exit empty list, insert <br> on
+    // shift+enter, otherwise let the browser create a new <li>.
     const listItem = this.findParentElement(container, 'LI');
     if (listItem) {
       this.handleEnterInList(event, listItem);
       return;
     }
 
-    // Default behavior - create new paragraph
-    // Let browser handle this naturally
+    // Shift+Enter always inserts a soft <br> inside the current block.
+    if (event.shiftKey) {
+      event.preventDefault();
+      this.insertLineBreakAtCursor();
+      this.updateContentFromDOM();
+      return;
+    }
+
+    // Locate the block element the caret lives in (the closest P / DIV /
+    // heading). If we are outside any block (bare text node at editor
+    // root), wrap into a <p> first.
+    const block = this.findParentBlock(container);
+    if (!block || block === this.contentArea?.nativeElement) {
+      event.preventDefault();
+      this.insertParagraphAtCaretFromBareText();
+      this.updateContentFromDOM();
+      return;
+    }
+
+    event.preventDefault();
+    this.splitBlockAtCaret(block as HTMLElement);
+    this.updateContentFromDOM();
+  }
+
+  /**
+   * Walk up the DOM to the closest block-level element (P / DIV / H1-H6 /
+   * BLOCKQUOTE). Returns null if the cursor is at the editor root with no
+   * block ancestor.
+   */
+  private findParentBlock(node: Node): Element | null {
+    const blockTags = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE'];
+    const editorRoot = this.contentArea?.nativeElement;
+    let current: Node | null =
+      node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+    while (current && current !== editorRoot) {
+      if (current.nodeType === Node.ELEMENT_NODE) {
+        const tag = (current as Element).tagName;
+        if (blockTags.includes(tag)) {
+          return current as Element;
+        }
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  /**
+   * The caret lives in bare text inside the contenteditable root (no
+   * surrounding block element). Convert the surrounding text into a
+   * paragraph and insert a fresh empty paragraph after it.
+   */
+  private insertParagraphAtCaretFromBareText(): void {
+    const selection = this.selectionService.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    const editorRoot = this.contentArea?.nativeElement;
+    if (!editorRoot) return;
+
+    // Extract any selected text into a new <p>.
+    const fragment = range.extractContents();
+    const newPara = document.createElement('p');
+    if (fragment.firstChild) {
+      newPara.appendChild(fragment);
+    } else {
+      newPara.appendChild(document.createElement('br'));
+    }
+    editorRoot.appendChild(newPara);
+
+    const emptyPara = document.createElement('p');
+    emptyPara.appendChild(document.createElement('br'));
+    editorRoot.appendChild(emptyPara);
+
+    const newRange = document.createRange();
+    newRange.setStart(emptyPara, 0);
+    newRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+  }
+
+  /**
+   * Insert a `<br>` line break at the current caret without creating a new
+   * block. Used by Shift+Enter.
+   */
+  private insertLineBreakAtCursor(): void {
+    const selection = this.selectionService.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+
+    const br = document.createElement('br');
+    range.deleteContents();
+    range.insertNode(br);
+
+    // Browsers collapse the range after inserting a <br> at the caret.
+    // Move the caret to just after the inserted <br> so the next typed
+    // character starts on the new visual line.
+    range.setStartAfter(br);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  /**
+   * Split `block` at the current caret position, creating a new sibling
+   * `<p>` (or matching tag) after `block` that contains everything the user
+   * typed after the caret. The current block keeps the text before the
+   * caret.
+   *
+   * If the caret is at the very start (text-after-caret becomes the new
+   * block only, current block stays empty), the same logic applies with
+   * an empty "before" — we ensure the current block stays focusable by
+   * leaving a `<br>` placeholder when its text becomes empty.
+   *
+   * If the caret is at the very end (text-after-caret is empty), we just
+   * insert an empty `<p><br></p>` after the current block, identical to
+   * the previous "Enter at end of line" behavior — and crucially, this
+   * keeps working for repeated Enters because every new paragraph has the
+   * exact same shape.
+   */
+  private splitBlockAtCaret(block: HTMLElement): void {
+    const selection = this.selectionService.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+
+    // Clamp the range so it lives inside this block; selection may have
+    // crossed multiple blocks.
+    let blockRange = document.createRange();
+    blockRange.selectNodeContents(block);
+    const startContainer = range.startContainer;
+    const startOffset = range.startOffset;
+    const endContainer = range.endContainer;
+    const endOffset = range.endOffset;
+
+    // Decide where to split. If the range is collapsed AND inside the
+    // block, split at the caret. If the range is a non-collapsed
+    // selection inside the block, delete the selected content first so
+    // the visual "text disappearing" happens before the split.
+    const isCollapsed = range.collapsed;
+    const isInsideBlock = block.contains(startContainer) && block.contains(endContainer);
+
+    let splitOffset: { container: Node; offset: number };
+
+    if (!isInsideBlock) {
+      // Selection spans multiple blocks — keep behaviour simple: collapse
+      // to the block boundary nearest the caret.
+      const blockRect = block.getBoundingClientRect();
+      const caretRect = range.getBoundingClientRect();
+      if (caretRect.top < blockRect.top + blockRect.height / 2) {
+        splitOffset = { container: block, offset: 0 };
+      } else {
+        const len = block.childNodes.length;
+        splitOffset = { container: block, offset: len };
+      }
+    } else if (isCollapsed) {
+      splitOffset = { container: startContainer, offset: startOffset };
+    } else {
+      // Non-collapsed selection inside this block. Delete the selection,
+      // then split at the (now collapsed) caret.
+      range.deleteContents();
+      const newRange = selection.getRangeAt(0);
+      splitOffset = { container: newRange.startContainer, offset: newRange.startOffset };
+    }
+
+    // Build the new block that will hold everything after the split point.
+    const newBlock = document.createElement(block.tagName.toLowerCase()) as HTMLElement;
+    newBlock.appendChild(document.createElement('br'));
+
+    // Extract "after" content from the block, starting at splitOffset, into
+    // the newBlock. This is the most reliable way to move a DOM range
+    // across siblings without juggling text nodes / inline formatting.
+    const extractRange = document.createRange();
+    extractRange.setStart(splitOffset.container, splitOffset.offset);
+    extractRange.setEndAfter(block.lastChild ?? block);
+    const fragment = extractRange.extractContents();
+
+    // Re-home any nodes we extracted into newBlock.
+    if (fragment.firstChild) {
+      // Replace the placeholder <br> with the real fragment.
+      newBlock.innerHTML = '';
+      newBlock.appendChild(fragment);
+    } else {
+      // Nothing after the caret — leave newBlock as <p><br></p>.
+    }
+
+    // Ensure the current block stays focusable: if removing the trailing
+    // children emptied it, leave a <br> placeholder so the caret remains
+    // visible.
+    if (!block.textContent?.trim() && !block.querySelector('br,img')) {
+      block.appendChild(document.createElement('br'));
+    }
+
+    // If the current block has a `<br>` left over from a previous empty
+    // paragraph that ended up being our split point, it will be re-added.
+    // No special-case needed.
+
+    // Insert the new sibling block right after the current one.
+    block.parentNode?.insertBefore(newBlock, block.nextSibling);
+
+    // Place the caret at the start of the new block.
+    const caretRange = document.createRange();
+    caretRange.setStart(newBlock, 0);
+    caretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(caretRange);
   }
 
   private handleTabKey(event: KeyboardEvent): void {
@@ -1089,6 +1510,26 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
       this.updateContentFromDOM();
       this.selectionChangeSubject.next();
     }
+  }
+
+  // Line height formatting — routed through here so updateContentFromDOM
+  // runs after the DOM mutation, ensuring (contentChange) fires and the
+  // applied line-height survives save/reload (Froala-style persistence).
+  setLineHeight(value: string): void {
+    if (this.readonly) return;
+
+    const command: EditorCommand = { name: 'lineHeight', value };
+    const success = this.commandService.executeCommand(command, value);
+
+    if (success) {
+      this.commandExecuted.emit(command);
+      this.updateContentFromDOM();
+      this.selectionChangeSubject.next();
+    }
+  }
+
+  getCurrentLineHeight(): string {
+    return this.commandService.getCommandValue('lineHeight');
   }
 
   // Check if formatting is active

@@ -1,6 +1,6 @@
 {
   "name": "@bigledger/wysiwyg-editor",
-  "version": "1.9.0",
+  "version": "1.16.12",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

@@ -17,7 +17,6 @@ import {
   validateImageUploadConfig
 } from '../../models/image.interface';
 import { VideoData, VideoUploadConfig, buildVideoEmbedHtml } from '../../models/video.interface';
-import { ColorData } from '../dialogs/color-picker-dialog/color-picker-dialog.component';
 import { TableData } from '../../models/table.interface';
 import { LazyLoaderService } from '../../services/lazy-loader.service';
 import { DebounceService } from '../../services/debounce.service';
@@ -30,6 +29,7 @@ import { SelectionState } from '../../models/selection-state.interface';
 import { CommandService } from '../../services/command.service';
 import { SelectionService } from '../../services/selection.service';
 import { getToolbarIconMarkup } from '../toolbar/toolbar-icons';
+import { PasteConfig } from '../../models/editor-config.interface';
 
 /**
  * Main WYSIWYG Editor Component
@@ -93,6 +93,7 @@ import { getToolbarIconMarkup } from '../toolbar/toolbar-icons';
             [minHeight]="getEditorContentMinHeight()"
             [maxHeight]="getEditorContentMaxHeight()"
             [htmlMode]="isHtmlMode"
+            [pasteConfig]="pasteConfig"
             (contentChange)="onContentChange($event)"
             (selectionChange)="onSelectionChange($event)"
             (blurEvent)="onBlur($event)">
@@ -167,6 +168,13 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   /** Optional media-library handler for the video Upload tab. */
   @Input() videoUpload?: VideoUploadConfig | null;
 
+  /**
+   * Optional paste-handling configuration forwarded to the editor content
+   * component. Controls how content pasted from external sources is cleaned
+   * and which inline styles / classes are preserved. See {@link PasteConfig}.
+   */
+  @Input() pasteConfig?: PasteConfig | null;
+
   @Output() contentChange = new EventEmitter<string>();
   @Output() selectionChange = new EventEmitter<SelectionState>();
   /** Emitted once after each new table is inserted (not when editing an existing table). */
@@ -204,14 +212,12 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   linkDialogVisible = false;
   imageDialogVisible = false;
   videoDialogVisible = false;
-  colorPickerDialogVisible = false;
   tableDialogVisible = false;
 
   // Dialog state
   private linkDialogRef: ComponentRef<any> | null = null;
   private imageDialogRef: ComponentRef<any> | null = null;
   private videoDialogRef: ComponentRef<any> | null = null;
-  private colorPickerDialogRef: ComponentRef<any> | null = null;
   private tableDialogRef: ComponentRef<any> | null = null;
   private emoticonsDialogRef: ComponentRef<any> | null = null;
   private specialCharsDialogRef: ComponentRef<any> | null = null;
@@ -224,7 +230,6 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   private isEditingImage = false;
   private currentVideoData: VideoData | null = null;
   private isEditingVideo = false;
-  private currentColorType: 'text' | 'background' = 'text';
   private currentTableData: TableData | null = null;
   private isEditingTable = false;
   private isInsertingNestedTable = false;
@@ -306,7 +311,6 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.closeLinkDialog();
     this.closeImageDialog();
     this.closeVideoDialog();
-    this.closeColorPickerDialog();
     this.closeTableDialog();
     this.closeEmoticonsDialog();
     this.closeSpecialCharsDialog();
@@ -443,10 +447,8 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
         this.showTableDialog(command.options?.params?.['anchorRect'] ?? null);
         break;
       case 'fontColor':
-        this.showColorPickerDialog('text');
-        break;
       case 'backgroundColor':
-        this.showColorPickerDialog('background');
+        // Handled inline by the toolbar component's color picker popover.
         break;
       case 'toggleHtmlView':
         this.toggleHtmlView();
@@ -518,6 +520,17 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
    */
   private executeCommand(command: EditorCommand): void {
     this.restoreEditorSelection();
+
+    // Route line-height through editor-content so updateContentFromDOM runs
+    // after the DOM mutation — without this, (contentChange) never fires and
+    // applied line-height is lost on save (matches prior font-size fix).
+    if (command.name === 'lineHeight') {
+      this.editorContent?.setLineHeight(command.value ?? '');
+      setTimeout(() => {
+        this.updateSelectionState();
+      }, 0);
+      return;
+    }
 
     const success = this.commandService.executeCommand(command, command.value);
     if (success) {
@@ -901,104 +914,6 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
     this.videoDialogVisible = false;
     this.currentVideoData = null;
     this.isEditingVideo = false;
-    this.pendingDialogSelection = null;
-  }
-
-  /**
-   * Show color picker dialog (lazy loaded)
-   */
-  private async showColorPickerDialog(type: 'text' | 'background'): Promise<void> {
-    if (this.colorPickerDialogRef) {
-      return; // Dialog already open
-    }
-
-    try {
-      const savedSelection = this.getEditorSelectionSnapshot();
-      this.pendingDialogSelection = savedSelection;
-      this.restoreEditorSelection(savedSelection);
-
-      // Set dialog visibility state
-      this.colorPickerDialogVisible = true;
-      this.currentColorType = type;
-
-      // Benchmark dialog loading
-      this.performanceMonitor.startBenchmark('colorPickerDialogLoad');
-
-      // Lazy load the color picker dialog component
-      this.colorPickerDialogRef = await this.lazyLoaderService.loadDialogComponent('color', this.dialogContainer);
-
-      this.performanceMonitor.endBenchmark('colorPickerDialogLoad');
-
-      if (this.colorPickerDialogRef) {
-        // Get current color based on type from selection state
-        const currentColor = type === 'text'
-          ? (this.currentSelection?.formats.fontColor || '#000000')
-          : (this.currentSelection?.formats.backgroundColor || '#ffffff');
-
-        // Set component inputs
-        this.colorPickerDialogRef.instance.initialColor = currentColor;
-        this.colorPickerDialogRef.instance.type = type;
-        this.colorPickerDialogRef.instance.savedSelection = savedSelection; // Pass saved selection to dialog
-
-        // Subscribe to component outputs
-        this.colorPickerDialogRef.instance.colorSelected.subscribe((colorData: ColorData) => {
-          this.onColorSelected(colorData, savedSelection);
-        });
-
-        this.colorPickerDialogRef.instance.cancel.subscribe(() => {
-          this.onColorPickerDialogClosed();
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load color picker dialog:', error);
-      this.colorPickerDialogVisible = false;
-    }
-  }
-
-  /**
-   * Handle color selection
-   */
-  onColorSelected(colorData: ColorData, savedSelection: SelectionState | null): void {
-    // Restore the selection BEFORE executing the command
-    this.restoreEditorSelection(savedSelection);
-
-    const commandName = colorData.type === 'text' ? 'foreColor' : 'backColor';
-    const command: EditorCommand = { name: commandName };
-
-    this.commandService.executeCommand(command, colorData.color);
-
-    this.closeColorPickerDialog();
-    this.updateSelectionState();
-
-    // wrapSelectionWithStyle modifies the DOM directly without firing an input event,
-    // so we must read the fresh content from the DOM before emitting the change.
-    // This ensures both the Angular form control and the parent component receive
-    // the updated HTML with the applied color style.
-    if (this.editorContent) {
-      const freshContent = this.editorContent.readCurrentContent();
-      this.content = freshContent;
-      this.onChange(freshContent);
-    }
-
-    this.emitContentChange();
-  }
-
-  /**
-   * Handle color picker dialog closed event
-   */
-  onColorPickerDialogClosed(): void {
-    this.closeColorPickerDialog();
-  }
-
-  /**
-   * Close color picker dialog and clean up
-   */
-  private closeColorPickerDialog(): void {
-    if (this.colorPickerDialogRef) {
-      this.colorPickerDialogRef.destroy();
-      this.colorPickerDialogRef = null;
-    }
-    this.colorPickerDialogVisible = false;
     this.pendingDialogSelection = null;
   }
 

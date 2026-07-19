@@ -245,35 +245,275 @@ export class SelectionService {
   }
 
   /**
-   * Get current font size in a toolbar-friendly pixel value.
+   * Get the current font size for the toolbar in a toolbar-friendly pixel
+   * value (`"11px"`, `"14px"`, …).
+   *
+   * This mirrors Froala's `fontSize.refresh()` algorithm so the dropdown
+   * label and tick mark always reflect what the user will see in the editor:
+   *
+   * 1. **No selection in any contenteditable** → empty string. The toolbar
+   *    shows no value (matches Froala).
+   * 2. **Collapsed caret** → walk up from the caret's container. Prefer the
+   *    nearest *inline* wrapper (`<span>`, `<font>`, `<b>`, `<i>`, …) so
+   *    we report the size of the character *about* to be typed, not the
+   *    block. Stop at the contenteditable root; never walk past it.
+   * 3. **Range selection** → collect every text node intersecting the range
+   *    and compute the font-size of each text node's container. Return the
+   *    first non-empty value. If the segments disagree, return `''` to
+   *    signal a mixed selection (the toolbar will then show no tick).
+   * 4. **Never use `queryCommandValue('fontSize')`** — it returns the legacy
+   *    1-7 HTML scale (Chromium maps 7→32px) which is fundamentally wrong
+   *    for arbitrary pixel values that the editor stores as inline styles.
    */
   private getCurrentFontSize(): string {
     try {
       const selection = this.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        let element: Node | null = range.commonAncestorContainer;
+      if (!selection || selection.rangeCount === 0) {
+        return '';
+      }
 
-        if (element.nodeType === Node.TEXT_NODE) {
-          element = element.parentElement;
+      const range = selection.getRangeAt(0);
+
+      // Bail out when the selection is not inside any contenteditable.
+      if (!this.isRangeInContentEditable(range)) {
+        return '';
+      }
+
+      if (range.collapsed) {
+        const size = this.resolveFontSizeAtCaret(range);
+        return size || '';
+      }
+
+      const sizes = this.resolveFontSizesAcrossRange(range);
+      if (sizes.length === 0) {
+        return '';
+      }
+
+      const first = sizes[0];
+      const allSame = sizes.every(value => value === first);
+      if (!allSame) {
+        // Mixed selection — toolbar will show no tick, matching Froala.
+        return '';
+      }
+      return first;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Resolve the font-size that the next typed character would inherit at
+   * the caret. Walks ancestors from the caret container, stopping at the
+   * contenteditable root, and reads the computed font-size at the
+   * closest inline wrapper OR the parent block.
+   */
+  private resolveFontSizeAtCaret(range: Range): string {
+    const container =
+      range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentElement
+        : (range.commonAncestorContainer as HTMLElement | null);
+
+    if (!container) {
+      return '';
+    }
+
+    const editableRoot = this.findClosestContentEditable(container);
+    const inlineTagNames = new Set([
+      'SPAN', 'FONT', 'B', 'STRONG', 'I', 'EM', 'U', 'A', 'MARK', 'SMALL',
+      'SUB', 'SUP', 'Q', 'CITE', 'DFN', 'BIG', 'STRIKE'
+    ]);
+
+    // Walk ancestors: prefer an inline-wrapper value (matches what the next
+    // typed character will *render* as when typed inside that wrapper), but
+    // if none exists before we hit the block, take the block's computed size.
+    let node: HTMLElement | null = container;
+    let blockCandidate: string | null = null;
+
+    while (node && node.nodeType === Node.ELEMENT_NODE) {
+      // Stop at the contenteditable root — never let body / html leak in.
+      if (editableRoot && node === editableRoot) {
+        const rootSize = this.normalizeFontSize(
+          window.getComputedStyle(node).fontSize
+        );
+        if (rootSize) {
+          return rootSize;
         }
+        break;
+      }
 
-        while (element && element.nodeType === Node.ELEMENT_NODE) {
-          const computedStyle = window.getComputedStyle(element as Element);
-          const fontSize = this.normalizeFontSize(computedStyle.fontSize);
+      const computed = window.getComputedStyle(node);
+      const normalized = this.normalizeFontSize(computed.fontSize);
+      const tag = node.tagName;
 
-          if (fontSize) {
-            return fontSize;
-          }
+      if (inlineTagNames.has(tag)) {
+        // Inline wrapper — its computed style takes precedence.
+        if (normalized) {
+          return normalized;
+        }
+      } else if (!blockCandidate && this.isBlockElement(node)) {
+        blockCandidate = normalized || null;
+      }
 
-          element = (element as Element).parentElement;
+      node = node.parentElement;
+    }
+
+    return blockCandidate || '';
+  }
+
+  /**
+   * Resolve the font-size of every text node intersecting `range` and
+   * return the list of normalized values. Order matches document order.
+   */
+  private resolveFontSizesAcrossRange(range: Range): string[] {
+    const walkerRoot =
+      range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.commonAncestorContainer as Element)
+        : (range.commonAncestorContainer.parentElement as Element | null);
+
+    if (!walkerRoot) {
+      return [];
+    }
+
+    const editableRoot = this.findClosestContentEditable(walkerRoot as HTMLElement);
+    const inlineTagNames = new Set([
+      'SPAN', 'FONT', 'B', 'STRONG', 'I', 'EM', 'U', 'A', 'MARK', 'SMALL',
+      'SUB', 'SUP', 'Q', 'CITE', 'DFN', 'BIG', 'STRIKE'
+    ]);
+
+    const sizes: string[] = [];
+    const walker = document.createTreeWalker(
+      walkerRoot,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let textNode = walker.nextNode() as Text | null;
+    while (textNode) {
+      const nodeRange = document.createRange();
+      try {
+        nodeRange.selectNodeContents(textNode);
+      } catch {
+        textNode = walker.nextNode() as Text | null;
+        continue;
+      }
+
+      // Ignore text nodes that don't intersect the user's range.
+      if (
+        nodeRange.compareBoundaryPoints(Range.END_TO_START, range) <= 0 ||
+        nodeRange.compareBoundaryPoints(Range.START_TO_END, range) >= 0
+      ) {
+        // Also include partially intersecting nodes — the partial range
+        // still has a host element with a font-size that we should read.
+        const intersects =
+          nodeRange.compareBoundaryPoints(Range.START_TO_END, range) > 0 &&
+          nodeRange.compareBoundaryPoints(Range.END_TO_START, range) < 0;
+        if (!intersects) {
+          textNode = walker.nextNode() as Text | null;
+          continue;
         }
       }
 
-      return this.normalizeFontSize(this.queryCommandValue('fontSize')) || '14px';
-    } catch (error) {
-      return '14px';
+      // Skip empty text nodes (don't pollute the size list with the
+      // wrong-value "first" entry).
+      if (!textNode.data || textNode.data.length === 0) {
+        textNode = walker.nextNode() as Text | null;
+        continue;
+      }
+
+      const size = this.resolveFontSizeForTextNode(
+        textNode,
+        editableRoot,
+        inlineTagNames
+      );
+      if (size) {
+        sizes.push(size);
+      }
+
+      textNode = walker.nextNode() as Text | null;
     }
+
+    return sizes;
+  }
+
+  /**
+   * Compute the font-size that `textNode` would currently render at.
+   * Same ancestor-walk rule as `resolveFontSizeAtCaret` but applied to a
+   * text node.
+   */
+  private resolveFontSizeForTextNode(
+    textNode: Text,
+    editableRoot: HTMLElement | null,
+    inlineTagNames: Set<string>
+  ): string {
+    let current: HTMLElement | null = textNode.parentElement;
+    let blockCandidate: string | null = null;
+
+    while (current && current.nodeType === Node.ELEMENT_NODE) {
+      if (editableRoot && current === editableRoot) {
+        const rootSize = this.normalizeFontSize(
+          window.getComputedStyle(current).fontSize
+        );
+        if (rootSize) {
+          return rootSize;
+        }
+        break;
+      }
+
+      const computed = window.getComputedStyle(current);
+      const normalized = this.normalizeFontSize(computed.fontSize);
+      const tag = current.tagName;
+
+      if (inlineTagNames.has(tag)) {
+        if (normalized) {
+          return normalized;
+        }
+      } else if (!blockCandidate && this.isBlockElement(current)) {
+        blockCandidate = normalized || null;
+      }
+
+      current = current.parentElement;
+    }
+
+    return blockCandidate || '';
+  }
+
+  /**
+   * Walk up from `start` and return the closest ancestor (or self) that is
+   * a contenteditable element. Returns null when none exists.
+   */
+  private findClosestContentEditable(start: HTMLElement | null): HTMLElement | null {
+    let node: HTMLElement | null = start;
+    while (node) {
+      if (node.isContentEditable) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  /**
+   * Whether `range` lives anywhere inside a contenteditable subtree.
+   */
+  private isRangeInContentEditable(range: Range): boolean {
+    return this.findClosestContentEditable(
+      (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.commonAncestorContainer as HTMLElement)
+        : range.commonAncestorContainer.parentElement) as HTMLElement | null
+    ) !== null;
+  }
+
+  /**
+   * Whether `element` is a block-level element that defines a font-size
+   * inheritance scope (paragraph / heading / list item / div, etc.).
+   */
+  private isBlockElement(element: HTMLElement): boolean {
+    const display = window.getComputedStyle(element).display;
+    if (display === 'block' || display === 'list-item' || display === 'flex' || display === 'grid' || display === 'table') {
+      return true;
+    }
+    const tag = element.tagName;
+    return ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'PRE'].includes(tag);
   }
 
   /**
@@ -412,6 +652,15 @@ export class SelectionService {
 
   /**
    * Normalize font-size values into pixel strings used by the toolbar config.
+   *
+   * Accepts the legacy 1-7 HTML scale (mapped to the same px values the
+   * command service stores), explicit pixel values (`"14px"`), point values
+   * (`"11pt" → 15px`), em/rem percentages, and plain integer strings
+   * (`"11"` → `"11px"`). The plain-integer path is what the toolbar dropdown
+   * uses for its option values (`'11'`, `'14'`, …) so the comparison in
+   * `isOptionSelected` returns a positive match when the user picks that
+   * size even though the editor stores `style.fontSize = "11px"` on the
+   * `<span>`.
    */
   private normalizeFontSize(fontSize: string): string {
     if (!fontSize) {
@@ -420,7 +669,7 @@ export class SelectionService {
 
     const normalized = fontSize.trim().toLowerCase();
 
-    if (/^\d+$/.test(normalized)) {
+    if (/^\d+(\.\d+)?$/.test(normalized)) {
       const sizeMap: Record<string, string> = {
         '1': '10px',
         '2': '12px',
@@ -431,7 +680,18 @@ export class SelectionService {
         '7': '32px'
       };
 
-      return sizeMap[normalized] || '';
+      if (sizeMap[normalized]) {
+        return sizeMap[normalized];
+      }
+
+      // Plain integer (no unit) → treat as a literal pixel value. This is
+      // critical for matching against the toolbar dropdown options that
+      // ship as bare integer strings ('11', '14', …).
+      const numeric = Number.parseFloat(normalized);
+      if (Number.isFinite(numeric)) {
+        return `${Math.round(numeric)}px`;
+      }
+      return '';
     }
 
     if (normalized.endsWith('px')) {
@@ -442,6 +702,17 @@ export class SelectionService {
     if (normalized.endsWith('pt')) {
       const pointValue = Number.parseFloat(normalized);
       return Number.isFinite(pointValue) ? `${Math.round(pointValue * (4 / 3))}px` : '';
+    }
+
+    if (normalized.endsWith('em') || normalized.endsWith('rem')) {
+      const factor = normalized.endsWith('rem') ? 16 : 16;
+      const emValue = Number.parseFloat(normalized);
+      return Number.isFinite(emValue) ? `${Math.round(emValue * factor)}px` : '';
+    }
+
+    if (normalized.endsWith('%')) {
+      const pct = Number.parseFloat(normalized);
+      return Number.isFinite(pct) ? `${Math.round((pct / 100) * 16)}px` : '';
     }
 
     return normalized;

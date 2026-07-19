@@ -156,10 +156,10 @@ describe('WYSIWYG Editor - Cross-Browser Compatibility', () => {
       cy.get('.wysiwyg-content').click().type('Color test');
       cy.selectEditorText(0, 5);
       
-      cy.get('[data-command="foreColor"]').click();
-      cy.get('.color-picker [data-color="#ff0000"]').click();
-      
-      cy.getEditorContent().should('contain', 'color: #ff0000');
+      cy.get('[data-cp-trigger="fontColor"]').click();
+      cy.get('.wysiwyg-color-picker .cp-swatch[data-color="#e53935"]').click();
+
+      cy.getEditorContent().should('contain', 'color: #e53935');
     });
   });
 
