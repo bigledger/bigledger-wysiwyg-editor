@@ -6,7 +6,9 @@ import { ToolbarConfig, ToolbarTool, ToolOption, ToolOptionPreset } from '../../
 import { EditorCommand } from '../../models/editor-command.interface';
 import { SelectionState } from '../../models/selection-state.interface';
 import { AccessibilityService } from '../../services/accessibility.service';
+import { CommandService } from '../../services/command.service';
 import { getToolbarIconMarkup } from './toolbar-icons';
+import { ColorPickerPopoverComponent, ColorPickerMode, ColorPickerResult } from '../color-picker-popover/color-picker-popover.component';
 
 /**
  * Toolbar component that renders formatting tools based on configuration
@@ -14,7 +16,7 @@ import { getToolbarIconMarkup } from './toolbar-icons';
 @Component({
   selector: 'wysiwyg-toolbar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ColorPickerPopoverComponent],
   template: `
     <div 
       #toolbarContainer
@@ -43,6 +45,8 @@ import { getToolbarIconMarkup } from './toolbar-icons';
             class="wysiwyg-toolbar__button"
             [class.wysiwyg-toolbar__button--active]="isToolActive(tool)"
             [class.wysiwyg-toolbar__button--disabled]="tool.disabled || disabled"
+            [attr.data-command]="tool.command"
+            [attr.data-cp-trigger]="isColorTool(tool) ? tool.command : null"
             [class]="tool.cssClass"
             [disabled]="tool.disabled || disabled"
             [attr.data-tooltip]="getToolTitle(tool)"
@@ -51,19 +55,19 @@ import { getToolbarIconMarkup } from './toolbar-icons';
             [attr.aria-describedby]="getToolDescriptionId(tool)"
             [attr.tabindex]="i === 0 ? '0' : '-1'"
             (mousedown)="preserveSelectionOnMouseDown($event)"
-            (click)="executeCommand(tool)"
+            (click)="executeCommand(tool, $event)"
             (keydown)="handleToolKeydown($event, tool)"
             (focus)="onToolFocus($event)">
-            
-            <span 
-              *ngIf="tool.icon" 
+
+            <span
+              *ngIf="tool.icon"
               class="wysiwyg-toolbar__icon"
               [innerHTML]="getSafeToolIcon(tool)"
               aria-hidden="true">
             </span>
-            
-            <span 
-              *ngIf="tool.label && !tool.icon" 
+
+            <span
+              *ngIf="tool.label && !tool.icon"
               class="wysiwyg-toolbar__label">
               {{ tool.label }}
             </span>
@@ -218,11 +222,12 @@ import { getToolbarIconMarkup } from './toolbar-icons';
             [class]="tool.cssClass"
             [disabled]="tool.disabled || disabled"
             [attr.data-tooltip]="getToolTitle(tool)"
+            [attr.data-cp-trigger]="isColorTool(tool) ? tool.command : null"
             [attr.aria-label]="getDialogAriaLabel(tool)"
             [attr.aria-haspopup]="'dialog'"
             [attr.tabindex]="i === 0 ? '0' : '-1'"
             (mousedown)="onDialogButtonMousedown(tool, $event)"
-            (click)="executeCommand(tool)"
+            (click)="executeCommand(tool, $event)"
             (keydown)="handleToolKeydown($event, tool)"
             (focus)="onToolFocus($event)">
             
@@ -276,7 +281,7 @@ import { getToolbarIconMarkup } from './toolbar-icons';
               [attr.aria-pressed]="isToolActive(subTool)"
               [attr.tabindex]="si === 0 ? '0' : '-1'"
               (mousedown)="preserveSelectionOnMouseDown($event)"
-              (click)="executeCommand(subTool)"
+              (click)="executeCommand(subTool, $event)"
               (focus)="onToolFocus($event)">
               <span
                 *ngIf="subTool.icon"
@@ -399,11 +404,12 @@ import { getToolbarIconMarkup } from './toolbar-icons';
               [class.wysiwyg-toolbar__button--disabled]="subTool.disabled || disabled"
               [disabled]="subTool.disabled || disabled"
               [attr.data-tooltip]="getToolTitle(subTool)"
+              [attr.data-cp-trigger]="isColorTool(subTool) ? subTool.command : null"
               [attr.aria-label]="getDialogAriaLabel(subTool)"
               [attr.aria-haspopup]="'dialog'"
               [attr.tabindex]="si === 0 ? '0' : '-1'"
               (mousedown)="onDialogButtonMousedown(subTool, $event)"
-              (click)="executeCommand(subTool)"
+              (click)="executeCommand(subTool, $event)"
               (focus)="onToolFocus($event)">
               <span
                 *ngIf="subTool.icon"
@@ -422,6 +428,20 @@ import { getToolbarIconMarkup } from './toolbar-icons';
         </div>
       </ng-container>
     </div>
+
+    <!-- Inline Froala-style color picker popover. Positioned fixed under the
+         text-color / background-color buttons; closes on outside click or Esc. -->
+    <wysiwyg-color-picker-popover
+      *ngIf="colorPopoverOpen"
+      class="wysiwyg-toolbar__color-popover"
+      [attr.data-cp-mode]="colorPopoverMode"
+      [style.top.px]="colorPopoverTop"
+      [style.left.px]="colorPopoverLeft"
+      [mode]="colorPopoverMode"
+      [currentColor]="colorPopoverCurrentColor"
+      (colorPicked)="onColorPicked($event)"
+      (dismissed)="closeColorPopover()">
+    </wysiwyg-color-picker-popover>
   `,
   styleUrls: ['./toolbar.component.scss']
 })
@@ -444,9 +464,17 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   private boundDocumentClickHandler!: (event: MouseEvent) => void;
   private boundGlobalKeydownHandler!: (event: KeyboardEvent) => void;
 
+  /** Inline color-picker popover state. Mirrors Froala's UX: lives under the toolbar. */
+  colorPopoverOpen = false;
+  colorPopoverMode: ColorPickerMode = 'text';
+  colorPopoverTop = 0;
+  colorPopoverLeft = 0;
+  colorPopoverCurrentColor = '';
+
   constructor(
     private accessibilityService: AccessibilityService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private commandService: CommandService
   ) {
     this.toolbarId = this.accessibilityService.generateId('wysiwyg-toolbar');
   }
@@ -668,9 +696,24 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Execute a toolbar command
    */
-  executeCommand(tool: ToolbarTool): void {
+  executeCommand(tool: ToolbarTool, event?: MouseEvent): void {
     if (tool.disabled || this.disabled) {
       this.pendingAnchorRect = null;
+      return;
+    }
+
+    // Inline Froala-style color picker: intercept fontColor / backgroundColor
+    // commands and surface the popover locally instead of opening the
+    // legacy MatDialog.
+    if (this.isColorTool(tool)) {
+      const triggerEl = (event?.currentTarget as HTMLElement)
+        || document.querySelector(`[data-cp-trigger="${tool.command}"]`) as HTMLElement
+        || null;
+      const rect = triggerEl ? triggerEl.getBoundingClientRect() : this.pendingAnchorRect;
+      this.pendingAnchorRect = null;
+      if (rect) {
+        this.openColorPopover(tool.command === 'backgroundColor' ? 'background' : 'text', rect);
+      }
       return;
     }
 
@@ -690,6 +733,55 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
     };
 
     this.command.emit(command);
+  }
+
+  /**
+   * True when this tool is one of the inline color commands (text / background).
+   */
+  isColorTool(tool: ToolbarTool): boolean {
+    return tool.command === 'fontColor' || tool.command === 'backgroundColor';
+  }
+
+  /**
+   * Open the inline color picker popover under the trigger button rect.
+   */
+  private openColorPopover(mode: ColorPickerMode, rect: DOMRect): void {
+    this.colorPopoverMode = mode;
+    this.colorPopoverTop = Math.round(rect.bottom + 6);
+    this.colorPopoverLeft = Math.round(rect.left);
+    this.colorPopoverCurrentColor = mode === 'background'
+      ? (this.selectionState?.formats?.backgroundColor || '')
+      : (this.selectionState?.formats?.fontColor || '');
+    // Close any open dropdowns so the popover is the single floating UI.
+    this.closeAllDropdowns();
+    this.colorPopoverOpen = true;
+  }
+
+  /**
+   * Handle the user confirming a color in the inline popover.
+   */
+  onColorPicked(result: ColorPickerResult): void {
+    const commandName = result.mode === 'text' ? 'foreColor' : 'backColor';
+    const color = result.color ?? 'transparent';
+    const command: EditorCommand = {
+      name: commandName,
+      value: color,
+      options: { showUI: false, preventDefault: true, params: {} }
+    };
+    // Apply directly through CommandService — emulates what the parent would do
+    // via `commandService.executeCommand`. The contenteditable `input` event
+    // fires automatically, so the editor refreshes its bound content.
+    this.commandService.executeCommand(command, color);
+    this.closeColorPopover();
+    // Also emit upward for any host that wants to observe tool usage.
+    this.command.emit(command);
+  }
+
+  /**
+   * Close the inline color picker without applying a color.
+   */
+  closeColorPopover(): void {
+    this.colorPopoverOpen = false;
   }
 
   /**
@@ -948,7 +1040,15 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
         '7': '32px'
       };
 
-      return sizeMap[normalized] || normalized;
+      // Legacy 1-7 scale → pixel value. Any other digit is treated as a
+      // literal pixel value (e.g. "30" → "30px"), matching the format the
+      // command service stores on the selection.
+      const mapped = sizeMap[normalized];
+      if (mapped) {
+        return mapped;
+      }
+      const numeric = Number.parseInt(normalized, 10);
+      return Number.isFinite(numeric) ? `${numeric}px` : normalized;
     }
 
     if (normalized.endsWith('px')) {
@@ -987,17 +1087,24 @@ export class ToolbarComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private normalizeLineHeightValue(value?: string | null): string {
     if (!value) {
-      return '';
+      return '1';
     }
 
     const normalized = value.trim().toLowerCase();
-    if (normalized === 'normal') {
-      return 'normal';
+    if (normalized === 'normal' || normalized === 'inherit' || normalized === 'initial' || normalized === 'unset' || normalized === '') {
+      return '1';
+    }
+
+    // px values: leave as-is here; consumers should pass unitless ratios.
+    const pxMatch = /^(-?\d*\.?\d+)px$/i.exec(normalized);
+    if (pxMatch) {
+      return normalized;
     }
 
     const numericValue = Number.parseFloat(normalized);
     if (Number.isFinite(numericValue)) {
-      return Number.parseFloat(numericValue.toFixed(2)).toString();
+      // Drop trailing zeros so '1.0', '1.50', '2' all compare equal to '1', '1.5', '2'.
+      return Number.parseFloat(numericValue.toFixed(3)).toString();
     }
 
     return normalized;

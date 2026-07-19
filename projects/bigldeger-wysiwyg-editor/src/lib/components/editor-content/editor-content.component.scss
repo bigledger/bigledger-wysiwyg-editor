@@ -13,7 +13,11 @@
   outline: none;
   background: #fff;
   color: inherit;
-  font-family: inherit;
+  // Default font is Georgia. Froala's behaviour when pasting content is to
+  // let pasted text inherit the editor's default font-family. Setting it on
+  // the contenteditable surface here guarantees that any text the user
+  // types or pastes without an explicit font-family falls back to Georgia.
+  font-family: Georgia, 'Times New Roman', Times, serif;
   font-size: inherit;
   line-height: inherit;
   overflow-y: auto;
@@ -21,8 +25,30 @@
   min-height: 120px;
   resize: vertical;
   box-sizing: border-box;
-  
+
   @include wysiwyg-scrollbar;
+
+  // Default font is Georgia for every block-level descendant that doesn't
+  // explicitly set its own font-family. This means: typed text gets Georgia
+  // automatically, and pasted content that doesn't bring a font-family also
+  // falls back to Georgia — but pasted content that *does* bring a
+  // font-family (because the user intentionally styled it on the source
+  // page) keeps it. We never override the user's choices, only fill gaps.
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  pre,
+  ul,
+  ol,
+  li,
+  div {
+    font-family: Georgia, 'Times New Roman', Times, serif;
+  }
 
   // Focus is handled by the parent editor container
   // Focus styles are handled by the parent editor container

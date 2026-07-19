@@ -280,15 +280,36 @@ export class ContentEditableDirective implements OnInit, OnDestroy {
 
   private cleanupContent(): void {
     const element = this.elementRef.nativeElement;
-    
-    // Remove empty paragraphs except the last one
-    const paragraphs = element.querySelectorAll('p');
-    paragraphs.forEach((p, index) => {
-      if (index < paragraphs.length - 1 && this.isEmpty(p)) {
-        p.remove();
+
+    // Only collapse *trailing* empty paragraphs once we're back to a single
+    // empty paragraph at the very end. Removing intermediate empty <p>
+    // blocks used to be deliberate for the legacy single-block layout, but
+    // after Froala-style multi-paragraph Enter handling landed every freshly
+    // inserted <p><br></p> counts as a real block the user just produced —
+    // deleting them silently broke repeated Enter presses (the second Enter
+    // would have nowhere to land). See editor-content `handleEnterKey`.
+    const paragraphs = Array.from(element.querySelectorAll('p'));
+    if (paragraphs.length <= 1) {
+      this.removeUnwantedAttributes();
+      return;
+    }
+
+    const total = paragraphs.length;
+    const last = paragraphs[total - 1];
+    if (last && this.isEmpty(last) && last.parentNode === element) {
+      // Collapse everything down to a single trailing paragraph only when
+      // every earlier paragraph is also empty (the user cleared the
+      // document). Otherwise leave the structure intact.
+      const allEarlierEmpty = paragraphs
+        .slice(0, total - 1)
+        .every((p) => this.isEmpty(p));
+      if (allEarlierEmpty) {
+        for (let i = 0; i < total - 1; i++) {
+          paragraphs[i].remove();
+        }
       }
-    });
-    
+    }
+
     // Remove unwanted attributes
     this.removeUnwantedAttributes();
   }

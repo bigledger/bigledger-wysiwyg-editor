@@ -4,7 +4,7 @@ export * from './toolbar/toolbar-button.component';
 export * from './toolbar/toolbar-dropdown.component';
 export * from './dialogs/link-dialog/link-dialog.component';
 export * from './dialogs/image-dialog/image-dialog.component';
-export * from './dialogs/color-picker-dialog/color-picker-dialog.component';
+export * from './color-picker-popover/color-picker-popover.component';
 export * from './dialogs/video-dialog/video-dialog.component';
 export * from './dialogs/table-dialog/table-dialog.component';
 export * from './dialogs/emoticons-dialog/emoticons-dialog.component';

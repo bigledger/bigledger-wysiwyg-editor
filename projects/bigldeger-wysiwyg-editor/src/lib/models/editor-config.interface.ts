@@ -35,6 +35,43 @@ export interface EditorConfig {
   shortcuts?: ShortcutConfig;
   /** Accessibility configuration */
   accessibility?: AccessibilityConfig;
+  /** Paste handling configuration */
+  paste?: PasteConfig;
+}
+
+/**
+ * Paste handling configuration. Controls how content pasted from external
+ * sources (Word, Google Docs, web pages) is cleaned and what visual identity
+ * is preserved so the result looks like the source page rather than a
+ * flat blob of plain text.
+ */
+export interface PasteConfig {
+  /**
+   * When true, strip `background-color` and `color` from pasted inline styles
+   * so the editor's default typography takes over. Default: `false` — we keep
+   * the source's colors so coloured headings / highlighted paragraphs look
+   * the same after paste.
+   */
+  stripColors?: boolean;
+  /**
+   * When true, force a fresh `<p>` wrapper around pasted content even when the
+   * source already used `<div>`/`<section>`. Default: `false` — we trust the
+   * source's block structure.
+   */
+  forceParagraphWrapping?: boolean;
+  /**
+   * Allowlist of class-name prefixes (or exact names) to keep on pasted
+   * elements. Anything else is stripped. Use this to opt-in to a known set
+   * of source-specific classes such as `['wise-', 'ql-', 'mce-']`. Default:
+   * an empty list — classes are stripped.
+   */
+  classAllowlist?: string[];
+  /**
+   * Maximum heading size (in px) preserved from the source page. External
+   * sources sometimes paste `font-size: 96px` which visually overwhelms the
+   * editor; this cap softens that. Default: `64`.
+   */
+  maxHeadingFontSizePx?: number;
 }
 
 /**

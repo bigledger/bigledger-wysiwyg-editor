@@ -82,19 +82,31 @@ export class CommandService {
 
       // Handle fontSize command with pixel values
       let commandValue = value;
-      if (commandName === 'fontSize' && value) {
-        // Convert pixel values to relative sizes (1-7)
-        commandValue = this.convertPixelToFontSize(value);
-      }
-
       if ((commandName === 'paragraphFormat' || commandName === 'formatBlock') && value) {
         commandName = 'formatBlock';
         commandValue = this.normalizeFormatBlockValue(value);
       }
 
-      // For fontSize, fontFamily and color commands, always use fallback since document.execCommand is unreliable
-      if (commandName === 'fontSize' || commandName === 'fontName' || commandName === 'fontFamily' || commandName === 'foreColor' || commandName === 'backColor') {
-        return this.executeFallbackCommand({ ...command, name: commandName }, value);
+      // Froala-style native handling for inline formatting commands.
+      // For font size we skip `document.execCommand('fontSize')` entirely —
+      // browsers only accept the legacy 1-7 scale, which produces a
+      // `<font size="N">` that modern browsers ignore. Instead we apply
+      // `font-size: Npx` directly as an inline style on the selection.
+      if (commandName === 'fontSize') {
+        return this.executeNativeFontSizeCommand(value);
+      }
+
+      // Froala-style native execCommand for inline formatting commands.
+      // The browser handles every edge case — collapsed caret, partial
+      // multi-block selection, full-content selection, nested inline
+      // formatting — without producing fragment ghosts or breaking the
+      // contenteditable tree the way our wrapSelectionWithStyle fallback did.
+      if (commandName === 'foreColor' || commandName === 'backColor') {
+        return this.executeNativeColorCommand(commandName, commandValue);
+      }
+
+      if (commandName === 'fontName' || commandName === 'fontFamily') {
+        return this.executeNativeFontNameCommand(value);
       }
 
       // Execute the command
@@ -157,8 +169,14 @@ export class CommandService {
         case 'fontFamily':
           return this.wrapSelectionWithStyle('font-family', value || 'Arial, sans-serif');
         case 'foreColor':
-          return this.wrapSelectionWithStyle('color', value || '#000000');
         case 'backColor':
+          // Color commands are routed through executeNativeColorCommand in
+          // executeCommand(); this fallback only fires when execCommand is
+          // entirely unavailable (legacy IE / jsdom test env). We still try
+          // the naive wrap as a last resort.
+          if (command.name === 'foreColor') {
+            return this.wrapSelectionWithStyle('color', value || '#000000');
+          }
           return this.wrapSelectionWithStyle('background-color', value || '#ffffff');
         default:
           return false;
@@ -167,6 +185,161 @@ export class CommandService {
       this.errorHandlerService.handleCommandError('executeFallbackCommand', { command: command.name }, false);
       return false;
     }
+  }
+
+  /**
+   * Apply a text or background color using the browser's native execCommand.
+   *
+   * Froala-style behavior: this delegates to `foreColor` / `hiliteColor`
+   * which the browser implements for every edge case — collapsed caret
+   * (applies to next typed text), partial multi-block selection (each block
+   * gets wrapped correctly), full-content selection (every text node
+   * restyled), and nested inline formatting. Unlike our previous
+   * `wrapSelectionWithStyle` fallback it does not extract the selection
+   * into a fragment (which can produce ghost nodes / extra borders in the
+   * contenteditable tree) and does not lose selection on partial
+   * selections.
+   */
+  private executeNativeColorCommand(commandName: 'foreColor' | 'backColor', value?: string): boolean {
+    const color = this.normalizeColorValue(value);
+    if (!color) {
+      // Removing color: native execCommand('removeFormat') unwraps color but
+      // it also strips other formatting. Instead route a transparent / empty
+      // value to the native command — for hiliteColor most browsers accept
+      // the literal string 'transparent'.
+      try {
+        const nativeCommand = commandName === 'foreColor' ? 'removeFormat' : 'hiliteColor';
+        const nativeValue = commandName === 'foreColor' ? null : 'transparent';
+        document.execCommand(nativeCommand, false, nativeValue as any);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    try {
+      // Ensure subsequent commands emit inline `style=""` attributes rather
+      // than old-school presentational tags, matching Froala's output and
+      // working with our wrapSelectionWithStyle fallback path.
+      try {
+        document.execCommand('styleWithCSS', false, 'true');
+      } catch {
+        // styleWithCSS is best-effort; ignore in browsers that don't support it.
+      }
+
+      const nativeCommand = commandName === 'foreColor' ? 'foreColor' : 'hiliteColor';
+      const success = document.execCommand(nativeCommand, false, color);
+      if (success) {
+        return true;
+      }
+    } catch {
+      // fall through to manual fallback
+    }
+
+    // Last-resort fallback if execCommand is unavailable (e.g. jsdom, legacy IE).
+    if (commandName === 'foreColor') {
+      return this.wrapSelectionWithStyle('color', color || '#000000');
+    }
+    return this.wrapSelectionWithStyle('background-color', color || '#ffffff');
+  }
+
+  /**
+   * Normalize a color value for use with document.execCommand.
+   *
+   * - Trims whitespace, lowercases.
+   * - Expands short hex (`#abc`) to full (`#aabbcc`).
+   * - Rejects empty / invalid values (returns `null`).
+   * - Accepts `transparent`, named colors and `rgb(...)` strings as-is.
+   */
+  private normalizeColorValue(value?: string | null): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+      return null;
+    }
+    const lower = trimmed.toLowerCase();
+    if (lower === 'transparent' || lower === 'inherit') {
+      return lower;
+    }
+    const hexMatch = lower.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
+    if (hexMatch) {
+      const hex = hexMatch[1];
+      if (hex.length === 3) {
+        return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`;
+      }
+      return `#${hex}`;
+    }
+    if (lower.startsWith('rgb(') || lower.startsWith('rgba(')) {
+      return lower;
+    }
+    // Let named colors pass through; the browser will accept them.
+    return lower;
+  }
+
+  /**
+   * Apply a font-family using the browser's native execCommand.
+   *
+   * Froala-style behavior: enable `styleWithCSS` once so subsequent
+   * `fontName` execCommand writes `<span style="font-family: ...">` rather
+   * than legacy `<font face="...">`. Modern browsers' `queryCommandValue`
+   * returns empty for `<font face>` style values, so producing the inline
+   * style is what makes the dropdown detection (`getCurrentFontFamily` in
+   * selection.service.ts) read back the active font reliably.
+   *
+   * `document.execCommand('fontName')` handles every edge case — collapsed
+   * caret (applies to next typed text), partial multi-block selection
+   * (each text fragment wrapped correctly), full-content selection (every
+   * text node restyled), and nested inline formatting. Unlike our previous
+   * `wrapSelectionWithStyle` fallback, it does not extract the selection
+   * into a fragment that can leak nested structures or ghost nodes.
+   */
+  private executeNativeFontNameCommand(value?: string): boolean {
+    const fontFamily = this.normalizeFontFamilyValue(value);
+    if (!fontFamily) {
+      return false;
+    }
+
+    // Ensure subsequent commands emit inline `style=""` attributes rather
+    // than legacy <font face> tags. styleWithCSS is sticky for the
+    // document so calling once is enough.
+    try {
+      document.execCommand('styleWithCSS', false, 'true');
+    } catch {
+      // styleWithCSS is best-effort; older browsers ignore it.
+    }
+
+    try {
+      const success = document.execCommand('fontName', false, fontFamily);
+      if (success) {
+        return true;
+      }
+    } catch {
+      // fall through to manual fallback
+    }
+
+    // Last-resort fallback if execCommand is unavailable (jsdom, legacy IE).
+    return this.wrapSelectionWithStyle('font-family', fontFamily);
+  }
+
+  /**
+   * Normalize a font-family value for use with document.execCommand.
+   *
+   * - Trims whitespace.
+   * - Extracts the first font from a CSS font-family list
+   *   (`"Helvetica, sans-serif"` → `"Helvetica"`).
+   * - Removes surrounding quotes (`"Times New Roman"` → `Times New Roman`).
+   * - Returns an empty string when the value is nullish / blank.
+   */
+  private normalizeFontFamilyValue(value?: string | null): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const first = String(value).split(',')[0] || '';
+    return first
+      .replace(/^['"]+|['"]+$/g, '')
+      .trim();
   }
 
   /**
@@ -196,6 +369,466 @@ export class CommandService {
   }
 
   /**
+   * Froala-style font-size application.
+   *
+   * Froala and every other modern contenteditable editor avoid
+   * `document.execCommand('fontSize')` because that command accepts only the
+   * legacy 1-7 HTML scale, not arbitrary pixel values. When `styleWithCSS=true`
+   * is active Chromium does not even emit `<font size="N">` wrappers any more,
+   * so any post-processing walk over `<font[size]>` is a no-op and the user's
+   * requested px value never reaches the DOM.
+   *
+   * Instead we mutate the DOM manually:
+   *
+   * 1. **Collapsed caret** — set `font-size` on the nearest *inline* wrapper
+   *    (so visual rendering does not change for already-typed text), and
+   *    also stamp it on the parent block so the next typed character inherits
+   *    it. This matches what a user expects when they pick a size and then
+   *    continue typing.
+   * 2. **Range selection within a single inline wrapper** — split the wrapper
+   *    and stamp the inline `font-size` only on the inner range. Other inline
+   *    styles on the wrapper (color, bold, etc.) are preserved on the
+   *    untouched segments.
+   * 3. **Cross-block / cross-inline selections** — walk every text node that
+   *    intersects the range with a `TreeWalker`, split at the range
+   *    boundaries, and wrap each inside-range segment in a fresh
+   *    `<span style="font-size: Npx">`.
+   *
+   * This is the same algorithm described in the Froala `fontSize.apply()`
+   * implementation and is the only reliable path that puts the user's actual
+   * pixel value into the DOM. The toolbar's `getCurrentFontSize()` will then
+   * see the new value on the next selection change.
+   */
+  private executeNativeFontSizeCommand(value?: string): boolean {
+    const fontSize = this.normalizeFontSizeValue(value);
+    if (!fontSize) {
+      return false;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!this.isRangeInsideEditor(range)) {
+      return false;
+    }
+
+    if (range.collapsed) {
+      return this.applyFontSizeAtCaret(range, fontSize);
+    }
+
+    return this.applyFontSizeToSelection(range, fontSize);
+  }
+
+  /**
+   * Whether `range` lives inside any contenteditable on the page. Used to
+   * bail out early when the toolbar is clicked but the editor is not
+   * focused (otherwise we would mutate unrelated DOM).
+   */
+  private isRangeInsideEditor(range: Range): boolean {
+    const container = range.commonAncestorContainer;
+    let node: Node | null =
+      container.nodeType === Node.ELEMENT_NODE
+        ? (container as HTMLElement)
+        : container.parentElement;
+    while (node) {
+      const el = node as HTMLElement;
+      if (el.isContentEditable) {
+        return true;
+      }
+      node = el.parentElement;
+    }
+    return false;
+  }
+
+  /**
+   * Stamp an inline font-size on the caret position so the next typed
+   * character inherits it.
+   *
+   * Strategy: walk up from the caret to the nearest *inline* element (a
+   * `<span>`, `<font>`, `<b>`, …). Set `style.fontSize` only on that inline
+   * element if it exists — we do NOT want to enlarge already-typed text.
+   * Then also stamp the value on the parent block so subsequent typed
+   * characters inherit it.
+   */
+  private applyFontSizeAtCaret(range: Range, fontSize: string): boolean {
+    const anchor =
+      range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentElement
+        : (range.commonAncestorContainer as HTMLElement);
+
+    if (!anchor) {
+      return false;
+    }
+
+    // 1. Stamp the inline `font-size` on the nearest inline ancestor of the
+    //    caret (the smallest wrap right around the caret). This does not
+    //    change already-typed text because we only set `style.fontSize` on
+    //    a wrapper that we will immediately strip if it becomes empty.
+    const inlineAnchor = this.findNearestInlineWrapper(anchor);
+    if (inlineAnchor) {
+      inlineAnchor.style.fontSize = fontSize;
+    }
+
+    // 2. Stamp the block-level anchor so the next typed character inherits
+    //    the same size. We do this by either reusing the parent block's
+    //    inline style (preferred — keeps the DOM small) or by inserting
+    //    a `<span style="font-size: ${fontSize}px"></span>` with a
+    //    zero-width space that is wiped out on the next keystroke.
+    const blockAnchor = this.findParentBlockElement(anchor) || this.findEditorRootForCaret(anchor);
+    if (blockAnchor) {
+      blockAnchor.style.fontSize = fontSize;
+    } else {
+      this.insertZeroWidthFontSizeAnchor(range, fontSize);
+    }
+
+    // 3. Re-anchor the caret so subsequent typing flows into the styled
+    //    region. `range.collapse(true)` keeps the current caret offset.
+    const restored = document.createRange();
+    try {
+      restored.setStart(
+        range.startContainer,
+        Math.min(range.startOffset, this.getNodeLength(range.startContainer))
+      );
+      restored.collapse(true);
+    } catch {
+      restored.selectNodeContents(anchor);
+      restored.collapse(false);
+    }
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(restored);
+    }
+    return true;
+  }
+
+  /**
+   * Walk from `anchor` outwards and return the closest inline wrapper
+   * (`<span>`, `<font>`, `<b>`, `<i>`, `<u>`, `<strong>`, `<em>`). Returns
+   * null when no such element exists, in which case the caller should fall
+   * back to the block-level anchor.
+   */
+  private findNearestInlineWrapper(anchor: HTMLElement): HTMLElement | null {
+    const inlineTags = new Set([
+      'SPAN', 'FONT', 'B', 'STRONG', 'I', 'EM', 'U', 'A', 'MARK', 'SMALL', 'SUB', 'SUP', 'Q', 'CITE', 'DFN'
+    ]);
+    let node: HTMLElement | null = anchor;
+    while (node && node.nodeType === Node.ELEMENT_NODE) {
+      if (inlineTags.has(node.tagName)) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  /**
+   * Resolve the contenteditable root that contains `anchor`. Used by
+   * `applyFontSizeAtCaret` when the caret is not inside a recognised block
+   * element (e.g. when the editor initially renders a raw text node).
+   */
+  private findEditorRootForCaret(anchor: HTMLElement): HTMLElement | null {
+    let node: HTMLElement | null = anchor;
+    while (node) {
+      if (node.isContentEditable) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  /**
+   * Get the textual length of `node` (used to clamp caret offsets that may
+   * otherwise overflow after DOM mutation).
+   */
+  private getNodeLength(node: Node): number {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return (node as Text).data.length;
+    }
+    return (node as HTMLElement).childNodes.length;
+  }
+
+  /**
+   * Insert an invisible `<span style="font-size: ${fontSize}px"></span>`
+   * (with a zero-width space) at the caret so that the next typed character
+   * inherits the requested size even when no block anchor is reachable.
+   */
+  private insertZeroWidthFontSizeAnchor(range: Range, fontSize: string): void {
+    const zwsp = document.createTextNode('\u200B');
+    const span = document.createElement('span');
+    span.style.fontSize = fontSize;
+    span.appendChild(zwsp);
+
+    try {
+      range.insertNode(span);
+      const newRange = document.createRange();
+      newRange.setStart(zwsp, 1);
+      newRange.collapse(true);
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
+    } catch {
+      /* ignore — no usable caret position */
+    }
+  }
+
+  /**
+   * Walk every text node in the range, split at the boundaries, and wrap
+   * each segment that lies inside the range in a fresh
+   * `<span style="font-size: ${fontSize}px">`. Splits are performed in
+   * reverse order so earlier offsets remain valid.
+   */
+  private applyFontSizeToSelection(range: Range, fontSize: string): boolean {
+    const startContainer = range.startContainer;
+    const endContainer = range.endContainer;
+    const startOffset = range.startOffset;
+    const endOffset = range.endOffset;
+
+    if (
+      startContainer.nodeType !== Node.TEXT_NODE ||
+      endContainer.nodeType !== Node.TEXT_NODE
+    ) {
+      // Fall back to the legacy wrap path when the range endpoints are not
+      // text nodes (e.g. the user selected inline elements directly). This
+      // keeps the toolbar working in unusual selection shapes.
+      return this.wrapSelectionWithStyle('font-size', fontSize);
+    }
+
+    // Split end first so the start offsets remain valid.
+    let endText: Text = endContainer as Text;
+    let workingEndOffset = endOffset;
+    if (endOffset < endText.data.length) {
+      endText.splitText(endOffset);
+      workingEndOffset = endText.data.length;
+    }
+
+    let startText: Text = startContainer as Text;
+    let workingStartOffset = startOffset;
+    if (startOffset > 0) {
+      const after = startText.splitText(startOffset);
+      // The original text node now holds the prefix (outside the range);
+      // `after` is the inside-range segment.
+      startText = after;
+      workingStartOffset = 0;
+    }
+
+    // Collect every text node from startText up to and including endText,
+    // in document order.
+    const textNodes: Text[] = [];
+    const root = range.commonAncestorContainer;
+    const walkerRoot =
+      root.nodeType === Node.ELEMENT_NODE
+        ? (root as Element)
+        : (root.parentElement as Element | null);
+    if (walkerRoot) {
+      const walker = document.createTreeWalker(
+        walkerRoot,
+        NodeFilter.SHOW_TEXT,
+        null
+      );
+      let started = false;
+      let node = walker.nextNode();
+      while (node) {
+        if (node === startText) {
+          started = true;
+        }
+        if (started) {
+          textNodes.push(node as Text);
+          if (node === endText) {
+            break;
+          }
+        }
+        node = walker.nextNode();
+      }
+    }
+
+    // If we couldn't find a continuous span (e.g. range crosses an empty
+    // element), fall back to the wrap helper.
+    if (textNodes.length === 0) {
+      return this.wrapSelectionWithStyle('font-size', fontSize);
+    }
+
+    for (const textNode of textNodes) {
+      if (textNode.data.length === 0) {
+        continue;
+      }
+      this.wrapSingleTextNodeWithFontSize(
+        textNode,
+        fontSize,
+        textNode === startText ? workingStartOffset : 0,
+        textNode === endText ? workingEndOffset : textNode.data.length
+      );
+    }
+
+    this.restoreSelectionAroundTextNodes(textNodes[0], textNodes[textNodes.length - 1], fontSize);
+    return true;
+  }
+
+  /**
+   * Wrap a continuous range [startOffset, endOffset) inside `textNode` in a
+   * fresh `<span style="font-size: ${fontSize}px">`. The outside-text
+   * segments are left untouched, as are their inline wrappers.
+   */
+  private wrapSingleTextNodeWithFontSize(
+    textNode: Text,
+    fontSize: string,
+    startOffset: number,
+    endOffset: number
+  ): void {
+    if (startOffset >= endOffset) {
+      return;
+    }
+
+    const isFullText = startOffset === 0 && endOffset === textNode.data.length;
+    const parent = textNode.parentNode;
+    if (!parent) {
+      return;
+    }
+
+    if (isFullText) {
+      // Whole text node is in range — wrap it in a styled span. Preserve the
+      // existing inline wrapper's other styles by NOT unwrapping the parent
+      // span; instead, add a child <span style="font-size: .."> around the
+      // text and keep the outer wrapper's other attributes intact.
+      const wrapper = document.createElement('span');
+      wrapper.style.fontSize = fontSize;
+      parent.insertBefore(wrapper, textNode);
+      wrapper.appendChild(textNode);
+
+      // If the new wrapper ends up empty (only an empty text node), drop it
+      // to avoid leaving stranded styling in the DOM.
+      if (!wrapper.textContent) {
+        parent.removeChild(wrapper);
+      }
+      return;
+    }
+
+    // Partial text node — split it into three pieces so the middle piece can
+    // be wrapped without touching the surrounding text.
+    let middleText: Text;
+    if (endOffset < textNode.data.length) {
+      textNode.splitText(endOffset);
+    }
+    if (startOffset > 0) {
+      middleText = textNode.splitText(startOffset);
+    } else {
+      middleText = textNode;
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.style.fontSize = fontSize;
+    parent.insertBefore(wrapper, middleText);
+    wrapper.appendChild(middleText);
+
+    if (!wrapper.textContent) {
+      parent.removeChild(wrapper);
+    }
+  }
+
+  /**
+   * After wrapping range text in styled spans, restore a sensible selection
+   * so subsequent toolbar interactions operate on the freshly-styled content.
+   */
+  private restoreSelectionAroundTextNodes(
+    first: Text,
+    last: Text,
+    _fontSize: string
+  ): void {
+    try {
+      const newRange = document.createRange();
+      newRange.setStart(first, 0);
+      newRange.setEnd(last, last.data.length);
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
+    } catch {
+      /* ignore — leave the existing selection alone */
+    }
+  }
+
+  /**
+   * Normalize a font-size value coming from the toolbar / API.
+   *
+   * Accepts:
+   * - Plain integers: `"30"` → `"30px"`.
+   * - Pixel values:   `"30px"` → `"30px"`.
+   * - Point values:   `"22pt"` → `"29px"` (rounded).
+   * - "small" / "medium" / "large" — passed through; the browser resolves them.
+   * - Legacy `<font size>` numbers 1-7 — mapped to the closest pixel size used
+   *   elsewhere in the codebase (1→10, 2→12, 3→14, 4→16, 5→18, 6→24, 7→32).
+   *
+   * Returns an empty string for missing / unparseable input so callers can
+   * no-op safely.
+   */
+  private normalizeFontSizeValue(value?: string | null): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const trimmed = String(value).trim().toLowerCase();
+    if (!trimmed) {
+      return '';
+    }
+
+    const namedSizes: Record<string, string> = {
+      'xx-small': '10px',
+      'x-small': '12px',
+      'small': '14px',
+      'medium': '16px',
+      'large': '18px',
+      'x-large': '24px',
+      'xx-large': '32px'
+    };
+    if (namedSizes[trimmed]) {
+      return namedSizes[trimmed];
+    }
+
+    if (trimmed.endsWith('px')) {
+      const px = Number.parseFloat(trimmed);
+      return Number.isFinite(px) ? `${Math.round(px)}px` : '';
+    }
+
+    if (trimmed.endsWith('pt')) {
+      const pt = Number.parseFloat(trimmed);
+      return Number.isFinite(pt) ? `${Math.round(pt * (4 / 3))}px` : '';
+    }
+
+    if (trimmed.endsWith('em') || trimmed.endsWith('rem')) {
+      const factor = trimmed.endsWith('rem') ? 16 : 16;
+      const em = Number.parseFloat(trimmed);
+      return Number.isFinite(em) ? `${Math.round(em * factor)}px` : '';
+    }
+
+    if (trimmed.endsWith('%')) {
+      const pct = Number.parseFloat(trimmed);
+      return Number.isFinite(pct) ? `${Math.round((pct / 100) * 16)}px` : '';
+    }
+
+    if (/^\d+$/.test(trimmed)) {
+      const sizeMap: Record<string, string> = {
+        '1': '10px',
+        '2': '12px',
+        '3': '14px',
+        '4': '16px',
+        '5': '18px',
+        '6': '24px',
+        '7': '32px'
+      };
+      // 8+ treat as a literal pixel value: "30" → "30px".
+      return sizeMap[trimmed] || `${Math.round(Number.parseInt(trimmed, 10))}px`;
+    }
+
+    return trimmed;
+  }
+
+  /**
    * Wrap selection with CSS style
    */
   private wrapSelectionWithStyle(property: string, value: string): boolean {
@@ -205,7 +838,7 @@ export class CommandService {
     }
 
     const range = selection.getRangeAt(0);
-    
+
     // If selection is collapsed (just cursor), insert a placeholder and select it
     if (range.collapsed) {
       const placeholder = document.createTextNode('\u00A0'); // Non-breaking space
@@ -214,15 +847,53 @@ export class CommandService {
       selection.removeAllRanges();
       selection.addRange(range);
     }
-    
+
+    // Detect "full content" selections: the user has selected every character
+    // inside the current block / editor. In that case, extracting the
+    // selection into a fragment and re-wrapping it leaves trailing empty
+    // siblings at the start and end of the editor (the "extra border line"
+    // bug from v1.16.x). Instead, set the style directly on every existing
+    // descendant element so the DOM tree stays intact.
+    const commonAncestor = range.commonAncestorContainer;
+    if (this.isFullContentSelection(range, commonAncestor)) {
+      const target = (commonAncestor.nodeType === Node.TEXT_NODE
+        ? commonAncestor.parentElement
+        : commonAncestor) as Element | null;
+      if (target) {
+        if (target.children && target.children.length > 0) {
+          // Block-level ancestor (e.g. <p>): propagate style to descendants.
+          target.querySelectorAll('*').forEach((node) => {
+            (node as HTMLElement).style.setProperty(property, value);
+          });
+          // Also stamp the ancestor so bare text nodes inside it pick up the value
+          // via inheritance for the next typed character.
+          (target as HTMLElement).style.setProperty(property, value);
+        } else {
+          // Inline ancestor (a span / font / etc.): set style directly.
+          (target as HTMLElement).style.setProperty(property, value);
+        }
+
+        // Restore selection to the same content.
+        const newRange = document.createRange();
+        try {
+          newRange.selectNodeContents(target);
+        } catch {
+          newRange.selectNodeContents(commonAncestor);
+        }
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        return true;
+      }
+    }
+
     const selectedContent = range.extractContents();
-    
+
     const wrapper = document.createElement('span');
     wrapper.style.setProperty(property, value);
     wrapper.appendChild(selectedContent);
-    
+
     range.insertNode(wrapper);
-    
+
     // Update selection to include the new wrapper
     selection.removeAllRanges();
     const newRange = document.createRange();
@@ -230,6 +901,47 @@ export class CommandService {
     selection.addRange(newRange);
 
     return true;
+  }
+
+  /**
+   * Returns true when the range covers every visible character of its
+   * common ancestor — used to swap "wrap-in-span" for "style in-place" so
+   * full-content formatting doesn't leave behind empty wrappers.
+   */
+  private isFullContentSelection(range: Range, commonAncestor: Node): boolean {
+    if (range.collapsed) {
+      return false;
+    }
+
+    const ancestorElement = commonAncestor.nodeType === Node.ELEMENT_NODE
+      ? commonAncestor as Element
+      : commonAncestor.parentElement;
+
+    if (!ancestorElement) {
+      return false;
+    }
+
+    // When the anchor itself is contenteditable (the whole editor), we treat
+    // any selection that ends within it as covering everything inside.
+    const isEditable = (ancestorElement as HTMLElement).isContentEditable
+      || ancestorElement.getAttribute && ancestorElement.getAttribute('contenteditable') === 'true';
+
+    if (isEditable) {
+      const ancestorRange = document.createRange();
+      ancestorRange.selectNodeContents(ancestorElement);
+      return range.startOffset === 0
+        && range.endOffset === ancestorRange.endOffset
+        && range.startContainer === ancestorRange.startContainer
+        && range.endContainer === ancestorRange.endContainer;
+    }
+
+    // Block-level ancestor: compare text content lengths after trimming.
+    const selectedText = range.toString();
+    const fullText = (commonAncestor.textContent || '').toString();
+    if (!fullText.trim()) {
+      return false;
+    }
+    return selectedText.trim() === fullText.trim();
   }
 
   /**
