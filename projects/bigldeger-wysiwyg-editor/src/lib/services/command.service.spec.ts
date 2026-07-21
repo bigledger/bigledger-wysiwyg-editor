@@ -214,6 +214,344 @@ describe('CommandService', () => {
       expect(block.style.lineHeight).toBe('1.5');
     });
 
+    it('should persist line-height when the caret sits in bare text inside the contenteditable root', () => {
+      // Mirrors the cp-commerce text-widget case: legacy content authored
+      // as plain text + <br> separators inside a single <div contenteditable>,
+      // with no <p> wrapper.
+      const root = document.createElement('div');
+      root.setAttribute('contenteditable', 'true');
+      root.appendChild(document.createTextNode('Dear User,'));
+      root.appendChild(document.createElement('br'));
+      root.appendChild(document.createTextNode('Thank you.'));
+      document.body.appendChild(root);
+
+      const textNode = root.firstChild as Text;
+      const range = {
+        commonAncestorContainer: textNode,
+        startContainer: textNode,
+        startOffset: 0
+      } as unknown as Range;
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+      spyOn<any>(service, 'findParentBlockElement').and.callFake(() => root);
+
+      const result = service.executeCommand(
+        { name: 'lineHeight' } as EditorCommand,
+        '1.5'
+      );
+
+      expect(result).toBe(true);
+
+      // Must NOT have written to the contenteditable root itself
+      // (innerHTML serialization would lose it).
+      expect(root.style.lineHeight).toBe('');
+
+      // A real <p> wrapper should now exist inside the root with the style.
+      const wrapper = root.querySelector('p');
+      expect(wrapper).not.toBeNull();
+      expect(wrapper?.style.lineHeight).toBe('1.5');
+
+      // Cloning + innerHTML must round-trip the styled wrapper so the saved
+      // HTML retains the line-height for reopen.
+      const cloned = root.cloneNode(true) as HTMLElement;
+      expect(cloned.innerHTML).toContain('style="line-height: 1.5"');
+      expect(cloned.innerHTML).toContain('Dear User,');
+      expect(cloned.innerHTML).toContain('Thank you.');
+
+      document.body.removeChild(root);
+    });
+
+    it('should clear line-height when value is "normal"', () => {
+      const command: EditorCommand = { name: 'lineHeight' };
+      const block = document.createElement('p');
+      block.style.lineHeight = '1.5';
+      const range = {
+        commonAncestorContainer: block
+      };
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+      spyOn<any>(service, 'findParentBlockElement').and.returnValue(block);
+
+      const result = service.executeCommand(command, 'normal');
+
+      expect(result).toBe(true);
+      expect(block.style.lineHeight).toBe('');
+    });
+
+    it('should update line-height on the targeted <p> when caret sits inside it (cp-commerce case)', () => {
+      // Mirrors the exact scenario in the text-widget-edit-dialog:
+      // multiple <p> blocks each with style="line-height: 1.5", caret
+      // in one of them, user picks "2" from the dropdown. The targeted
+      // <p> must end up with style="line-height: 2" and the cloned
+      // innerHTML (the snapshot that gets emitted to ngModel and saved)
+      // must contain that style on the targeted <p>.
+      const root = document.createElement('div');
+      root.setAttribute('contenteditable', 'true');
+      root.innerHTML = [
+        '<p style="line-height: 1.5">Dear User,</p>',
+        '<p style="line-height: 1.5">We have received your login password.</p>',
+        '<p style="line-height: 1.5">Please use the code below.</p>',
+        '<p style="line-height: 1.5">673519</p>',
+        '<p style="line-height: 1.5">Thank you.</p>'
+      ].join('');
+      document.body.appendChild(root);
+
+      const targetP = root.querySelectorAll('p')[1];
+      const textNode = targetP.firstChild as Text;
+
+      const range = {
+        commonAncestorContainer: textNode,
+        startContainer: textNode,
+        startOffset: 0
+      } as unknown as Range;
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+      // Use the REAL findParentBlockElement — not a mock — so we exercise
+      // the full DOM walk.
+      const blockElement = (service as any).findParentBlockElement(textNode);
+      expect(blockElement).toBe(targetP);
+
+      const result = service.executeCommand(
+        { name: 'lineHeight' } as EditorCommand,
+        '2'
+      );
+
+      expect(result).toBe(true);
+      expect(targetP.style.lineHeight).toBe('2');
+
+      // Clone + innerHTML — mirrors what updateContentFromDOM does.
+      const clone = root.cloneNode(true) as HTMLElement;
+      expect(clone.innerHTML).toContain('style="line-height: 2"');
+      // Sibling paragraphs must keep their existing 1.5 value untouched.
+      const clonedPs = clone.querySelectorAll('p');
+      expect(clonedPs[0].getAttribute('style')).toContain('line-height: 1.5');
+      expect(clonedPs[2].getAttribute('style')).toContain('line-height: 1.5');
+      expect(clonedPs[3].getAttribute('style')).toContain('line-height: 1.5');
+      expect(clonedPs[4].getAttribute('style')).toContain('line-height: 1.5');
+
+      document.body.removeChild(root);
+    });
+
+    it('should update line-height on every <p> when the selection spans all of them (select-all)', () => {
+      // Mirrors the failing cp-commerce scenario: user presses Cmd+A
+      // before picking "2" from the dropdown. The selection's common
+      // ancestor is the contenteditable root, so `findParentBlockElement`
+      // returns the root itself. The previous fix wrapped all children in
+      // a single `<p>`, but the inner <p>s' explicit `line-height: 1.5`
+      // styles then overrode the wrapper via CSS specificity — visually
+      // and on reload the height stayed at 1.5.
+      //
+      // The correct behaviour is to apply the new value to each block
+      // that intersects the selection, so each <p> ends up with
+      // `line-height: 2` and no destructive wrapper is created.
+      const root = document.createElement('div');
+      root.setAttribute('contenteditable', 'true');
+      root.innerHTML = [
+        '<p style="line-height: 1.5">Dear User,</p>',
+        '<p style="line-height: 1.5">We have received your login password.</p>',
+        '<p style="line-height: 1.5">Please use the code below.</p>',
+        '<p style="line-height: 1.5">673519</p>',
+        '<p style="line-height: 1.5">Thank you.</p>'
+      ].join('');
+      document.body.appendChild(root);
+
+      // Build a real Range that selects everything inside the root, so
+      // `commonAncestorContainer` is the root and `intersectsNode`
+      // returns true for every <p>.
+      const range = document.createRange();
+      range.selectNodeContents(root);
+
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+
+      const result = service.executeCommand(
+        { name: 'lineHeight' } as EditorCommand,
+        '2'
+      );
+
+      expect(result).toBe(true);
+
+      // No destructive wrapper — root must still have exactly five <p>
+      // children, not a single <p> that wraps the others.
+      const livePs = Array.from(
+        root.querySelectorAll(':scope > p')
+      ) as HTMLElement[];
+      expect(livePs.length).toBe(5);
+
+      // Each <p> must have line-height: 2 in its inline style.
+      livePs.forEach((p, idx) => {
+        expect(p.style.lineHeight).withContext(`<p>#${idx}`).toBe('2');
+      });
+
+      // Clone + innerHTML — mirrors what updateContentFromDOM does. This
+      // is the snapshot that gets emitted to ngModel and saved, so it
+      // must contain the new line-height on every <p>.
+      const clone = root.cloneNode(true) as HTMLElement;
+      const clonedPs = clone.querySelectorAll('p');
+      expect(clonedPs.length).toBe(5);
+      clonedPs.forEach((p, idx) => {
+        const style = p.getAttribute('style') || '';
+        expect(style)
+          .withContext(`cloned <p>#${idx} style`)
+          .toContain('line-height: 2');
+      });
+
+      document.body.removeChild(root);
+    });
+
+    it('should strip background-color from every element when the user clicks "Remove Color" in the background popover (paste case)', () => {
+      // Mirrors the failing cp-commerce scenario: user copies a coloured
+      // block from an external source (Google Docs / Word / a web page)
+      // and pastes it into the editor. The pasted HTML arrives with
+      // background-color inline styles scattered across many elements
+      // — the whole <p>, some inner <span> wrappers, even sibling nodes.
+      // Native execCommand('hiliteColor', false, 'transparent') only
+      // touches the current selection, so without the tree sweep the
+      // background stays visible AND in the saved HTML.
+      const root = document.createElement('div');
+      root.setAttribute('contenteditable', 'true');
+      root.innerHTML = [
+        '<p style="background-color: #f1f3f4; color: #202124">',
+        '  Free AI Blog Post Generator',
+        '</p>',
+        '<p style="background-color: #f1f3f4">',
+        '  Prompt text or voice and our AI generates ',
+        '  <span style="background-color: #fff3b0; color: #ff6f00">',
+        '    professional blog posts instantly',
+        '  </span>',
+        '  with structured sections, engaging writing, and ',
+        '  publishing-ready formatting.',
+        '</p>'
+      ].join('');
+      document.body.appendChild(root);
+
+      // Caret at the end of the last paragraph — the typical state right
+      // after pasting. commonAncestorContainer is the contenteditable
+      // root, so a selection-scoped hiliteColor would miss everything.
+      const lastText = root.querySelector('p:last-of-type')!.lastChild as Text;
+      const range = document.createRange();
+      range.setStart(lastText, lastText.textContent?.length || 0);
+      range.collapse(true);
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+
+      const result = service.executeCommand(
+        { name: 'backColor' } as EditorCommand,
+        'transparent'
+      );
+
+      expect(result).toBe(true);
+
+      // Every element that previously carried a background-color must
+      // no longer carry one in its inline style.
+      const allWithBg = root.querySelectorAll('[style*="background-color"]');
+      expect(allWithBg.length).withContext('elements still carrying background-color').toBe(0);
+
+      // Sibling <p> blocks must still be intact and their text untouched.
+      expect(root.querySelectorAll('p').length).toBe(2);
+      const lastSpan = root.querySelector('span')!;
+      expect(lastSpan.textContent).toContain('professional blog posts instantly');
+
+      // The contenteditable root must have received an `input` event so
+      // the editor's bound ngModel / formControl refreshes — without it,
+      // saving and reopening would still show the original background.
+      // (Spy dispatched via document.createElement on a separate node
+      // below.)
+
+      document.body.removeChild(root);
+    });
+
+    it('should dispatch an input event on the editor root so the bound content refreshes after "Remove Color"', () => {
+      // Companion test: the editor's `(input)` handler is what propagates
+      // the new innerHTML to `(contentChange)` and on to ngModel /
+      // formControl. Without that event being fired, the strip succeeds
+      // in the DOM but the saved snapshot still contains the colour.
+      const root = document.createElement('div');
+      root.setAttribute('contenteditable', 'true');
+      root.innerHTML =
+        '<p style="background-color: #f1f3f4">Pasted block</p>';
+      document.body.appendChild(root);
+
+      let inputDispatched = 0;
+      root.addEventListener('input', () => inputDispatched++);
+
+      const textNode = root.querySelector('p')!.firstChild as Text;
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.collapse(true);
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+
+      service.executeCommand(
+        { name: 'backColor' } as EditorCommand,
+        'transparent'
+      );
+
+      expect(inputDispatched).toBeGreaterThan(0);
+
+      document.body.removeChild(root);
+    });
+
+    it('should strip inline color styles from every element when "Remove Color" is picked in the text-color popover', () => {
+      // Symmetry: pasting a coloured heading carries inline `color` on
+      // many elements. The Remove Color button on the text-color popover
+      // should clear all of them, not just the selection.
+      const root = document.createElement('div');
+      root.setAttribute('contenteditable', 'true');
+      root.innerHTML = [
+        '<h1 style="color: #1e88e5">',
+        '  <span style="color: #ff6f00">Pasted heading</span>',
+        '</h1>',
+        '<p style="color: #202124">',
+        '  <span style="color: #43a047">Pasted body</span>',
+        '</p>'
+      ].join('');
+      document.body.appendChild(root);
+
+      const range = document.createRange();
+      range.selectNodeContents(root);
+      const selection = {
+        rangeCount: 1,
+        getRangeAt: jasmine.createSpy('getRangeAt').and.returnValue(range)
+      };
+      spyOn(window, 'getSelection').and.returnValue(selection as any);
+
+      const result = service.executeCommand(
+        { name: 'foreColor' } as EditorCommand,
+        'transparent'
+      );
+
+      expect(result).toBe(true);
+
+      const allWithColor = root.querySelectorAll('[style*="color"]');
+      expect(allWithColor.length)
+        .withContext('elements still carrying inline color')
+        .toBe(0);
+
+      document.body.removeChild(root);
+    });
+
     it('should map formatOLSimple to the normal ordered-list command', () => {
       const command: EditorCommand = { name: 'formatOLSimple' };
 
