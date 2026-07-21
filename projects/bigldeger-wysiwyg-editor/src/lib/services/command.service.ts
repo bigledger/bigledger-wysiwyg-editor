@@ -12,6 +12,25 @@ import { HistoryService } from './history.service';
 import { TableService } from './table.service';
 
 /**
+ * The set of HTML tag names that count as a "block" for line-height,
+ * alignment, and other block-level operations. Kept in sync with
+ * `findParentBlockElement` below — both consult this set so any future
+ * block type is added in exactly one place.
+ */
+const BLOCK_TAG_NAMES: ReadonlySet<string> = new Set([
+  'p',
+  'div',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'li',
+  'blockquote'
+]);
+
+/**
  * Service for executing editor commands and managing formatting operations
  */
 @Injectable({
@@ -202,19 +221,38 @@ export class CommandService {
    */
   private executeNativeColorCommand(commandName: 'foreColor' | 'backColor', value?: string): boolean {
     const color = this.normalizeColorValue(value);
-    if (!color) {
-      // Removing color: native execCommand('removeFormat') unwraps color but
-      // it also strips other formatting. Instead route a transparent / empty
-      // value to the native command — for hiliteColor most browsers accept
-      // the literal string 'transparent'.
+    // Treat a null/empty colour and the explicit CSS keywords `transparent`
+    // and `inherit` as a "remove colour" request. The popover's Remove
+    // Color button currently surfaces this as the string 'transparent',
+    // which is truthy on its own, so we have to map it back to the remove
+    // branch explicitly here.
+    if (!color || color === 'transparent' || color === 'inherit') {
+      // Removing color: the native command (`hiliteColor` for background,
+      // `removeFormat` for foreground) only affects the current selection.
+      // When the user pastes content from an external source — Google Docs,
+      // Word, a web page — colors often arrive as inline styles scattered
+      // across many elements that the user may not even have selected. A
+      // background-color on the whole pasted paragraph is the canonical
+      // example: the caret sits at the end, the user opens the background-
+      // color popover, picks "Remove Color", and expects the whole pasted
+      // block's tint to disappear.
+      //
+      // We layer a full-tree sweep on top of the native command so that
+      // every element with an inline `color` / `background-color` style
+      // inside the editor gets cleaned up, not just the bits inside the
+      // current selection. The sweep also dispatches an `input` event on
+      // the contenteditable root so the editor's bound content refreshes
+      // (programmatic style mutations don't fire `input` on their own).
       try {
         const nativeCommand = commandName === 'foreColor' ? 'removeFormat' : 'hiliteColor';
         const nativeValue = commandName === 'foreColor' ? null : 'transparent';
         document.execCommand(nativeCommand, false, nativeValue as any);
-        return true;
       } catch {
-        return false;
+        // Native call is best-effort — the tree sweep below is what really
+        // guarantees the removal sticks on pasted content.
       }
+      this.removeInlineColorFromEditor(commandName);
+      return true;
     }
 
     try {
@@ -241,6 +279,99 @@ export class CommandService {
       return this.wrapSelectionWithStyle('color', color || '#000000');
     }
     return this.wrapSelectionWithStyle('background-color', color || '#ffffff');
+  }
+
+  /**
+   * Strip every inline `background-color` (or `color`, for the foreColor
+   * case) style from the contenteditable root, regardless of selection.
+   *
+   * Why this exists: native `execCommand('hiliteColor', false, 'transparent')`
+   * only touches text nodes inside the current selection, so a pasted
+   * paragraph whose `background-color` lives on the `<p>` itself (or on
+   * half a dozen `<span>` wrappers) survives the Remove Color click.
+   * Walking the editor tree and removing the inline style attribute on
+   * every element is the only reliable way to clear the colour from
+   * pasted content.
+   *
+   * After the sweep we dispatch an `input` event on the contenteditable
+   * root. Programmatic style mutations don't fire `input` on their own,
+   * but the editor's `(input)` handler is what propagates the new
+   * `innerHTML` to `(contentChange)` and on to the bound `ngModel` /
+   * `formControl`. Without that event the saved/reopened view would
+   * still show the original background.
+   *
+   * Limited to the subtree of the contenteditable root that contains the
+   * current selection (or, if no selection is reachable, the first
+   * contenteditable root on the page) so we never touch unrelated
+   * editors on the same page.
+   */
+  private removeInlineColorFromEditor(commandName: 'foreColor' | 'backColor'): void {
+    const cssProperty = commandName === 'foreColor' ? 'color' : 'background-color';
+    const root = this.findEditorRootForColorRemoval();
+    if (!root) {
+      return;
+    }
+
+    // Collect every element that carries the style we want to remove,
+    // then mutate. Snapshotting first avoids surprising behaviour from
+    // mutating the tree during the walk.
+    const elements = Array.from(root.querySelectorAll('*')).filter((el) => {
+      const inlineStyle = (el as HTMLElement).style;
+      return inlineStyle && inlineStyle.getPropertyValue(cssProperty).trim() !== '';
+    });
+
+    for (const el of elements) {
+      const inlineStyle = (el as HTMLElement).style;
+      inlineStyle.removeProperty(cssProperty);
+      // If the inline style attribute is now empty, drop it entirely so
+      // the cleaned-up HTML stays compact instead of leaving behind a
+      // dangling `style=""`.
+      if (inlineStyle.cssText.trim() === '') {
+        inlineStyle.cssText = '';
+      }
+    }
+
+    // Dispatch an `input` event so the editor's input handler refreshes
+    // the bound content with the stripped HTML. Use a non-bubbling
+    // InputEvent so we don't accidentally retrigger ancestor listeners
+    // outside the editor tree.
+    try {
+      const inputEvent = new InputEvent('input', { bubbles: false, cancelable: false });
+      root.dispatchEvent(inputEvent);
+    } catch {
+      // Older browsers without InputEvent — fall back to a generic Event.
+      const fallback = new Event('input', { bubbles: false, cancelable: false });
+      root.dispatchEvent(fallback);
+    }
+  }
+
+  /**
+   * Resolve the contenteditable root that the current color operation
+   * should affect. Preference order:
+   *
+   *   1. The closest contenteditable ancestor of the current selection's
+   *      anchor node — covers the common case where the popover is opened
+   *      with a caret/selection inside the editor.
+   *   2. The first `[contenteditable="true"]` element on the page — covers
+   *      the edge case where the popover is opened with no selection (the
+   *      user clicked Remove Color right after pasting without focusing).
+   *   3. `null` — when no editor is present (e.g. jsdom test env without a
+   *      contenteditable). The caller bails out gracefully.
+   */
+  private findEditorRootForColorRemoval(): HTMLElement | null {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const anchor = selection.getRangeAt(0).commonAncestorContainer;
+      const node =
+        anchor.nodeType === Node.ELEMENT_NODE
+          ? (anchor as HTMLElement)
+          : anchor.parentElement;
+      const root = (node?.closest('[contenteditable="true"]') as HTMLElement | null);
+      if (root) {
+        return root;
+      }
+    }
+    return document.querySelector('[contenteditable="true"]') as HTMLElement | null;
   }
 
   /**
@@ -1091,7 +1222,30 @@ export class CommandService {
   }
 
   /**
-   * Apply line-height styling to the current block element.
+   * Apply line-height to every block element that intersects the current
+   * selection. Line-height is a CSS property that applies to **all** blocks
+   * rendered in the affected region; a select-all that spans five `<p>`
+   * paragraphs must update every one of them, not a single ancestor. This
+   * mirrors how font-size applies an inline `<span>` to each text node in
+   * the selection — the value reaches every element that actually paints
+   * the styled content.
+   *
+   * Special cases:
+   *
+   *   - Single caret inside a real block (`<p>`, `<div>`, `<h1-6>`, `<li>`,
+   *     `<blockquote>`) → that block receives the style.
+   *
+   *   - Selection spans multiple blocks (Cmd+A, multi-line drag, etc.) →
+   *     every block in the selection receives the style. Inner blocks that
+   *     already carry their own `line-height` need an explicit override,
+   *     because explicit styles beat inheritance from a parent wrapper.
+   *
+   *   - Caret or selection sits in bare text inside the contenteditable
+   *     root (`<div>`) — i.e. legacy content authored as plain text + `<br>`
+   *     separators with no block children — we materialise a single `<p>`
+   *     wrapper around the root's children so the line-height lives on a
+   *     real block and survives `innerHTML` serialisation (the root's own
+   *     attributes are not part of `innerHTML`).
    */
   private applyLineHeight(value: string): boolean {
     const selection = window.getSelection();
@@ -1100,19 +1254,142 @@ export class CommandService {
     }
 
     const range = selection.getRangeAt(0);
-    const blockElement = this.findParentBlockElement(range.commonAncestorContainer);
+    const targetBlocks = this.collectLineHeightBlocks(range);
 
-    if (!blockElement) {
+    if (targetBlocks.length === 0) {
       return false;
     }
 
-    if (value === 'normal') {
-      blockElement.style.removeProperty('line-height');
-    } else {
-      blockElement.style.lineHeight = value;
+    for (const block of targetBlocks) {
+      if (value === 'normal') {
+        block.style.removeProperty('line-height');
+      } else {
+        block.style.lineHeight = value;
+      }
     }
 
     return true;
+  }
+
+  /**
+   * Collect every block element that should receive a line-height update for
+   * the given range.
+   *
+   * For most selections this is a single block (the caret's enclosing
+   * `<p>`). When the selection crosses multiple blocks — the very common
+   * "select all" or multi-paragraph drag case — we walk the descendants of
+   * the range's common ancestor and return every block that intersects
+   * the range.
+   *
+   * When the common ancestor is the contenteditable root and the root has
+   * no block children (only bare text nodes and `<br>` separators) we wrap
+   * those bare children in a single `<p>` so the style has a real block to
+   * live on and survives `innerHTML` serialisation.
+   *
+   * Returns an empty array when there is no usable target (empty root).
+   */
+  private collectLineHeightBlocks(range: Range): HTMLElement[] {
+    const blockElement = this.findParentBlockElement(range.commonAncestorContainer);
+
+    if (!blockElement) {
+      return [];
+    }
+
+    // Caret or selection is inside a single real block — style just that
+    // one. No wrap needed; the block lives inside the contenteditable root
+    // and its `style.lineHeight` will round-trip through `innerHTML`.
+    if (!blockElement.isContentEditable) {
+      return [blockElement];
+    }
+
+    // The block we matched IS the contenteditable root. Walk its
+    // descendants for every block that intersects the range.
+    const intersectingBlocks = this.findBlocksIntersectingRange(
+      blockElement,
+      range
+    );
+
+    if (intersectingBlocks.length > 0) {
+      return intersectingBlocks;
+    }
+
+    // No block children at all (legacy bare-text + `<br>` content).
+    // Materialise a single `<p>` wrapper so the line-height has somewhere
+    // to live and survives `innerHTML` serialisation.
+    const wrapper = this.wrapContentEditableChildrenInParagraph(blockElement);
+    return wrapper ? [wrapper] : [];
+  }
+
+  /**
+   * Walk `root`'s subtree and return every real block element that
+   * intersects `range`. Real blocks are `<p>`, `<div>`, `<h1-6>`, `<li>`,
+   * and `<blockquote>` — the same set `findParentBlockElement` recognises.
+   */
+  private findBlocksIntersectingRange(root: HTMLElement, range: Range): HTMLElement[] {
+    const result: HTMLElement[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+
+    let node = walker.nextNode() as HTMLElement | null;
+    while (node) {
+      const tagName = node.tagName.toLowerCase();
+      if (
+        BLOCK_TAG_NAMES.has(tagName) &&
+        !node.isContentEditable &&
+        this.rangeIntersectsNode(range, node)
+      ) {
+        result.push(node);
+      }
+      node = walker.nextNode() as HTMLElement | null;
+    }
+
+    return result;
+  }
+
+  /**
+   * Does `range` touch `node`? `Range.intersectsNode` returns true for an
+   * ancestor whose descendant contains the entire range; for partial
+   * overlaps we additionally fall back to a manual comparison of the
+   * node's first rect with the range's bounds so a select-all that just
+   * grazes a trailing paragraph is still considered intersecting.
+   */
+  private rangeIntersectsNode(range: Range, node: Node): boolean {
+    try {
+      if (range.intersectsNode(node)) {
+        return true;
+      }
+    } catch {
+      // Older browsers throw for detached ranges — fall through to the
+      // bounding-rect fallback below.
+    }
+
+    const nodeRange = document.createRange();
+    nodeRange.selectNodeContents(node);
+    return (
+      range.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0 &&
+      range.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0
+    );
+  }
+
+  /**
+   * Wrap every direct child of the contenteditable root in a single `<p>` so
+   * block-level styling (line-height) has somewhere to persist. Any existing
+   * block children are moved into the new `<p>` unchanged; bare text nodes
+   * and `<br>` separators are concatenated as siblings of those blocks.
+   *
+   * Returns the new wrapper paragraph, or `null` if the root has no
+   * children to wrap.
+   */
+  private wrapContentEditableChildrenInParagraph(root: HTMLElement): HTMLElement | null {
+    if (!root.firstChild) {
+      return null;
+    }
+
+    const wrapper = document.createElement('p');
+    while (root.firstChild) {
+      wrapper.appendChild(root.firstChild);
+    }
+    root.appendChild(wrapper);
+    return wrapper;
   }
 
   /**
@@ -2180,7 +2457,7 @@ export class CommandService {
    */
   private findParentBlockElement(node: Node): HTMLElement | null {
     let element = node;
-    
+
     // If it's a text node, get its parent
     while (element && element.nodeType !== Node.ELEMENT_NODE) {
       element = element.parentNode!;
@@ -2189,7 +2466,7 @@ export class CommandService {
     // Find the closest block element
     while (element && element.nodeType === Node.ELEMENT_NODE) {
       const tagName = (element as Element).tagName.toLowerCase();
-      if (['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote'].includes(tagName)) {
+      if (BLOCK_TAG_NAMES.has(tagName)) {
         return element as HTMLElement;
       }
       element = element.parentNode!;
