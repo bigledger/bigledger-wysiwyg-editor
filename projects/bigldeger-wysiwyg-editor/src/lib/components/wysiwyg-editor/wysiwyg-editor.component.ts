@@ -521,9 +521,18 @@ export class WysiwygEditorComponent implements OnInit, OnDestroy, ControlValueAc
   private executeCommand(command: EditorCommand): void {
     this.restoreEditorSelection();
 
-    // Route line-height through editor-content so updateContentFromDOM runs
-    // after the DOM mutation — without this, (contentChange) never fires and
-    // applied line-height is lost on save (matches prior font-size fix).
+    // Route DOM-mutating style commands through editor-content so
+    // updateContentFromDOM runs after the DOM mutation. Without this,
+    // the change can look applied live but never reach ngModel, so it is
+    // lost when the host saves and reloads the editor value.
+    if (command.name === 'fontSize') {
+      this.editorContent?.setFontSize(command.value ?? '');
+      setTimeout(() => {
+        this.updateSelectionState();
+      }, 0);
+      return;
+    }
+
     if (command.name === 'lineHeight') {
       this.editorContent?.setLineHeight(command.value ?? '');
       setTimeout(() => {

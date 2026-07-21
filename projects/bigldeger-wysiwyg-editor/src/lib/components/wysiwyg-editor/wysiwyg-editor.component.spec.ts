@@ -571,6 +571,34 @@ describe('WysiwygEditorComponent', () => {
       expect(commandService.executeCommand).toHaveBeenCalledWith(command, undefined);
     });
 
+    it('should route font-size commands through editor content so ngModel stays in sync', fakeAsync(() => {
+      const command = { name: 'fontSize', value: '18px' };
+      const editorContent = jasmine.createSpyObj('EditorContentComponent', ['setFontSize']);
+      spyOn(component, 'updateSelectionState' as any);
+      (component as any).editorContent = editorContent;
+
+      component.handleCommand(command);
+      tick();
+
+      expect(editorContent.setFontSize).toHaveBeenCalledWith('18px');
+      expect(commandService.executeCommand).not.toHaveBeenCalled();
+      expect(component['updateSelectionState']).toHaveBeenCalled();
+    }));
+
+    it('should route line-height commands through editor content so ngModel stays in sync', fakeAsync(() => {
+      const command = { name: 'lineHeight', value: '1.5' };
+      const editorContent = jasmine.createSpyObj('EditorContentComponent', ['setLineHeight']);
+      spyOn(component, 'updateSelectionState' as any);
+      (component as any).editorContent = editorContent;
+
+      component.handleCommand(command);
+      tick();
+
+      expect(editorContent.setLineHeight).toHaveBeenCalledWith('1.5');
+      expect(commandService.executeCommand).not.toHaveBeenCalled();
+      expect(component['updateSelectionState']).toHaveBeenCalled();
+    }));
+
     it('should restore the last editor selection before executing toolbar commands', () => {
       const command = { name: 'bold' };
       const host = document.createElement('div');
