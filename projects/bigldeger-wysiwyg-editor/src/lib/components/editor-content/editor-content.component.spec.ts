@@ -190,6 +190,57 @@ describe('EditorContentComponent', () => {
       
       expect(pasteEvent.preventDefault).toHaveBeenCalled();
     });
+
+    it('should apply configured external inline styles on every external paste', () => {
+      component.pasteConfig = {
+        externalInlineStyles: 'font-family: Georgia, serif; font-size: 14px; font-style: normal; font-weight: 400;'
+      };
+
+      const firstClipboardData = new DataTransfer();
+      firstClipboardData.setData('text/html', '<p><span style="font-size: 28px;">First paste</span></p>');
+      component.onPaste(new ClipboardEvent('paste', { clipboardData: firstClipboardData }));
+
+      const firstPasteContainer = document.createElement('div');
+      firstPasteContainer.innerHTML = sanitizerService.sanitize.calls.mostRecent().args[0] as string;
+      const firstSpan = firstPasteContainer.querySelector('span') as HTMLElement;
+
+      expect(firstSpan.style.fontFamily).toContain('Georgia');
+      expect(firstSpan.style.fontSize).toBe('14px');
+      expect(firstSpan.style.fontStyle).toBe('normal');
+      expect(firstSpan.style.fontWeight).toBe('400');
+
+      const secondClipboardData = new DataTransfer();
+      secondClipboardData.setData('text/html', '<div><em>Second paste</em></div>');
+      component.onPaste(new ClipboardEvent('paste', { clipboardData: secondClipboardData }));
+
+      const secondPasteContainer = document.createElement('div');
+      secondPasteContainer.innerHTML = sanitizerService.sanitize.calls.mostRecent().args[0] as string;
+      const secondEm = secondPasteContainer.querySelector('em') as HTMLElement;
+
+      expect(secondEm.style.fontFamily).toContain('Georgia');
+      expect(secondEm.style.fontSize).toBe('14px');
+      expect(secondEm.style.fontStyle).toBe('normal');
+      expect(secondEm.style.fontWeight).toBe('400');
+    });
+
+    it('should skip configured external inline styles for recent internal copy and paste', () => {
+      component.pasteConfig = {
+        externalInlineStyles: 'font-family: Georgia, serif; font-size: 14px;'
+      };
+
+      component.onCopy();
+
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/html', '<p><span>Internal paste</span></p>');
+      component.onPaste(new ClipboardEvent('paste', { clipboardData }));
+
+      const pasteContainer = document.createElement('div');
+      pasteContainer.innerHTML = sanitizerService.sanitize.calls.mostRecent().args[0] as string;
+      const span = pasteContainer.querySelector('span') as HTMLElement;
+
+      expect(span.style.fontFamily).toBe('');
+      expect(span.style.fontSize).toBe('');
+    });
   });
 
   describe('Keyboard Handling', () => {
