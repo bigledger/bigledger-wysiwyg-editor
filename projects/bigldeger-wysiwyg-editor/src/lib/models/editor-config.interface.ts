@@ -72,6 +72,16 @@ export interface PasteConfig {
    * editor; this cap softens that. Default: `64`.
    */
   maxHeadingFontSizePx?: number;
+  /**
+   * Inline CSS declarations to force onto content pasted from external
+   * sources after cleanup. Use either a CSS declaration string, e.g.
+   * `font-family: Georgia, serif; font-size: 14px;`, or a property map such as
+   * `{ fontFamily: 'Georgia, serif', fontSize: '14px' }`.
+   *
+   * Applied on every external paste. Internal copy/paste operations from the
+   * same editor instance are left unchanged.
+   */
+  externalInlineStyles?: string | Record<string, string>;
 }
 
 /**

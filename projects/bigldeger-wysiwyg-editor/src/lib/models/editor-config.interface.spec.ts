@@ -5,7 +5,8 @@ import {
   AutoSaveConfig,
   LinkConfig,
   ShortcutConfig,
-  AccessibilityConfig
+  AccessibilityConfig,
+  PasteConfig
 } from './editor-config.interface';
 import { ImageUploadConfig } from './image.interface';
 import { ToolbarConfig } from './toolbar.interface';
@@ -278,6 +279,34 @@ describe('Editor Config Interfaces', () => {
       expect(config.announceFormatting).toBe(true);
       expect(config.highContrast).toBe(false);
       expect(config.customDescriptions?.['bold']).toBe('Bold formatting applied');
+    });
+  });
+
+  describe('PasteConfig', () => {
+    it('should accept external inline styles as a CSS declaration string', () => {
+      const config: PasteConfig = {
+        externalInlineStyles: 'font-family: Georgia, serif; font-size: 14px; font-style: normal; font-weight: 400;'
+      };
+
+      expect(config.externalInlineStyles).toContain('font-family: Georgia, serif');
+    });
+
+    it('should accept external inline styles as a property map', () => {
+      const config: PasteConfig = {
+        externalInlineStyles: {
+          fontFamily: 'Georgia, serif',
+          fontSize: '14px',
+          fontStyle: 'normal',
+          fontWeight: '400'
+        }
+      };
+
+      expect(config.externalInlineStyles).toEqual({
+        fontFamily: 'Georgia, serif',
+        fontSize: '14px',
+        fontStyle: 'normal',
+        fontWeight: '400'
+      });
     });
   });
 

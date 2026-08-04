@@ -31,6 +31,22 @@ import { NestedTableService } from '../../services/nested-table.service';
 import { TableContextMenuService } from '../../services/table-context-menu.service';
 import { PasteConfig } from '../../models/editor-config.interface';
 
+const INTERNAL_CLIPBOARD_GRACE_MS = 5000;
+const NON_STYLABLE_PASTE_TAGS = new Set([
+  'BR',
+  'COL',
+  'COLGROUP',
+  'HR',
+  'IMG',
+  'INPUT',
+  'META',
+  'SCRIPT',
+  'SOURCE',
+  'STYLE',
+  'TRACK',
+  'VIDEO'
+]);
+
 @Component({
   selector: 'wysiwyg-editor-content',
   standalone: true,
@@ -58,6 +74,8 @@ import { PasteConfig } from '../../models/editor-config.interface';
       (input)="onInput($event)"
       (keydown)="onKeydown($event)"
       (keyup)="onKeyup($event)"
+      (copy)="onCopy()"
+      (cut)="onCut()"
       (paste)="onPaste($event)"
       (focus)="onFocus($event)"
       (blur)="onBlur($event)"
@@ -139,6 +157,7 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
   private destroy$ = new Subject<void>();
   private contentChangeSubject = new Subject<string>();
   private selectionChangeSubject = new Subject<void>();
+  private lastInternalClipboardActivityAt = 0;
 
   // ControlValueAccessor implementation
   private onChange = (value: string) => { };
@@ -421,6 +440,14 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
     this.selectionChangeSubject.next();
   }
 
+  onCopy(): void {
+    this.markInternalClipboardActivity();
+  }
+
+  onCut(): void {
+    this.markInternalClipboardActivity();
+  }
+
   onPaste(event: ClipboardEvent): void {
     if (this.readonly) return;
 
@@ -430,6 +457,7 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
     if (!clipboardData) return;
 
     let pastedContent = '';
+    const shouldApplyConfiguredExternalInlineStyles = !this.hasRecentInternalClipboardActivity();
 
     // Try to get HTML content first, then fall back to plain text
     if (clipboardData.types.includes('text/html')) {
@@ -452,9 +480,12 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
 
     // Sanitize the pasted content
     const sanitizedContent = this.sanitizerService.sanitize(pastedContent);
+    const contentToInsert = shouldApplyConfiguredExternalInlineStyles
+      ? this.applyConfiguredExternalInlineStyles(sanitizedContent)
+      : sanitizedContent;
 
     // Insert the sanitized content at the current cursor position
-    this.insertHtmlAtCursor(sanitizedContent);
+    this.insertHtmlAtCursor(contentToInsert);
 
     // Trigger content change
     this.updateContentFromDOM();
@@ -665,7 +696,7 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
 
     const stylePropsToDropSet = new Set<string>([...stylePropsToDrop, ...stylePropsToDropExtra]);
 
-tmp.querySelectorAll('[style]').forEach(el => {
+    tmp.querySelectorAll('[style]').forEach(el => {
       const raw = (el as HTMLElement).getAttribute('style') || '';
       const cleanedStyle = raw
         .split(';')
@@ -766,6 +797,95 @@ tmp.querySelectorAll('[style]').forEach(el => {
     });
 
     return tmp.innerHTML;
+  }
+
+  private markInternalClipboardActivity(): void {
+    this.lastInternalClipboardActivityAt = Date.now();
+  }
+
+  private hasRecentInternalClipboardActivity(): boolean {
+    return Date.now() - this.lastInternalClipboardActivityAt <= INTERNAL_CLIPBOARD_GRACE_MS;
+  }
+
+  private applyConfiguredExternalInlineStyles(html: string): string {
+    if (!html) {
+      return html;
+    }
+
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    this.applyConfiguredExternalInlineStylesToContainer(tmp);
+    return tmp.innerHTML;
+  }
+
+  private applyConfiguredExternalInlineStylesToContainer(container: ParentNode): void {
+    const styleEntries = this.getConfiguredExternalInlineStyleEntries();
+    if (styleEntries.length === 0) {
+      return;
+    }
+
+    this.wrapOrphanedRootTextNodes(container);
+
+    container.querySelectorAll<HTMLElement>('*').forEach(element => {
+      if (NON_STYLABLE_PASTE_TAGS.has(element.tagName)) {
+        return;
+      }
+
+      styleEntries.forEach(([property, value]) => element.style.setProperty(property, value));
+    });
+  }
+
+  private wrapOrphanedRootTextNodes(container: ParentNode): void {
+    Array.from(container.childNodes).forEach(node => {
+      if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) {
+        return;
+      }
+
+      const wrapper = document.createElement('span');
+      wrapper.textContent = node.textContent;
+      node.parentNode?.replaceChild(wrapper, node);
+    });
+  }
+
+  private getConfiguredExternalInlineStyleEntries(): Array<[string, string]> {
+    const configuredStyles = this.pasteConfig?.externalInlineStyles;
+    if (!configuredStyles) {
+      return [];
+    }
+
+    if (typeof configuredStyles === 'string') {
+      return configuredStyles
+        .split(';')
+        .map(rule => rule.trim())
+        .filter(Boolean)
+        .map(rule => {
+          const separatorIndex = rule.indexOf(':');
+          if (separatorIndex === -1) {
+            return ['', ''] as [string, string];
+          }
+
+          return [
+            this.normalizeCssPropertyName(rule.slice(0, separatorIndex)),
+            rule.slice(separatorIndex + 1).trim()
+          ] as [string, string];
+        })
+        .filter(([property, value]) => !!property && !!value);
+    }
+
+    return Object.entries(configuredStyles)
+      .map(([property, value]) => [this.normalizeCssPropertyName(property), value?.trim() ?? ''] as [string, string])
+      .filter(([property, value]) => !!property && !!value);
+  }
+
+  private normalizeCssPropertyName(property: string): string {
+    const trimmedProperty = property.trim();
+    if (!trimmedProperty) {
+      return '';
+    }
+
+    return trimmedProperty
+      .replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+      .toLowerCase();
   }
 
   /** Returns true when the current cursor/selection is inside a TD or TH. */
