@@ -52,6 +52,14 @@ describe('HTMLSanitizerService', () => {
       expect(result).toContain('<strong>Bold text</strong>');
     });
 
+    it('should preserve style attributes on inline formatting tags and links', () => {
+      const html = '<p><em style="font-style: normal; font-family: Georgia, serif;">Italic text</em> <a href="https://example.com" style="font-weight: 400; font-size: 14px;">Link</a></p>';
+      const result = service.sanitize(html);
+
+      expect(result).toContain('<em style="font-style: normal; font-family: Georgia, serif;">Italic text</em>');
+      expect(result).toContain('<a href="https://example.com" style="font-weight: 400; font-size: 14px;">Link</a>');
+    });
+
     it('should sanitize href attributes with dangerous protocols', () => {
       const html = '<a href="javascript:alert(\'xss\')">Link</a>';
       const result = service.sanitize(html);

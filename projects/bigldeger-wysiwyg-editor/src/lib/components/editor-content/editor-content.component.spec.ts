@@ -196,12 +196,20 @@ describe('EditorContentComponent', () => {
         externalInlineStyles: 'font-family: Georgia, serif; font-size: 14px; font-style: normal; font-weight: 400;'
       };
 
+      sanitizerService.sanitize.and.callFake((html: string) => {
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        temp.querySelectorAll('em').forEach(el => el.removeAttribute('style'));
+        return temp.innerHTML;
+      });
+      const insertHtmlAtCursorSpy = spyOn<any>(component, 'insertHtmlAtCursor');
+
       const firstClipboardData = new DataTransfer();
       firstClipboardData.setData('text/html', '<p><span style="font-size: 28px;">First paste</span></p>');
       component.onPaste(new ClipboardEvent('paste', { clipboardData: firstClipboardData }));
 
       const firstPasteContainer = document.createElement('div');
-      firstPasteContainer.innerHTML = sanitizerService.sanitize.calls.mostRecent().args[0] as string;
+      firstPasteContainer.innerHTML = insertHtmlAtCursorSpy.calls.argsFor(0)[0] as string;
       const firstSpan = firstPasteContainer.querySelector('span') as HTMLElement;
 
       expect(firstSpan.style.fontFamily).toContain('Georgia');
@@ -214,7 +222,7 @@ describe('EditorContentComponent', () => {
       component.onPaste(new ClipboardEvent('paste', { clipboardData: secondClipboardData }));
 
       const secondPasteContainer = document.createElement('div');
-      secondPasteContainer.innerHTML = sanitizerService.sanitize.calls.mostRecent().args[0] as string;
+      secondPasteContainer.innerHTML = insertHtmlAtCursorSpy.calls.argsFor(1)[0] as string;
       const secondEm = secondPasteContainer.querySelector('em') as HTMLElement;
 
       expect(secondEm.style.fontFamily).toContain('Georgia');
@@ -223,11 +231,34 @@ describe('EditorContentComponent', () => {
       expect(secondEm.style.fontWeight).toBe('400');
     });
 
+    it('should wrap root text nodes so configured external inline styles still apply', () => {
+      component.pasteConfig = {
+        externalInlineStyles: 'font-family: Georgia, serif; font-size: 14px;'
+      };
+
+      sanitizerService.sanitize.and.callFake((html: string) => html);
+      const insertHtmlAtCursorSpy = spyOn<any>(component, 'insertHtmlAtCursor');
+
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/html', 'External root text');
+      component.onPaste(new ClipboardEvent('paste', { clipboardData }));
+
+      const pastedContainer = document.createElement('div');
+      pastedContainer.innerHTML = insertHtmlAtCursorSpy.calls.mostRecent().args[0] as string;
+      const span = pastedContainer.querySelector('span') as HTMLElement;
+
+      expect(span.textContent).toBe('External root text');
+      expect(span.style.fontFamily).toContain('Georgia');
+      expect(span.style.fontSize).toBe('14px');
+    });
+
     it('should skip configured external inline styles for recent internal copy and paste', () => {
       component.pasteConfig = {
         externalInlineStyles: 'font-family: Georgia, serif; font-size: 14px;'
       };
 
+      sanitizerService.sanitize.and.callFake((html: string) => html);
+      const insertHtmlAtCursorSpy = spyOn<any>(component, 'insertHtmlAtCursor');
       component.onCopy();
 
       const clipboardData = new DataTransfer();
@@ -235,7 +266,7 @@ describe('EditorContentComponent', () => {
       component.onPaste(new ClipboardEvent('paste', { clipboardData }));
 
       const pasteContainer = document.createElement('div');
-      pasteContainer.innerHTML = sanitizerService.sanitize.calls.mostRecent().args[0] as string;
+      pasteContainer.innerHTML = insertHtmlAtCursorSpy.calls.mostRecent().args[0] as string;
       const span = pasteContainer.querySelector('span') as HTMLElement;
 
       expect(span.style.fontFamily).toBe('');

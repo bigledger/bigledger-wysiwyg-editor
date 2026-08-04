@@ -30,8 +30,16 @@ export class HTMLSanitizerService {
    * Default allowed attributes for HTML tags
    */
   private readonly DEFAULT_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
-    'a': ['href', 'title', 'target', 'rel'],
+    'a': ['href', 'title', 'target', 'rel', 'style'],
     'img': ['src', 'alt', 'title', 'width', 'height', 'class'],
+    'strong': ['style'],
+    'b': ['style'],
+    'em': ['style'],
+    'i': ['style'],
+    'u': ['style'],
+    's': ['style'],
+    'strike': ['style'],
+    'del': ['style'],
     'span': ['style', 'class'],
     'div': ['style', 'class', 'contenteditable'],
     'p': ['style', 'class'],
@@ -42,6 +50,8 @@ export class HTMLSanitizerService {
     'h5': ['style', 'class'],
     'h6': ['style', 'class'],
     'blockquote': ['style', 'class'],
+    'pre': ['style', 'class'],
+    'code': ['style', 'class'],
     'td': ['colspan', 'rowspan', 'style'],
     'th': ['colspan', 'rowspan', 'style'],
     'table': ['style', 'class', 'border', 'cellpadding', 'cellspacing'],

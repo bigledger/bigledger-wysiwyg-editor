@@ -465,10 +465,7 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
       // Normalize external-source HTML (Word, Google Docs, web pages) so that
       // the pasted content uses clean, semantic markup rather than vendor-specific
       // inline styles and proprietary elements.
-      pastedContent = this.normalizeExternalPasteContent(
-        pastedContent,
-        shouldApplyConfiguredExternalInlineStyles
-      );
+      pastedContent = this.normalizeExternalPasteContent(pastedContent);
       // When pasting inside a table cell, strip table structure so we never
       // create a nested <td> inside an existing <td>.
       if (this.isCursorInsideTableCell()) {
@@ -479,16 +476,16 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
       // the editor's default font-family (Georgia) and behaves like typed text.
       const plainText = clipboardData.getData('text/plain');
       pastedContent = this.wrapPlainTextAsParagraphs(plainText);
-      if (shouldApplyConfiguredExternalInlineStyles) {
-        pastedContent = this.applyConfiguredExternalInlineStyles(pastedContent);
-      }
     }
 
     // Sanitize the pasted content
     const sanitizedContent = this.sanitizerService.sanitize(pastedContent);
+    const contentToInsert = shouldApplyConfiguredExternalInlineStyles
+      ? this.applyConfiguredExternalInlineStyles(sanitizedContent)
+      : sanitizedContent;
 
     // Insert the sanitized content at the current cursor position
-    this.insertHtmlAtCursor(sanitizedContent);
+    this.insertHtmlAtCursor(contentToInsert);
 
     // Trigger content change
     this.updateContentFromDOM();
@@ -541,13 +538,8 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
    *  9. Cap insanely-large pasted heading font-sizes via
    *     `pasteConfig.maxHeadingFontSizePx` so external `font-size: 96px`
    *     headings don't visually overwhelm the editor.
-   * 10. Apply optional `pasteConfig.externalInlineStyles` to every element in
-   *     the pasted subtree, but only for external pastes.
    */
-  private normalizeExternalPasteContent(
-    html: string,
-    shouldApplyConfiguredExternalInlineStyles = true
-  ): string {
+  private normalizeExternalPasteContent(html: string): string {
     if (!html) return html;
 
     // 1. Strip Word XML / Office conditional comments
@@ -804,10 +796,6 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
       });
     });
 
-    if (shouldApplyConfiguredExternalInlineStyles) {
-      this.applyConfiguredExternalInlineStylesToContainer(tmp);
-    }
-
     return tmp.innerHTML;
   }
 
@@ -836,12 +824,26 @@ export class EditorContentComponent implements OnInit, AfterViewInit, OnDestroy,
       return;
     }
 
+    this.wrapOrphanedRootTextNodes(container);
+
     container.querySelectorAll<HTMLElement>('*').forEach(element => {
       if (NON_STYLABLE_PASTE_TAGS.has(element.tagName)) {
         return;
       }
 
       styleEntries.forEach(([property, value]) => element.style.setProperty(property, value));
+    });
+  }
+
+  private wrapOrphanedRootTextNodes(container: ParentNode): void {
+    Array.from(container.childNodes).forEach(node => {
+      if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) {
+        return;
+      }
+
+      const wrapper = document.createElement('span');
+      wrapper.textContent = node.textContent;
+      node.parentNode?.replaceChild(wrapper, node);
     });
   }
 
